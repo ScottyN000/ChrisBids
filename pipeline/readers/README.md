@@ -65,7 +65,9 @@ In GitHub Actions the same check is the manual `live` workflow
 repository secrets `ANTHROPIC_API_KEY` and `PACKET_URL` (an https link to a
 .zip or .tar.gz of the packet, laid out as the register paths expect). Every
 file a unit reads is checked against its register hash first. Each job uploads
-its comparison, ledger, recordings and the view images it sent.
+its comparison, ledger, recordings and the view images it sent. Those images
+(`units/`) are crops of the customer's drawings: if this repository ever goes
+public, drop `units/` from the uploaded artifacts first.
 
 The gate is the same function as replay: `golden.replay(job, ledger, client=LiveClient(...), units=...)`
 must reproduce the fixture's dimensioned and counted rows. `tests/test_live.py`

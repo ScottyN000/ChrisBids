@@ -14,10 +14,18 @@ is shown, rather than letting the API downscale it to something we never saw.
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+
+
+def tool_env() -> dict[str, str]:
+    """The environment for poppler subprocesses, without any API key: a PDF
+    tool parsing untrusted input has no reason to see one."""
+    return {k: v for k, v in os.environ.items() if not k.upper().endswith("API_KEY")}
+
 
 # Long edge in pixels. Images larger than this are downscaled by the API, so we
 # render at the size the model actually reads instead.
@@ -47,7 +55,7 @@ def page_size_in(pdf: Path, page: int = 1) -> tuple[float, float]:
     """Displayed width and height of a page in inches, rotation applied."""
     out = subprocess.run(
         ["pdfinfo", "-f", str(page), "-l", str(page), str(pdf)],
-        capture_output=True, text=True, check=True,
+        capture_output=True, text=True, check=True, env=tool_env(),
     ).stdout
     m = re.search(rf"Page\s+{page} size:\s+([\d.]+) x ([\d.]+) pts", out) or \
         re.search(r"Page size:\s+([\d.]+) x ([\d.]+) pts", out)
@@ -78,7 +86,7 @@ def render_box(pdf: Path, out: Path, box: Box, *, page: int = 1,
     subprocess.run(
         ["pdftoppm", "-png", "-singlefile", "-r", str(dpi), "-f", str(page), "-l", str(page),
          "-x", str(x), "-y", str(y), "-W", str(W), "-H", str(H), str(pdf), str(out.with_suffix(""))],
-        check=True, capture_output=True,
+        check=True, capture_output=True, env=tool_env(),
     )
     return out.with_suffix(".png")
 

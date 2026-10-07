@@ -100,7 +100,7 @@ def _prepare(reader: str, e: dict, src: Path, work: Path) -> Path:
         out = work / "units" / f"{_safe(e['unit_id'])}.txt"
         out.parent.mkdir(parents=True, exist_ok=True)
         text = subprocess.run(["pdftotext", "-layout", "-f", str(page), "-l", str(page), str(src), "-"],
-                              capture_output=True, text=True, check=True).stdout
+                              capture_output=True, text=True, check=True, env=tiles.tool_env()).stdout
         if not text.strip():
             raise LiveRunError(f"{e['unit_id']}: page {page} of {src.name} has no text layer")
         out.write_text(text)

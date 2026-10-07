@@ -118,6 +118,11 @@ class TileCase(unittest.TestCase):
         self.assertEqual(dpi, int(1568 / 18))
         self.assertEqual(tiles.fit_dpi((1, 1), tiles.Box(0, 0, 1, 1)), tiles.MAX_DPI)
 
+    def test_pdf_tools_never_see_an_api_key(self):
+        env = {"ANTHROPIC_API_KEY": "a", "MERSCO_ANTHROPIC_API_KEY": "m", "chrisbids_api_key": "c", "PATH": "/bin"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            self.assertEqual(tiles.tool_env(), {"PATH": "/bin"})
+
     def test_a_box_outside_the_page_is_refused(self):
         with self.assertRaises(ValueError):
             tiles.Box(0.5, 0, 0.4, 1)

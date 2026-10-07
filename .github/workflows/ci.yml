@@ -28,5 +28,7 @@ jobs:
         run: |
           python -m pipeline replay fixtures/nantucket --out "$RUNNER_TEMP/replay-nan"
           python -m pipeline replay fixtures/ocean-beach --out "$RUNNER_TEMP/replay-obv"
+      - name: The pipeline DAG matches the code
+        run: python tools/render_dag.py --check
       - name: Tests
         run: python -m unittest discover -s tests -t . -v

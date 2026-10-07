@@ -8,7 +8,7 @@
     python3 -m pipeline verify-fixtures
     python3 -m pipeline replay  fixtures/nantucket --out runs/nan-replay [--repeats 3]
     python3 -m pipeline live    fixtures/nantucket --out runs/nan-live [--packet /mnt/project-files]
-                                [--model claude-haiku-5-5] [--effort low]   (needs ANTHROPIC_API_KEY)
+                                [--model claude-haiku-5-5] [--effort low]   (key: env or network secret)
 """
 from __future__ import annotations
 
@@ -130,6 +130,7 @@ def cmd_live(a) -> int:
     try:
         client = live.LiveClient(model=a.model, effort=a.effort or None, record=out / "recordings")
         units = live.units_for(Path(a.fixture), Path(a.packet), out)
+        client.check()
     except live.LiveRunError as e:
         print(f"NOT RUN: {e}", file=sys.stderr)
         return 3

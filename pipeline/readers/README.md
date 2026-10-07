@@ -49,9 +49,12 @@ python3 -m pipeline live fixtures/ocean-beach --out runs/obv-live
 | [`tiles.py`](tiles.py) | Crops one view (or one tile of a fixed grid) from a drawing page with pdftoppm, at the DPI where its long edge fits 1568 px, the size the model is shown |
 | `fixtures/<job>/units.yaml` | What a live run reads: the three S-1 views by box, SW p.17 as its text layer, the five photos as uploaded |
 
-A live run needs `ANTHROPIC_API_KEY` in the environment and the packet at
-`--packet` (default `/mnt/project-files`). Without the key it stops before any
-call with `NOT RUN`.
+A live run needs the packet at `--packet` (default `/mnt/project-files`) and an
+API key. The project keeps the key as a network secret for `api.anthropic.com`:
+the egress proxy adds it to each request, so the pipeline never holds it
+(architecture p.12) and sends a placeholder. `ANTHROPIC_API_KEY` in the
+environment is used instead when set. One 1-token call checks the key first; if
+it is refused, the run stops with `NOT RUN` before reading any unit.
 
 Structured output does not take every constraint our schemas state (string
 lengths, patterns, numeric bounds). The API is sent the subset it accepts,

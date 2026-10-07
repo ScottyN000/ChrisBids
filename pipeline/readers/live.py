@@ -36,11 +36,21 @@ from .clients import prompt_version
 from .rows import Unit
 
 MODEL = "claude-haiku-5-5"
+# Sent when ANTHROPIC_API_KEY is not in the environment. The project stores the
+# key as a network secret, and the egress proxy puts the real one on the
+# request, so this process never holds it (architecture p.12).
+PROXY_KEY_PLACEHOLDER = "injected-by-egress-proxy"
 MEDIA = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
 
 
 class LiveRunError(RuntimeError):
     pass
+
+
+def _refused(e: Exception) -> LiveRunError:
+    return LiveRunError(
+        f"the API refused the key ({e.__class__.__name__}). Either set ANTHROPIC_API_KEY, or store the key "
+        "as a network secret for api.anthropic.com and start a new session so the proxy adds it")
 
 
 # ---- units -------------------------------------------------------------------
@@ -176,10 +186,8 @@ class LiveClient:
     def __init__(self, *, model: str = MODEL, effort: str | None = "low", record: Path | None = None,
                  api: object | None = None, max_tokens: int = 16000):
         if api is None:
-            if not os.environ.get("ANTHROPIC_API_KEY"):
-                raise LiveRunError("ANTHROPIC_API_KEY is not set; a live run needs it in the environment")
             import anthropic
-            api = anthropic.Anthropic()
+            api = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY") or PROXY_KEY_PLACEHOLDER)
         self.api = api
         self.model_id = model
         self.effort = effort
@@ -207,10 +215,25 @@ class LiveClient:
             "output_config": output_config,
         }
 
+    def check(self) -> None:
+        """One tiny call, so a missing key stops the run before any unit is read."""
+        try:
+            self.api.messages.create(model=self.model_id, max_tokens=1,
+                                     messages=[{"role": "user", "content": "ok"}])
+        except Exception as e:
+            if type(e).__name__ in ("AuthenticationError", "PermissionDeniedError"):
+                raise _refused(e) from e
+            raise
+
     def complete(self, reader: str, unit: Unit, system: str, schema: dict, run: int) -> dict | str:
         body = self.request(reader, unit, system, schema)
         started = time.monotonic()
-        msg = self.api.messages.create(**body)
+        try:
+            msg = self.api.messages.create(**body)
+        except Exception as e:
+            if type(e).__name__ in ("AuthenticationError", "PermissionDeniedError"):
+                raise _refused(e) from e
+            raise
         text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
         try:
             response = json.loads(text) if msg.stop_reason == "end_turn" else text

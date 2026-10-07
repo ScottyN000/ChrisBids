@@ -49,6 +49,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The CLI rather than gitleaks-action: the action needs pull-request
+      # read access and a licence key for some accounts; the CLI needs neither.
+      # Pinned by version and checksum.
+      - name: Install gitleaks 8.21.2
+        run: |
+          curl -sSfL -o gitleaks.tgz https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
+          echo "5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba  gitleaks.tgz" | sha256sum -c -
+          tar xzf gitleaks.tgz gitleaks
+      - run: ./gitleaks git --no-banner --redact --verbose .

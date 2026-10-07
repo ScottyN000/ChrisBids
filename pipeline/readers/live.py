@@ -23,7 +23,6 @@ import base64
 import copy
 import hashlib
 import json
-import os
 import subprocess
 import time
 from dataclasses import asdict
@@ -146,8 +145,13 @@ def content_for(reader: str, unit: Unit) -> list[dict]:
         return [{"type": "image", "source": {"type": "base64", "media_type": MEDIA[path.suffix.lower()], "data": data}},
                 {"type": "text", "text": f"{head}. Return the JSON for this {reader} unit."}]
     text = path.read_text()
-    return [{"type": "text", "text": f"<unit source=\"{where}\">\n{text}\n</unit>\n"
-                                     f"Return the JSON for this {reader} unit."}]
+    # The delimiter is named after a hash of the text it wraps, so no text can
+    # contain its own closing tag. Escaping would change what the reader copies
+    # verbatim, and a random name would make the runs of one unit differ.
+    tag = "unit-" + hashlib.sha256(text.encode()).hexdigest()[:16]
+    source = where.replace("<", "").replace(">", "").replace('"', "'")
+    return [{"type": "text", "text": f"<{tag} source=\"{source}\">\n{text}\n</{tag}>\n"
+                                     f"The page is between the {tag} tags. Return the JSON for this {reader} unit."}]
 
 
 class Recorder:
@@ -180,12 +184,7 @@ class LiveClient:
 
     def __init__(self, *, model: str = MODEL, effort: str | None = "low", record: Path | None = None,
                  api: object | None = None, max_tokens: int = 16000):
-        if api is None:
-            if not os.environ.get("ANTHROPIC_API_KEY"):
-                raise LiveRunError("ANTHROPIC_API_KEY is not set; add it to the cloud environment and start a new session")
-            import anthropic
-            api = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-        self.api = api
+        self.api = api   # None until bind() gets the key from the broker
         self.model_id = model
         self.effort = effort
         self.max_tokens = max_tokens
@@ -211,6 +210,18 @@ class LiveClient:
             "messages": [{"role": "user", "content": content_for(reader, unit)}],
             "output_config": output_config,
         }
+
+    def bind(self, broker) -> None:
+        """Take the API key from the broker, which alone reads secrets
+        (architecture p.12), and check it before any unit is read."""
+        if self.api is not None:
+            return
+        key = broker.secret("ANTHROPIC_API_KEY")
+        if not key:
+            raise LiveRunError("ANTHROPIC_API_KEY is not set; add it to the cloud environment and start a new session")
+        import anthropic
+        self.api = anthropic.Anthropic(api_key=key)
+        self.check()
 
     def check(self) -> None:
         """One tiny call, so a missing key stops the run before any unit is read."""

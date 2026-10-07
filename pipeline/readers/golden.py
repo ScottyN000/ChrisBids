@@ -31,6 +31,12 @@ def replay(job_dir: Path, ledger_path: Path, client: ModelClient | None = None, 
         ledger_path.unlink()
     broker = Broker.open_job(ledger_path, "intake", job=data["job"], run_id=f"replay-{data['job']}", create=True)
     broker.write_register(register)
+    if hasattr(client, "bind"):
+        try:
+            client.bind(broker)   # a live client takes its key from the broker
+        except Exception:
+            broker.close()
+            raise
 
     client = client or ReplayClient(job_dir / "recordings", model_id="replay (recorded expected output)")
     results = {}

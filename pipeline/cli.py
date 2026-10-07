@@ -130,12 +130,11 @@ def cmd_live(a) -> int:
     try:
         client = live.LiveClient(model=a.model, effort=a.effort or None, record=out / "recordings")
         units = live.units_for(Path(a.fixture), Path(a.packet), out)
-        client.check()
+        broker, results, comparison = golden.replay(Path(a.fixture), out / "ledger.db", client,
+                                                    repeats=a.repeats, units=units)
     except live.LiveRunError as e:
         print(f"NOT RUN: {e}", file=sys.stderr)
         return 3
-    broker, results, comparison = golden.replay(Path(a.fixture), out / "ledger.db", client,
-                                                repeats=a.repeats, units=units)
     for res in results.values():
         print(res.text())
     print(comparison.text())

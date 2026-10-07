@@ -29,7 +29,7 @@ DEFAULT_MODEL_ID = "none (code only)"
 # Secrets live in the broker's environment, never in a prompt or a tool result
 # (architecture p.12). Phase 1 needs none; the names are fixed here so a later
 # phase does not invent its own.
-SECRET_ENV = ("CHRISBIDS_RATE_BOOK", "CHRISBIDS_API_KEY")
+SECRET_ENV = ("CHRISBIDS_RATE_BOOK", "CHRISBIDS_API_KEY", "ANTHROPIC_API_KEY")
 
 
 def utcnow() -> str:

@@ -50,7 +50,7 @@ python3 -m pipeline live fixtures/ocean-beach --out runs/obv-live
 | `fixtures/<job>/units.yaml` | What a live run reads: the three S-1 views by box, SW p.17 as its text layer, the five photos as uploaded |
 
 A live run needs the packet at `--packet` (default `/mnt/project-files`) and
-`ANTHROPIC_API_KEY` in the environment. Without the key it stops with `NOT RUN`;
+`ANTHROPIC_API_KEY` in the environment, read through `broker.secret` (p.12). Without the key it stops with `NOT RUN`;
 with one, a 1-token call checks the key before any unit is read.
 
 Structured output does not take every constraint our schemas state (string

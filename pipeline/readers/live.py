@@ -35,6 +35,10 @@ from .clients import prompt_version
 from .rows import Unit
 
 MODEL = "claude-haiku-5-5"
+# Where the key is sent. Pinned rather than taken from ANTHROPIC_BASE_URL, which
+# cloud sessions set to their own endpoint; a different URL has to be passed to
+# LiveClient explicitly.
+API_URL = "https://api.anthropic.com"
 MEDIA = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
 
 
@@ -186,11 +190,12 @@ class LiveClient:
     """One stateless Messages API call per unit and run."""
 
     def __init__(self, *, model: str = MODEL, effort: str | None = "low", record: Path | None = None,
-                 api: object | None = None, max_tokens: int = 16000):
+                 api: object | None = None, max_tokens: int = 16000, base_url: str = API_URL):
         self.api = api   # None until bind() gets the key from the broker
         self.model_id = model
         self.effort = effort
         self.max_tokens = max_tokens
+        self.base_url = base_url
         self.recorder = Recorder(record, model_id=model, note=(
             "Live responses, recorded as returned. Replay with ReplayClient to re-check this run offline."
         )) if record else None
@@ -224,7 +229,7 @@ class LiveClient:
             raise LiveRunError("neither ANTHROPIC_API_KEY nor MERSCO_ANTHROPIC_API_KEY is set; "
                                "add the key to the cloud environment and start a new session")
         import anthropic
-        self.api = anthropic.Anthropic(api_key=key)
+        self.api = anthropic.Anthropic(api_key=key, base_url=self.base_url)
         self.check()
 
     def check(self) -> None:

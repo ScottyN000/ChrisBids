@@ -252,6 +252,18 @@ class LiveClientCase(unittest.TestCase):
         broker.close()
         self.assertEqual(client.api.api_key, "sk-test")
 
+    def test_the_key_goes_to_api_anthropic_com_whatever_the_ambient_base_url(self):
+        env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+        env.update(MERSCO_ANTHROPIC_API_KEY="sk-test", ANTHROPIC_BASE_URL="https://elsewhere.example")
+        clients = [live.LiveClient(), live.LiveClient(base_url="https://gateway.example")]
+        with mock.patch.dict(os.environ, env, clear=True):
+            for i, client in enumerate(clients):
+                client.check = lambda: None
+                broker, _, _ = golden.replay(ROOT / "fixtures" / "nantucket", self.tmp / f"url{i}.db", client, units={})
+                broker.close()
+        self.assertEqual(str(clients[0].api.base_url).rstrip("/"), "https://api.anthropic.com")
+        self.assertEqual(str(clients[1].api.base_url).rstrip("/"), "https://gateway.example")
+
 
 @unittest.skipUnless(PACKET.exists() and HAVE_POPPLER, "needs the packet at /mnt/project-files")
 class UnitsCase(unittest.TestCase):

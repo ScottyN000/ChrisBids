@@ -9,6 +9,7 @@ the rest trustworthy.
 | [pipeline/](pipeline/) | **Phase 1**: the append-only claim ledger behind a broker, Intake, and the Auditor. [How it works](pipeline/README.md) |
 | [pipeline/readers/](pipeline/readers/) | **Phase 2**: drawing, spec, photo and correspondence readers: schemas, prompts, the three-run vote and the golden replay. [How it works](pipeline/readers/README.md) |
 | [fixtures/](fixtures/) | The two hand-made test bids as claim ledgers: the answer key every change must reproduce |
+| [docs/pipeline-dag.md](docs/pipeline-dag.md) | The pipeline DAG from the architecture doc, with what is built, replay-only and planned. Generated from [`pipeline/dag.py`](pipeline/dag.py); CI fails if it falls behind the code |
 | [tools/build_fixture.py](tools/build_fixture.py) | Validates a fixture ledger against the method rules and renders its proposal |
 | [tests/](tests/) | The access matrix, the method rules, intake, the auditor and the golden tests |
 
@@ -27,6 +28,19 @@ In Docker, which is how Phase 1 is meant to run locally:
 docker compose run --rm pipeline verify-fixtures --out /runs/verify
 CHRISBIDS_PACKET=/mnt/project-files docker compose run --rm tests
 ```
+
+Mutation testing, which CI runs on every PR that touches `pipeline/` or `tests/`
+([`.github/workflows/mutation.yml`](.github/workflows/mutation.yml)):
+
+```
+pip install pytest mutmut
+python3 -m mutmut run                     # small edits to pipeline/, the tests run against each
+python3 -m mutmut results                 # the mutants no test caught
+python3 -m mutmut export-cicd-stats && python3 tools/mutation_gate.py
+```
+
+The gate fails below the floor in [`tools/mutation_gate.py`](tools/mutation_gate.py). The floor
+only goes up: a PR that adds code adds the tests that kill its mutants.
 
 ## The rule
 

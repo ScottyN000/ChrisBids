@@ -26,6 +26,7 @@ class Unit:
     tag: str              # the short cite printed in the proposal: "S-1 Fnd", "SW p.17"
     path: str = ""        # the page image, tile or file the model is shown
     scale: str = ""       # drawing views: the stated scale, e.g. 3/4"=1'-0"
+    text: str = ""        # text units: the text layer or message body the model is shown
 
 
 class ReaderOutputError(ValueError):
@@ -63,6 +64,36 @@ def semantic_errors(reader: str, response: dict) -> list[str]:
         elif not it["text"]:
             errs.append(f"items[{i}]: a {kind} item needs the text as printed")
     return errs
+
+
+# Fields a reader must copy from the unit word for word. On a text unit each one
+# has to appear in the unit's own text; on a raster (a drawing view, a photo)
+# there is no text to hold it to, and the vote and the Auditor do that job.
+VERBATIM = {
+    "drawing": {"note": ("text",), "load": ("text",), "standard": ("text",)},
+    "spec": {None: ("requirement", "product")},
+    "correspondence": {None: ("instruction",)},
+}
+
+
+def _squash(s: str) -> str:
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def not_in_source(reader: str, unit: Unit, item: dict) -> list[str]:
+    """The verbatim fields of `item` that are not in the unit's text.
+
+    Whitespace is normalised (a clause wraps across lines on the page);
+    nothing else is. An item that fails was not copied from the source, whether
+    the model made it up or a document told it to write it, so it is dropped
+    in code rather than trusted to the prompt.
+    """
+    if not unit.text:
+        return []
+    by_kind = VERBATIM.get(reader, {})
+    fields = by_kind.get(item.get("kind"), by_kind.get(None, ()))
+    page = _squash(unit.text)
+    return [f for f in fields if item.get(f) and _squash(str(item[f])) not in page]
 
 
 def _slug(unit_id: str) -> str:

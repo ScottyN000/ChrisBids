@@ -223,13 +223,13 @@ class LiveClientCase(unittest.TestCase):
         api.messages = api
         with self.assertRaises(live.LiveRunError) as cm:
             live.LiveClient(api=api).check()
-        self.assertIn("network secret", str(cm.exception))
+        self.assertIn("refused ANTHROPIC_API_KEY", str(cm.exception))
 
-    def test_without_a_key_in_the_environment_the_proxy_placeholder_is_sent(self):
+    def test_no_key_means_no_run(self):
         saved = os.environ.pop("ANTHROPIC_API_KEY", None)
         try:
-            client = live.LiveClient()
-            self.assertEqual(client.api.api_key, live.PROXY_KEY_PLACEHOLDER)
+            with self.assertRaises(live.LiveRunError):
+                live.LiveClient()
         finally:
             if saved is not None:
                 os.environ["ANTHROPIC_API_KEY"] = saved
@@ -248,8 +248,8 @@ class UnitsCase(unittest.TestCase):
             self.assertEqual(len(obv["photo"]), 5)
 
 
-@unittest.skipUnless(os.environ.get("CHRISBIDS_LIVE") == "1" and PACKET.exists(),
-                     "live gate: set CHRISBIDS_LIVE=1, with the key in the environment or as a network secret")
+@unittest.skipUnless(os.environ.get("CHRISBIDS_LIVE") == "1" and os.environ.get("ANTHROPIC_API_KEY")
+                     and PACKET.exists(), "live gate: set CHRISBIDS_LIVE=1 with ANTHROPIC_API_KEY and the packet")
 class LiveGateCase(unittest.TestCase):
     def test_dimensioned_and_counted_rows_reproduce_live(self):
         for job in ("nantucket", "ocean-beach"):

@@ -36,10 +36,6 @@ from .clients import prompt_version
 from .rows import Unit
 
 MODEL = "claude-haiku-5-5"
-# Sent when ANTHROPIC_API_KEY is not in the environment. The project stores the
-# key as a network secret, and the egress proxy puts the real one on the
-# request, so this process never holds it (architecture p.12).
-PROXY_KEY_PLACEHOLDER = "injected-by-egress-proxy"
 MEDIA = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
 
 
@@ -49,8 +45,7 @@ class LiveRunError(RuntimeError):
 
 def _refused(e: Exception) -> LiveRunError:
     return LiveRunError(
-        f"the API refused the key ({e.__class__.__name__}). Either set ANTHROPIC_API_KEY, or store the key "
-        "as a network secret for api.anthropic.com and start a new session so the proxy adds it")
+        f"the API refused ANTHROPIC_API_KEY ({e.__class__.__name__}); check the key in the cloud environment")
 
 
 # ---- units -------------------------------------------------------------------
@@ -186,8 +181,10 @@ class LiveClient:
     def __init__(self, *, model: str = MODEL, effort: str | None = "low", record: Path | None = None,
                  api: object | None = None, max_tokens: int = 16000):
         if api is None:
+            if not os.environ.get("ANTHROPIC_API_KEY"):
+                raise LiveRunError("ANTHROPIC_API_KEY is not set; add it to the cloud environment and start a new session")
             import anthropic
-            api = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY") or PROXY_KEY_PLACEHOLDER)
+            api = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
         self.api = api
         self.model_id = model
         self.effort = effort

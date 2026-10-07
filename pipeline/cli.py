@@ -8,7 +8,7 @@
     python3 -m pipeline verify-fixtures
     python3 -m pipeline replay  fixtures/nantucket --out runs/nan-replay [--repeats 3]
     python3 -m pipeline live    fixtures/nantucket --out runs/nan-live [--packet /mnt/project-files]
-                                [--model claude-haiku-5-5] [--effort low]   (key: env or network secret)
+                                [--model claude-haiku-5-5] [--effort low]   (needs ANTHROPIC_API_KEY)
 """
 from __future__ import annotations
 

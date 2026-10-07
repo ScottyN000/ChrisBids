@@ -14,6 +14,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -236,13 +237,20 @@ class LiveClientCase(unittest.TestCase):
         self.assertIn("refused ANTHROPIC_API_KEY", str(cm.exception))
 
     def test_no_key_means_no_run(self):
-        saved = os.environ.pop("ANTHROPIC_API_KEY", None)
-        try:
-            with self.assertRaises(live.LiveRunError):
-                golden.replay(ROOT / "fixtures" / "nantucket", self.tmp / "nokey.db", live.LiveClient(), units={})
-        finally:
-            if saved is not None:
-                os.environ["ANTHROPIC_API_KEY"] = saved
+        env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "MERSCO_ANTHROPIC_API_KEY")}
+        with mock.patch.dict(os.environ, env, clear=True), self.assertRaises(live.LiveRunError) as cm:
+            golden.replay(ROOT / "fixtures" / "nantucket", self.tmp / "nokey.db", live.LiveClient(), units={})
+        self.assertIn("MERSCO_ANTHROPIC_API_KEY", str(cm.exception))
+
+    def test_the_mersco_named_key_reaches_the_client(self):
+        env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+        env["MERSCO_ANTHROPIC_API_KEY"] = "sk-test"
+        client = live.LiveClient()
+        client.check = lambda: None   # no network in tests
+        with mock.patch.dict(os.environ, env, clear=True):
+            broker, _, _ = golden.replay(ROOT / "fixtures" / "nantucket", self.tmp / "mersco.db", client, units={})
+        broker.close()
+        self.assertEqual(client.api.api_key, "sk-test")
 
 
 @unittest.skipUnless(PACKET.exists() and HAVE_POPPLER, "needs the packet at /mnt/project-files")
@@ -260,8 +268,9 @@ class UnitsCase(unittest.TestCase):
             self.assertEqual(len(obv["photo"]), 5)
 
 
-@unittest.skipUnless(os.environ.get("CHRISBIDS_LIVE") == "1" and os.environ.get("ANTHROPIC_API_KEY")
-                     and PACKET.exists(), "live gate: set CHRISBIDS_LIVE=1 with ANTHROPIC_API_KEY and the packet")
+@unittest.skipUnless(os.environ.get("CHRISBIDS_LIVE") == "1"
+                     and (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MERSCO_ANTHROPIC_API_KEY"))
+                     and PACKET.exists(), "live gate: set CHRISBIDS_LIVE=1 with the API key and the packet")
 class LiveGateCase(unittest.TestCase):
     def test_dimensioned_and_counted_rows_reproduce_live(self):
         for job in ("nantucket", "ocean-beach"):

@@ -1,0 +1,207 @@
+"""Claim-ledger schema and the method rules the Auditor enforces.
+
+Field list and enumerated vocabularies are the architecture doc's ledger table
+(p.5-6). The method rules on p.6 are implemented here as pure functions so the
+broker can refuse a bad row at write time and the Auditor can re-check every
+stored row later with the same code.
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, fields
+from typing import Any
+
+# Enumerated vocabularies (architecture p.5-6, p.14 "enumerated vocabularies").
+METHODS = ("dimensioned", "counted", "scaled", "clause", "observed", "fetched", "customer", "FIELD")
+CONFIDENCE = ("exact", "scaled", "inferred", "missing")
+FLAGS = ("", "unverified", "conflict")
+ROLES = ("header", "scope", "quantity", "allowance", "material", "code", "exclusion", "question", "note")
+PARTS = ("", "base", "alternate")
+AUDIT = ("", "pass", "fail", "unverified")
+# CSI divisions Mersco writes proposals by (architecture p.7).
+DIVISIONS = ("", "01", "02", "03", "05", "07", "08", "09", "31", "33", "35")
+
+# Methods that may feed a Mersco allowance or an order quantity (architecture p.6:
+# "scaled ... never becomes an order quantity without a site check").
+ALLOWANCE_OK = ("dimensioned", "counted", "clause", "FIELD")
+
+# The flat ledger field order, as the architecture doc lists it plus the
+# bookkeeping columns the fixtures already carry.
+LEDGER_FIELDS = (
+    "claim_id", "value", "unit", "statement", "source_id", "locator", "method",
+    "derivation", "confidence", "agent", "timestamp", "audit",
+    "division", "role", "part", "flag", "question", "url", "retrieved", "quote",
+    "supersedes",
+)
+
+CALC_REF = re.compile(r"\{([A-Z0-9-]+)\}")
+CALC_SAFE = re.compile(r"[0-9.+\-*/() ]+")
+
+
+class LedgerError(Exception):
+    """A row that the access matrix or the method rules refuse."""
+
+
+@dataclass
+class Claim:
+    """One ledger row: every figure that could appear in a bid.
+
+    `value` is kept as the canonical string the CSV carries; `value_num` is the
+    numeric reading used for arithmetic replay. A row with no figure (a clause,
+    an observation, a FIELD placeholder) has both empty.
+    """
+
+    claim_id: str
+    statement: str
+    source_id: str
+    method: str
+    role: str
+    confidence: str
+    value: str = ""
+    value_num: float | None = None
+    unit: str = ""
+    locator: str = ""
+    tag: str = ""
+    derivation: str = ""
+    calc: str = ""
+    division: str = ""
+    part: str = ""
+    flag: str = ""
+    question: str = ""
+    url: str = ""
+    retrieved: str = ""
+    quote: str = ""
+    supersedes: str = ""
+    reason: str = ""
+    # Stamped by the broker, never by a caller (architecture p.9 "pinned versions").
+    agent: str = ""
+    timestamp: str = ""
+    run_id: str = ""
+    model_id: str = ""
+    prompt_version: str = ""
+    tool_versions: str = ""
+    # Set only by the Auditor (architecture p.11: the only field updated in place).
+    audit: str = ""
+    audit_note: str = ""
+
+    def as_ledger_row(self, *, audit: str | None = None) -> dict[str, str]:
+        """The flat row in LEDGER_FIELDS order, as ledger.csv carries it."""
+        return {
+            "claim_id": self.claim_id,
+            "value": self.value,
+            "unit": self.unit,
+            "statement": self.statement,
+            "source_id": self.source_id,
+            "locator": self.locator,
+            "method": self.method,
+            "derivation": self.derivation or self.calc,
+            "confidence": self.confidence,
+            "agent": self.agent,
+            "timestamp": self.timestamp,
+            "audit": self.audit if audit is None else audit,
+            "division": self.division,
+            "role": self.role,
+            "part": self.part,
+            "flag": self.flag,
+            "question": self.question,
+            "url": self.url,
+            "retrieved": self.retrieved,
+            "quote": self.quote,
+            "supersedes": self.supersedes,
+        }
+
+
+CLAIM_FIELDS = tuple(f.name for f in fields(Claim))
+
+
+def format_value(v: Any) -> tuple[str, float | None]:
+    """Canonical string form of a figure, plus its numeric reading if it has one.
+
+    Integral floats print without a decimal point so a ledger written from YAML
+    and one written from a reader's JSON produce the same CSV.
+    """
+    if v is None or v == "":
+        return "", None
+    if isinstance(v, bool):
+        raise LedgerError(f"value {v!r} is not a figure")
+    if isinstance(v, int):
+        return str(v), float(v)
+    if isinstance(v, float):
+        return (str(int(v)) if v.is_integer() else repr(v)), v
+    text = str(v)
+    try:
+        return text, float(text.replace(",", ""))
+    except ValueError:
+        return text, None
+
+
+def sources_of(source_id: str) -> list[str]:
+    """Register IDs a row cites. `A + B` is one row resting on two sources."""
+    return [s.strip() for s in str(source_id).split("+") if s.strip() and s.strip() != "none"]
+
+
+def check_vocabulary(c: Claim) -> list[str]:
+    errors = []
+    if not c.claim_id:
+        errors.append("claim_id is blank")
+    for name in ("statement", "source_id", "method", "role", "confidence"):
+        if not getattr(c, name):
+            errors.append(f"{c.claim_id or '?'}: missing {name}")
+    for name, allowed in (
+        ("method", METHODS), ("confidence", CONFIDENCE), ("flag", FLAGS),
+        ("role", ROLES), ("part", PARTS), ("division", DIVISIONS), ("audit", AUDIT),
+    ):
+        got = getattr(c, name)
+        if got not in allowed:
+            errors.append(f"{c.claim_id}: {name} {got!r} not in {list(allowed)}")
+    return errors
+
+
+def check_method_rules(c: Claim) -> list[str]:
+    """The method rules the auditor enforces (architecture p.6)."""
+    errors = []
+    m, has_value = c.method, bool(c.value)
+    if m == "observed" and has_value:
+        errors.append(f"{c.claim_id}: observed rows may name a condition and a location, never a number")
+    if m == "FIELD" and has_value:
+        errors.append(f"{c.claim_id}: FIELD rows have a blank value and say what to measure")
+    if m == "scaled" and c.confidence != "scaled":
+        errors.append(f"{c.claim_id}: scaled rows carry confidence scaled")
+    if m == "fetched":
+        if not c.url or not c.retrieved:
+            errors.append(f"{c.claim_id}: fetched rows store the URL and the retrieval date")
+        if not c.quote and c.flag != "unverified":
+            errors.append(f"{c.claim_id}: fetched row without a quote must be flagged unverified")
+    if m == "customer" and not c.quote:
+        errors.append(f"{c.claim_id}: customer rows carry the instruction verbatim in quote")
+    if c.role in ("allowance", "material") and m not in ALLOWANCE_OK:
+        errors.append(f"{c.claim_id}: a {m} value may not feed an allowance or an order quantity")
+    if c.method == "FIELD" and c.confidence != "missing":
+        errors.append(f"{c.claim_id}: FIELD rows carry confidence missing")
+    return errors
+
+
+def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
+    """Code recomputes every derived figure (architecture p.9).
+
+    A `calc` expression references other claims by `{ID}`; after substitution it
+    must be plain arithmetic and must equal the row's own value.
+    """
+    if not c.calc:
+        return []
+    errors, expr = [], c.calc
+    for ref in CALC_REF.findall(c.calc):
+        src = by_id.get(ref)
+        if src is None:
+            return [f"{c.claim_id}: calc references unknown claim {ref}"]
+        if src.value_num is None:
+            return [f"{c.claim_id}: calc input {ref} has no numeric value"]
+        if c.role in ("allowance", "material") and src.method not in ALLOWANCE_OK:
+            errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; it cannot feed an order quantity")
+        expr = expr.replace("{" + ref + "}", repr(src.value_num))
+    if not CALC_SAFE.fullmatch(expr):
+        return errors + [f"{c.claim_id}: calc {c.calc!r} is not plain arithmetic"]
+    got = eval(expr, {"__builtins__": {}})  # arithmetic only, checked by CALC_SAFE
+    if c.value_num is None or abs(got - c.value_num) > 1e-9:
+        errors.append(f"{c.claim_id}: calc {c.calc} = {got}, ledger says {c.value or '(blank)'}")
+    return errors

@@ -303,7 +303,7 @@ rows:
      statement: 'Walkway deck coating: walkways are in scope (p.7) but no deck system is named (p.15-18). Ask Shawn Gooden for the product, coats and warranty. Mersco''s standard exclusion of "traffic-bearing systems" (PFE p.16) is left out of this bid because it would exclude a base item'}
   - {id: OBV-OQ-03, role: question, method: clause, confidence: exact, source: SW, locator: p.7 A.3; p.13 M.6, tag: SW p.7 A.3 + p.13 M.6,
      statement: 'p.7 A.3 puts walkways in the painting scope, while p.13 M.6 lists walkways among substrates "designated not to receive paint coatings". Confirm with Sherwin-Williams'}
-  - {id: OBV-OQ-04, role: question, method: clause, confidence: exact, source: SW + WEB, locator: p.10, p.15, p.16, tag: OBV-C-025 + C-032 + C-034,
+  - {id: OBV-OQ-04, role: question, method: clause, confidence: exact, source: SW + WEB, locator: 'p.10, p.15, p.16', tag: OBV-C-025 + C-032 + C-034,
      statement: 'Product names that did not match SW''s current catalog: "C1100A" caulk (not found), "Conseal" patch (not found), "A24 series" Loxon Conditioner (current sheets are LX03/LX02), "Trowel Grade" Elastomeric Patch (SW lists Brush and Knife grades). Ask Shawn Gooden for the intended products and their data sheets'}
   - {id: OBV-OQ-05, role: question, method: clause, confidence: exact, source: SW, locator: p.15, tag: SW p.15,
      statement: 'Surface cleaner printed as "A-1 Beach". Confirm the intended product (possibly bleach); not corrected here'}

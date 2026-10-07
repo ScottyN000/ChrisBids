@@ -42,4 +42,20 @@ The build fails on any of these, which are the method rules from the architectur
 
 - Chris's Oct 6 email and 67 of the 72 Ocean Beach photos are not uploaded. Every row that depends on them is FIELD or `unverified`.
 - Web pages were read through a fetch tool that returns an extract, not raw HTML. Quotes may differ from the live page in punctuation; the Auditor should re-fetch and character-check them.
-- The five photo files in the project's `source/ocean-beach-villas_photos/` differ byte-for-byte from the uploaded originals (pixels identical, metadata differs). The register uses the uploaded originals' hashes.
+- The five photo files in the project's `source/ocean-beach-villas_photos/` differ byte-for-byte from the uploaded originals (pixels identical, metadata differs). The register now records the hash of the file in `source/`, which is the one a reader opens, and keeps the uploaded original's hash in the notes. Phase 1 re-hashes every registered file and fails the run on a change, so the register has to name the same bytes it points at.
+
+## Loading a fixture into a real ledger
+
+`tools/build_fixture.py` validates the hand-authored YAML. Phase 1 goes further
+and loads it into an actual ledger file, routing every row to the principal the
+access matrix says would have written it:
+
+```
+python3 -m pipeline verify-fixtures     # both jobs, export must match ledger.csv byte for byte
+python3 -m pipeline load fixtures/nantucket --out runs/nan
+python3 -m pipeline audit runs/nan/ledger.db --packet /mnt/project-files \
+    --proposal fixtures/nantucket/proposal.md
+```
+
+A row the matrix would refuse cannot be loaded at all, so the fixtures test the
+permissioning as well as the figures.

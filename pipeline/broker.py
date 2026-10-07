@@ -93,6 +93,11 @@ class Broker:
             (self.clock(), self.principal.name, action, subject, detail),
         )
 
+    def log_call(self, subject: str, detail: str) -> None:
+        """Record one model call: input hash, model ID, prompt version, output hash."""
+        self._log("model-call", subject, f"{self.model_id}; {self.prompt_version}; {detail}")
+        self.ledger.db.commit()
+
     def _deny(self, what: str) -> None:
         self._log("denied", what, f"principal {self.principal.name}")
         self.ledger.db.commit()

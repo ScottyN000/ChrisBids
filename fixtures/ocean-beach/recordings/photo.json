@@ -1,0 +1,201 @@
+{
+ "reader": "photo",
+ "note": "Expected Photo Reader answers for the five photos in the packet, three runs each. Descriptions are the observed rows in fixtures/ocean-beach/ledger.yaml.",
+ "units": [
+  {
+   "unit_id": "IMG_8316",
+   "source_id": "IMG_8316",
+   "locator": "",
+   "tag": "IMG_8316",
+   "path": "source/ocean-beach-villas_photos/IMG_8316.jpg",
+   "runs": [
+    {
+     "items": [
+      {
+       "location": "wall",
+       "condition": "none",
+       "severity": null,
+       "description": "Aqua stucco wall with conduit and wall-mounted fittings"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "wall",
+       "condition": "none",
+       "severity": null,
+       "description": "Aqua stucco wall showing conduit and wall-mounted fittings"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "wall",
+       "condition": "none",
+       "severity": null,
+       "description": "Aqua stucco wall with conduit and wall-mounted fittings"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "unit_id": "IMG_8324",
+   "source_id": "IMG_8324",
+   "locator": "",
+   "tag": "IMG_8324",
+   "path": "source/ocean-beach-villas_photos/IMG_8324.jpg",
+   "runs": [
+    {
+     "items": [
+      {
+       "location": "elevation",
+       "condition": "none",
+       "severity": null,
+       "description": "Corner elevation with balconies, white railings and windows"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "elevation",
+       "condition": "none",
+       "severity": null,
+       "description": "Corner elevation showing balconies, white railings and windows"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "elevation",
+       "condition": "none",
+       "severity": null,
+       "description": "Corner elevation with balconies, white railings and windows"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "unit_id": "IMG_8332",
+   "source_id": "IMG_8332",
+   "locator": "",
+   "tag": "IMG_8332",
+   "path": "source/ocean-beach-villas_photos/IMG_8332.jpg",
+   "runs": [
+    {
+     "items": [
+      {
+       "location": "elevation",
+       "condition": "none",
+       "severity": null,
+       "description": "Oceanfront elevation: balconies with white picket railings over ground-floor patios"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "elevation",
+       "condition": "none",
+       "severity": null,
+       "description": "Oceanfront elevation: balconies showing white picket railings over ground-floor patios"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "elevation",
+       "condition": "none",
+       "severity": null,
+       "description": "Oceanfront elevation: balconies with white picket railings over ground-floor patios"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "unit_id": "IMG_8343",
+   "source_id": "IMG_8343",
+   "locator": "",
+   "tag": "IMG_8343",
+   "path": "source/ocean-beach-villas_photos/IMG_8343.jpg",
+   "runs": [
+    {
+     "items": [
+      {
+       "location": "walkway",
+       "condition": "peeling",
+       "severity": null,
+       "description": "Open walkway with the deck coating peeling over a wide area; stair at rear"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "walkway",
+       "condition": "peeling",
+       "severity": null,
+       "description": "Open walkway showing the deck coating peeling over a wide area; stair at rear"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "walkway",
+       "condition": "peeling",
+       "severity": null,
+       "description": "Open walkway with the deck coating peeling over a wide area; stair at rear"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "unit_id": "IMG_8356",
+   "source_id": "IMG_8356",
+   "locator": "",
+   "tag": "IMG_8356",
+   "path": "source/ocean-beach-villas_photos/IMG_8356.jpg",
+   "runs": [
+    {
+     "items": [
+      {
+       "location": "soffit",
+       "condition": "none",
+       "severity": null,
+       "description": "Top-floor balcony ceiling: ribbed metal soffit with an open access hatch"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "soffit",
+       "condition": "none",
+       "severity": null,
+       "description": "Top-floor balcony ceiling: ribbed metal soffit showing an open access hatch"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "location": "soffit",
+       "condition": "none",
+       "severity": null,
+       "description": "Top-floor balcony ceiling: ribbed metal soffit with an open access hatch"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

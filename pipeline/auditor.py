@@ -371,15 +371,43 @@ def run(
         elif c.method == "fetched":
             _record(report, broker, c, "unverified",
                     f"URL stored with its retrieval date but not re-fetched this run: {c.url}", write)
+        elif c.method == "dimensioned" and (conv := _replay_conversion(c)) is not None:
+            # The feet-and-inch conversion is code and can be replayed; the
+            # dimension string itself still has to be read off the page.
+            if conv:
+                _record(report, broker, c, "fail", conv, write)
+            else:
+                _record(report, broker, c, "unverified",
+                        f"conversion replayed ({c.derivation.split(';')[0]}); the dimension string "
+                        "still needs the yes/no check against the page image", write)
         else:
             _record(report, broker, c, "unverified",
                     "schema and sources check out, but no cited page could be opened here; "
-                    "needs the page image (Phase 2)", write)
+                    "needs the yes/no check against the page image", write)
 
     if proposal:
         extra = Path(phrase_library).read_text() if phrase_library else ""
         report.orphans = audit_proposal(read_document(Path(proposal)), claims, extra)
     return report
+
+
+_CONVERSION = re.compile(r"^(?P<text>.+?) dimension string = (?P<inches>[\d.]+) in\b")
+
+
+def _replay_conversion(c: Claim) -> str | None:
+    """Re-run a reader's feet-and-inch conversion. None if the row has none to
+    replay, "" if it reproduces, otherwise why it does not."""
+    m = _CONVERSION.match(c.derivation or "")
+    if not m:
+        return None
+    from .readers import units
+    try:
+        got = units.figure(units.to_inches(m.group("text")))
+    except units.DimensionError as e:
+        return f"derivation does not parse: {e}"
+    if c.value_num is None or abs(float(got) - c.value_num) > 1e-9:
+        return f"{m.group('text')} is {got} in, ledger says {c.value or '(blank)'}"
+    return ""
 
 
 def _record(report: AuditReport, broker: Broker, c: Claim, verdict: str, note: str, write: bool) -> None:

@@ -6,6 +6,7 @@
     python3 -m pipeline audit   runs/nan-fixture/ledger.db [--packet /mnt/project-files]
                                 [--proposal fixtures/nantucket/proposal.md] [--links]
     python3 -m pipeline verify-fixtures
+    python3 -m pipeline replay  fixtures/nantucket --out runs/nan-replay [--repeats 3]
 """
 from __future__ import annotations
 
@@ -104,6 +105,21 @@ def cmd_verify_fixtures(a) -> int:
     return rc
 
 
+def cmd_replay(a) -> int:
+    """Run the readers on a fixture's recorded responses and compare with its ledger."""
+    from .readers import golden
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    broker, results, comparison = golden.replay(Path(a.fixture), out / "ledger.db", repeats=a.repeats)
+    for res in results.values():
+        print(res.text())
+    print(comparison.text())
+    (out / "ledger.csv").write_text(broker.ledger.ledger_csv())
+    broker.close()
+    failed = any(r.refused or r.unread for r in results.values())
+    return 0 if comparison.exact_ok and not failed else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="pipeline", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -137,6 +153,12 @@ def main(argv=None) -> int:
     p = sub.add_parser("verify-fixtures", help="golden test: both fixtures load and export byte-identically")
     p.add_argument("--out", default="")
     p.set_defaults(func=cmd_verify_fixtures)
+
+    p = sub.add_parser("replay", help="run the readers on recorded responses and compare with the fixture")
+    p.add_argument("fixture")
+    p.add_argument("--out", required=True)
+    p.add_argument("--repeats", type=int, default=3)
+    p.set_defaults(func=cmd_replay)
 
     a = ap.parse_args(argv)
     try:

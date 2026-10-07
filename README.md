@@ -7,6 +7,7 @@ the rest trustworthy.
 | | |
 |---|---|
 | [pipeline/](pipeline/) | **Phase 1**: the append-only claim ledger behind a broker, Intake, and the Auditor. [How it works](pipeline/README.md) |
+| [pipeline/readers/](pipeline/readers/) | **Phase 2**: drawing, spec, photo and correspondence readers: schemas, prompts, the three-run vote and the golden replay. [How it works](pipeline/readers/README.md) |
 | [fixtures/](fixtures/) | The two hand-made test bids as claim ledgers: the answer key every change must reproduce |
 | [tools/build_fixture.py](tools/build_fixture.py) | Validates a fixture ledger against the method rules and renders its proposal |
 | [tests/](tests/) | The access matrix, the method rules, intake, the auditor and the golden tests |
@@ -16,6 +17,7 @@ the rest trustworthy.
 ```
 pip install -r requirements.txt     # pyyaml; poppler-utils for page text and images
 python3 -m pipeline verify-fixtures
+python3 -m pipeline replay fixtures/nantucket --out runs/nan-replay
 python3 -m unittest discover -s tests -t .
 ```
 

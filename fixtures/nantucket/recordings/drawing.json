@@ -1,0 +1,300 @@
+{
+ "reader": "drawing",
+ "note": "Expected Drawing Reader answers for sheet S-1, one view per call, three runs each. Every figure here is a row in fixtures/nantucket/ledger.yaml; nothing is added. Replaying these tests the code around the model, not the model.",
+ "units": [
+  {
+   "unit_id": "S-1#Fnd",
+   "source_id": "S-1",
+   "locator": "Partial Foundation Plan",
+   "tag": "S-1 Fnd",
+   "scale": "1/4\"=1'-0\"",
+   "runs": [
+    {
+     "items": [
+      {
+       "kind": "dimension",
+       "label": "Bracket run between wall faces",
+       "text": "15'-2\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "dimension",
+       "label": "Bracket spacing on center",
+       "text": "2'-8\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "dimension",
+       "label": "First and last bracket from the wall face at each end",
+       "text": "11\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "count",
+       "label": "Bracket symbols, NEW BRACKET SUPPORT (REF. DET. 1/S-1)",
+       "text": null,
+       "count": 6,
+       "unit": "each"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "kind": "dimension",
+       "label": "Bracket run between wall faces",
+       "text": "15'-2\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "dimension",
+       "label": "Bracket spacing on center",
+       "text": "2'-8\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "dimension",
+       "label": "First and last bracket from the wall face at each end",
+       "text": "11\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "count",
+       "label": "Bracket symbols, NEW BRACKET SUPPORT (REF. DET. 1/S-1)",
+       "text": null,
+       "count": 6,
+       "unit": "each"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "kind": "dimension",
+       "label": "Bracket run between wall faces",
+       "text": "15'-2\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "dimension",
+       "label": "Bracket spacing on center",
+       "text": "2'-8\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "dimension",
+       "label": "First and last bracket from the wall face at each end",
+       "text": "11\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "count",
+       "label": "Bracket symbols, NEW BRACKET SUPPORT (REF. DET. 1/S-1)",
+       "text": null,
+       "count": 6,
+       "unit": "each"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "unit_id": "S-1#Frm",
+   "source_id": "S-1",
+   "locator": "Partial First Floor Framing Plan",
+   "tag": "S-1 Frm",
+   "scale": "1/4\"=1'-0\"",
+   "runs": [
+    {
+     "items": [
+      {
+       "kind": "count",
+       "label": "Bracket symbols drawn on the framing plan",
+       "text": null,
+       "count": 6,
+       "unit": "each"
+      },
+      {
+       "kind": "count",
+       "label": "Hatched plank beside the stairwell, EXISTING CONCRETE PLANK TO BE REMEDIATED",
+       "text": null,
+       "count": 1,
+       "unit": "plank"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "kind": "count",
+       "label": "Bracket symbols drawn on the framing plan",
+       "text": null,
+       "count": 6,
+       "unit": "each"
+      },
+      {
+       "kind": "count",
+       "label": "Hatched plank beside the stairwell, EXISTING CONCRETE PLANK TO BE REMEDIATED",
+       "text": null,
+       "count": 1,
+       "unit": "plank"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "kind": "count",
+       "label": "Bracket symbols drawn on the framing plan",
+       "text": null,
+       "count": 6,
+       "unit": "each"
+      },
+      {
+       "kind": "count",
+       "label": "Hatched plank beside the stairwell, EXISTING CONCRETE PLANK TO BE REMEDIATED",
+       "text": null,
+       "count": 1,
+       "unit": "plank"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "unit_id": "S-1#Det1",
+   "source_id": "S-1",
+   "locator": "Support Detail 1/S-1",
+   "tag": "S-1 Det 1",
+   "scale": "3/4\"=1'-0\"",
+   "runs": [
+    {
+     "items": [
+      {
+       "kind": "count",
+       "label": "Adhesive anchors into the CMU wall, callout (TYP.) with no count",
+       "text": null,
+       "count": 3,
+       "unit": "per bracket"
+      },
+      {
+       "kind": "count",
+       "label": "A325 bolts, callout (TYP.) with no count",
+       "text": null,
+       "count": 3,
+       "unit": "per bracket"
+      },
+      {
+       "kind": "scaled",
+       "label": "Vertical angle leg length",
+       "text": "1'-8\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "scaled",
+       "label": "Horizontal angle leg length (wall face to end of deck)",
+       "text": "1'-2\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "scaled",
+       "label": "Diagonal kicker length",
+       "text": "1'-10\"",
+       "count": null,
+       "unit": null
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "kind": "count",
+       "label": "Adhesive anchors into the CMU wall, callout (TYP.) with no count",
+       "text": null,
+       "count": 3,
+       "unit": "per bracket"
+      },
+      {
+       "kind": "count",
+       "label": "A325 bolts, callout (TYP.) with no count",
+       "text": null,
+       "count": 3,
+       "unit": "per bracket"
+      },
+      {
+       "kind": "scaled",
+       "label": "Vertical angle leg length",
+       "text": "1'-10\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "scaled",
+       "label": "Horizontal angle leg length (wall face to end of deck)",
+       "text": "1'-4\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "scaled",
+       "label": "Diagonal kicker length",
+       "text": "2'-0\"",
+       "count": null,
+       "unit": null
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "kind": "count",
+       "label": "Adhesive anchors into the CMU wall, callout (TYP.) with no count",
+       "text": null,
+       "count": 3,
+       "unit": "per bracket"
+      },
+      {
+       "kind": "count",
+       "label": "A325 bolts, callout (TYP.) with no count",
+       "text": null,
+       "count": 3,
+       "unit": "per bracket"
+      },
+      {
+       "kind": "scaled",
+       "label": "Vertical angle leg length",
+       "text": "1'-8\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "scaled",
+       "label": "Horizontal angle leg length (wall face to end of deck)",
+       "text": "1'-2\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "scaled",
+       "label": "Diagonal kicker length",
+       "text": "1'-10\"",
+       "count": null,
+       "unit": null
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

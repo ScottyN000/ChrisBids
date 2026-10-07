@@ -66,9 +66,12 @@ def units_for(job_dir: Path, packet: Path, work: Path) -> dict[str, list[Unit]]:
             if not src.exists():
                 raise LiveRunError(f"{e['unit_id']}: {src} not found under the packet root {packet}")
             path = _prepare(reader, e, src, work)
+            # A text unit carries the exact text the model is shown, so run.read
+            # can hold every verbatim field to it. Rasters carry none.
+            text = path.read_text() if path.suffix.lower() in (".txt", ".eml", ".md") else ""
             out.setdefault(reader, []).append(Unit(
                 unit_id=e["unit_id"], source_id=e["source_id"], locator=e.get("locator", ""),
-                tag=e.get("tag", ""), path=str(path), scale=e.get("scale", ""),
+                tag=e.get("tag", ""), path=str(path), scale=e.get("scale", ""), text=text,
             ))
     return out
 
@@ -144,7 +147,7 @@ def content_for(reader: str, unit: Unit) -> list[dict]:
                 "photo": f"Photo {unit.source_id}"}.get(reader, where)
         return [{"type": "image", "source": {"type": "base64", "media_type": MEDIA[path.suffix.lower()], "data": data}},
                 {"type": "text", "text": f"{head}. Return the JSON for this {reader} unit."}]
-    text = path.read_text()
+    text = unit.text or path.read_text()
     # The delimiter is named after a hash of the text it wraps, so no text can
     # contain its own closing tag. Escaping would change what the reader copies
     # verbatim, and a random name would make the runs of one unit differ.

@@ -120,7 +120,7 @@ class SecretCase(unittest.TestCase):
             self.assertEqual([(r["subject"], r["detail"]) for r in denied],
                              [("read the rate book", "principal drawing_reader")])
             with self.assertRaisesRegex(LedgerError, r"^HOME is not a broker secret; known: \['CHRISBIDS_RATE_BOOK', "
-                                                     r"'CHRISBIDS_API_KEY'\]$"):
+                                                     r"'CHRISBIDS_API_KEY', 'ANTHROPIC_API_KEY'\]$"):
                 b.secret("HOME")
             b.close()
         with mock.patch.dict(os.environ, {}, clear=True):

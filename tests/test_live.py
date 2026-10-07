@@ -255,6 +255,8 @@ class UnitsCase(unittest.TestCase):
                 self.assertLessEqual(max(png_size(Path(u.path))), tiles.MAX_EDGE)
             obv = live.units_for(ROOT / "fixtures" / "ocean-beach", PACKET, Path(tmp))
             self.assertIn("Kem Kromik", Path(obv["spec"][0].path).read_text())
+            self.assertEqual(obv["spec"][0].text, Path(obv["spec"][0].path).read_text())
+            self.assertTrue(all(u.text == "" for u in obv["photo"] + nan["drawing"]))
             self.assertEqual(len(obv["photo"]), 5)
 
 

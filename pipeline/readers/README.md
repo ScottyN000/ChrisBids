@@ -36,16 +36,39 @@ What the replay shows today:
 - Ocean Beach: all 5 photos come back as observed rows with no figure. The second run words each description differently and that does not count as a disagreement. SW p.17 comes back as 4 verbatim clause rows, and the Auditor finds every one of them on the page.
 - Change one recorded count and the comparison fails. That case is in the tests.
 
-## What a live run adds
+## Live runs
 
-The readers are written against `ModelClient.complete(reader, unit, system, schema, run)`.
-A live run needs three things this branch does not have:
+```
+python3 -m pipeline live fixtures/nantucket   --out runs/nan-live
+python3 -m pipeline live fixtures/ocean-beach --out runs/obv-live
+```
 
-1. **An Anthropic API key** in the environment as `ANTHROPIC_API_KEY`, read only by the broker's process (architecture p.12).
-2. **A live client** that sends one unit per call to Haiku with the reader's prompt and its schema as structured output, with prompt caching on the system prompt, and returns the parsed object. Each response is recorded to `recordings/` so the run can be replayed and diffed later.
-3. **Drawing tiles.** Intake already renders page images; the Drawing Reader needs each view cropped or the sheet tiled on a fixed grid, one tile per call.
+| Module | What it does |
+|---|---|
+| [`live.py`](live.py) | `LiveClient`: one unit per Messages API call on `claude-haiku-5-5`, the reader prompt as a cached system prompt, the reader schema as structured output, effort `low` by default. Records every response to `<out>/recordings/` in the format `ReplayClient` reads, and each call's usage (cache reads included) to `calls.jsonl` |
+| [`tiles.py`](tiles.py) | Crops one view (or one tile of a fixed grid) from a drawing page with pdftoppm, at the DPI where its long edge fits 1568 px, the size the model is shown |
+| `fixtures/<job>/units.yaml` | What a live run reads: the three S-1 views by box, SW p.17 as its text layer, the five photos as uploaded |
 
-The gate is then the same function: `golden.replay(job, ledger, client=<live client>)` must reproduce the fixture's dimensioned and counted rows before a prompt or model change ships.
+A live run needs `ANTHROPIC_API_KEY` in the environment and the packet at
+`--packet` (default `/mnt/project-files`). Without the key it stops before any
+call with `NOT RUN`.
+
+Structured output does not take every constraint our schemas state (string
+lengths, patterns, numeric bounds). The API is sent the subset it accepts,
+through the SDK's `transform_schema`, with the rest written into the field
+descriptions; `run.read` still checks each response against the full schema and
+discards any that fail.
+
+The gate is the same function as replay: `golden.replay(job, ledger, client=LiveClient(...), units=...)`
+must reproduce the fixture's dimensioned and counted rows. `tests/test_live.py`
+runs the whole live path with the model replaced by the expected answers; the
+real gate there runs only with `CHRISBIDS_LIVE=1`, since it spends money.
+
+A live read may list figures that are printed on a view but that the fixture
+leaves out (the Partial Foundation Plan also prints 12" and 8" wall
+dimensions). The comparison counts those as extra dimensioned rows and fails.
+Whether the fixture should carry them or the gate should only fail on missing
+rows is not decided here.
 
 ## The ruling still open
 

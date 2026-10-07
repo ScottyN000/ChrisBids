@@ -1,0 +1,235 @@
+"""The live model client, and the units a live run shows it.
+
+`LiveClient` implements `ModelClient.complete` against the Anthropic API:
+one unit per call, the reader's prompt as a cached system prompt, the reader's
+schema as structured output, no conversation. Every response is recorded in
+the `recordings/` format `ReplayClient` reads, so a live run can be replayed
+and diffed later without the network, and every call's usage goes to
+`calls.jsonl` beside it.
+
+Structured output cannot carry every constraint our schemas state (string
+lengths, patterns, numeric bounds). The API is sent the subset it accepts, via
+the SDK's own `transform_schema`; `run.read` still checks each response against
+the full schema and discards any that fail, so a constraint the API could not
+enforce is never silently dropped.
+
+`units_for(job_dir, packet, work)` turns `fixtures/<job>/units.yaml` into the
+input files: drawing views cropped from the sheet (`tiles.py`), spec pages as
+their text layer, photos as they are.
+"""
+from __future__ import annotations
+
+import base64
+import copy
+import hashlib
+import json
+import os
+import subprocess
+import time
+from dataclasses import asdict
+from pathlib import Path
+
+import yaml
+
+from . import tiles
+from .clients import prompt_version
+from .rows import Unit
+
+MODEL = "claude-haiku-5-5"
+MEDIA = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
+
+
+class LiveRunError(RuntimeError):
+    pass
+
+
+# ---- units -------------------------------------------------------------------
+
+def units_for(job_dir: Path, packet: Path, work: Path) -> dict[str, list[Unit]]:
+    """The units a live run reads, by reader, with each input file prepared under `work`."""
+    job_dir, packet, work = Path(job_dir), Path(packet), Path(work)
+    spec = yaml.safe_load((job_dir / "units.yaml").read_text()) or {}
+    from .. import fixtures
+    _, register = fixtures.read_fixture(job_dir)
+    files = {r["source_id"]: r["file"] for r in register if r["status"] == "present" and r["file"]}
+
+    out: dict[str, list[Unit]] = {}
+    for reader, entries in spec.items():
+        for e in entries:
+            if e["source_id"] not in files:
+                raise LiveRunError(f"{job_dir.name} {e['unit_id']}: {e['source_id']} is not a present source in register.csv")
+            src = packet / files[e["source_id"]]
+            if not src.exists():
+                raise LiveRunError(f"{e['unit_id']}: {src} not found under the packet root {packet}")
+            path = _prepare(reader, e, src, work)
+            out.setdefault(reader, []).append(Unit(
+                unit_id=e["unit_id"], source_id=e["source_id"], locator=e.get("locator", ""),
+                tag=e.get("tag", ""), path=str(path), scale=e.get("scale", ""),
+            ))
+    return out
+
+
+def _safe(unit_id: str) -> str:
+    return "".join(c if c.isalnum() or c in "-_" else "_" for c in unit_id)
+
+
+def _prepare(reader: str, e: dict, src: Path, work: Path) -> Path:
+    page = int(e.get("page", 1))
+    if reader == "drawing":
+        if "box" not in e:
+            raise LiveRunError(f"{e['unit_id']}: a drawing unit needs a box (or list grid tiles as units)")
+        return tiles.render_box(src, work / "units" / f"{_safe(e['unit_id'])}.png",
+                                tiles.Box.of(e["box"]), page=page)
+    if reader == "spec" and src.suffix.lower() == ".pdf":
+        out = work / "units" / f"{_safe(e['unit_id'])}.txt"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        text = subprocess.run(["pdftotext", "-layout", "-f", str(page), "-l", str(page), str(src), "-"],
+                              capture_output=True, text=True, check=True).stdout
+        if not text.strip():
+            raise LiveRunError(f"{e['unit_id']}: page {page} of {src.name} has no text layer")
+        out.write_text(text)
+        return out
+    return src
+
+
+# ---- the API schema ----------------------------------------------------------
+
+def api_schema(schema: dict) -> dict:
+    """The part of a reader schema structured output accepts.
+
+    Our schemas use two shorthands the SDK transform does not take: a list of
+    types (`["string", "null"]`) and an `enum` with no `type`. Both become
+    `anyOf`; the SDK transform then moves unsupported keywords into the
+    description. The full schema is still enforced locally by `validate`.
+    """
+    import anthropic
+
+    def norm(s):
+        s = copy.copy(s)
+        if "properties" in s:
+            s["properties"] = {k: norm(v) for k, v in s["properties"].items()}
+        if "items" in s:
+            s["items"] = norm(s["items"])
+        if "enum" in s and "type" not in s:
+            values = s.pop("enum")
+            kinds = []
+            strs = [v for v in values if isinstance(v, str)]
+            if strs:
+                kinds.append({"type": "string", "enum": strs})
+            if None in values:
+                kinds.append({"type": "null"})
+            return {"anyOf": kinds, **s} if len(kinds) > 1 else {**kinds[0], **s}
+        if isinstance(s.get("type"), list):
+            types = s.pop("type")
+            rest = {k: s.pop(k) for k in list(s) if k not in ("description", "title")}
+            return {"anyOf": [{"type": t, **(rest if t != "null" else {})} for t in types], **s}
+        return s
+
+    return anthropic.transform_schema(norm(schema))
+
+
+# ---- the client --------------------------------------------------------------
+
+def content_for(reader: str, unit: Unit) -> list[dict]:
+    """The user turn for one unit: the unit itself, and one line saying what it is."""
+    path = Path(unit.path)
+    where = " ".join(filter(None, [unit.source_id, unit.locator]))
+    if path.suffix.lower() in MEDIA:
+        data = base64.standard_b64encode(path.read_bytes()).decode()
+        head = {"drawing": f"Sheet {where}" + (f", stated scale {unit.scale}" if unit.scale else ""),
+                "photo": f"Photo {unit.source_id}"}.get(reader, where)
+        return [{"type": "image", "source": {"type": "base64", "media_type": MEDIA[path.suffix.lower()], "data": data}},
+                {"type": "text", "text": f"{head}. Return the JSON for this {reader} unit."}]
+    text = path.read_text()
+    return [{"type": "text", "text": f"<unit source=\"{where}\">\n{text}\n</unit>\n"
+                                     f"Return the JSON for this {reader} unit."}]
+
+
+class Recorder:
+    """Writes responses as `<dir>/<reader>.json` in the ReplayClient format, after every call."""
+
+    def __init__(self, directory: Path, *, model_id: str, note: str = ""):
+        self.directory = Path(directory)
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.model_id = model_id
+        self.note = note
+        self._data: dict[str, dict] = {}
+
+    def add(self, reader: str, unit: Unit, run: int, response):
+        rec = self._data.setdefault(reader, {
+            "reader": reader, "model": self.model_id, "prompt_version": prompt_version(reader),
+            "note": self.note, "units": [],
+        })
+        entry = next((u for u in rec["units"] if u["unit_id"] == unit.unit_id), None)
+        if entry is None:
+            entry = {**{k: v for k, v in asdict(unit).items() if v}, "runs": []}
+            rec["units"].append(entry)
+        while len(entry["runs"]) <= run:
+            entry["runs"].append(None)
+        entry["runs"][run] = response
+        (self.directory / f"{reader}.json").write_text(json.dumps(rec, indent=1, ensure_ascii=False) + "\n")
+
+
+class LiveClient:
+    """One stateless Messages API call per unit and run."""
+
+    def __init__(self, *, model: str = MODEL, effort: str | None = "low", record: Path | None = None,
+                 api: object | None = None, max_tokens: int = 16000):
+        if api is None:
+            if not os.environ.get("ANTHROPIC_API_KEY"):
+                raise LiveRunError("ANTHROPIC_API_KEY is not set; a live run needs it in the environment")
+            import anthropic
+            api = anthropic.Anthropic()
+        self.api = api
+        self.model_id = model
+        self.effort = effort
+        self.max_tokens = max_tokens
+        self.recorder = Recorder(record, model_id=model, note=(
+            "Live responses, recorded as returned. Replay with ReplayClient to re-check this run offline."
+        )) if record else None
+        self.calls_log = Path(record) / "calls.jsonl" if record else None
+        self._schemas: dict[int, dict] = {}
+
+    def request(self, reader: str, unit: Unit, system: str, schema: dict) -> dict:
+        """The request body for one call. Identical for every run of a unit, so the
+        three runs differ only by sampling, and the system prompt prefix is cached."""
+        key = id(schema)
+        if key not in self._schemas:
+            self._schemas[key] = api_schema(schema)
+        output_config = {"format": {"type": "json_schema", "schema": self._schemas[key]}}
+        if self.effort:
+            output_config["effort"] = self.effort
+        return {
+            "model": self.model_id,
+            "max_tokens": self.max_tokens,
+            "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+            "messages": [{"role": "user", "content": content_for(reader, unit)}],
+            "output_config": output_config,
+        }
+
+    def complete(self, reader: str, unit: Unit, system: str, schema: dict, run: int) -> dict | str:
+        body = self.request(reader, unit, system, schema)
+        started = time.monotonic()
+        msg = self.api.messages.create(**body)
+        text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
+        try:
+            response = json.loads(text) if msg.stop_reason == "end_turn" else text
+        except json.JSONDecodeError:
+            response = text
+        if msg.stop_reason != "end_turn" and not text:
+            response = f"(no output: stop_reason {msg.stop_reason})"
+        if self.recorder:
+            self.recorder.add(reader, unit, run, response)
+        if self.calls_log:
+            usage = getattr(msg, "usage", None)
+            line = {
+                "reader": reader, "unit_id": unit.unit_id, "run": run + 1, "model": getattr(msg, "model", self.model_id),
+                "request_id": getattr(msg, "_request_id", None), "stop_reason": msg.stop_reason,
+                "seconds": round(time.monotonic() - started, 2),
+                "input_sha256": hashlib.sha256(json.dumps(body["messages"], sort_keys=True).encode()).hexdigest()[:16],
+                "usage": {k: getattr(usage, k, None) for k in (
+                    "input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")},
+            }
+            with open(self.calls_log, "a") as f:
+                f.write(json.dumps(line) + "\n")
+        return response

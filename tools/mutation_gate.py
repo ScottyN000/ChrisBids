@@ -18,7 +18,7 @@ import json
 import sys
 from pathlib import Path
 
-FLOOR = 0.0  # percent; set from the first full run
+FLOOR = 85.0  # percent; the first full run (2026-10-07) scored 86.2%
 
 
 def score(stats: dict) -> float:

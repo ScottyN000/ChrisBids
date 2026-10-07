@@ -10,6 +10,7 @@ strict schema. Everything else is code, and it is all here.
 | [`schemas.py`](schemas.py) | The JSON each reader must return. Closed vocabularies; "not stated" is null; the photo schema has no field that can hold a number and refuses digits in its description |
 | [`prompts/`](prompts/) | One system prompt per reader, with the ambiguity-removal rules and golden-job examples, including the empty case. Every example is checked against its schema in the tests |
 | [`validate.py`](validate.py) | A small JSON Schema checker. A response that fails is discarded, never repaired |
+| `rows.not_in_source` | On a text unit, every field the reader must copy verbatim (spec requirement and product, correspondence instruction, drawing note text) has to appear in the text it was shown, whitespace aside. An item that does not is dropped in code and reported as discarded, so made-up or injected text never becomes a row |
 | [`units.py`](units.py) | Feet-and-inch strings to inches. The reader copies `15'-2"`; code writes `182 in` and the derivation the Auditor replays |
 | [`vote.py`](vote.py) | Each unit is read three times and the runs are compared field by field. Disagreement keeps every reading in the order seen and picks none, not even a majority |
 | [`rows.py`](rows.py) | Voted items become Claims. The method is fixed by rule from the item kind, never chosen by the model |

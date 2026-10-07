@@ -6,6 +6,10 @@ the method fixed by rule, and append them as the reader's own principal. Every
 call is logged with its input hash, model ID, prompt version and output hash
 (architecture p.12).
 
+On a text unit (a spec page's text layer, an email body) every field the
+reader must copy verbatim is checked against the text it was shown, and an item
+whose quote is not there is dropped and reported (rows.not_in_source).
+
 A unit with no valid response writes nothing. It is reported back as unread, so
 a human or a later run deals with it; a reader never fills a gap itself.
 """
@@ -85,13 +89,21 @@ def read(
                     errs = rows.semantic_errors(reader, data)
             writer.log_call(
                 unit.unit_id,
-                f"run {run + 1}; input {_hash([unit.unit_id, unit.path])}; output {_hash(raw)}; "
+                f"run {run + 1}; input {_hash([unit.unit_id, unit.path, unit.text])}; output {_hash(raw)}; "
                 f"{'discarded: ' + errs[0] if errs else 'valid'}",
             )
             if errs:
                 result.discarded.append(f"{unit.unit_id} run {run + 1}: {'; '.join(errs[:3])}")
                 continue
-            responses.append(data["items"])
+            kept = []
+            for i, item in enumerate(data["items"]):
+                missing = rows.not_in_source(reader, unit, item)
+                if missing:
+                    result.discarded.append(
+                        f"{unit.unit_id} run {run + 1}: items[{i}] {', '.join(missing)} not in the source text")
+                else:
+                    kept.append(item)
+            responses.append(kept)
         if not responses:
             result.unread.append(unit.unit_id)
             continue

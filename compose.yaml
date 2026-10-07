@@ -1,0 +1,16 @@
+# Phase 1 runs locally as one stack. `docker compose run --rm pipeline <args>`
+# takes the same arguments as `python3 -m pipeline`.
+services:
+  pipeline:
+    build: .
+    volumes:
+      - ${CHRISBIDS_PACKET:-./fixtures}:/packet:ro
+      - ./runs:/runs
+    working_dir: /app
+
+  tests:
+    build: .
+    entrypoint: ["python", "-m", "unittest"]
+    command: ["discover", "-s", "tests", "-t", ".", "-v"]
+    volumes:
+      - ${CHRISBIDS_PACKET:-./fixtures}:/mnt/project-files:ro

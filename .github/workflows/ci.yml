@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install poppler and PyYAML
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          python -m pip install --quiet pyyaml
+      - name: Golden fixtures are not stale
+        run: |
+          python tools/build_fixture.py fixtures/nantucket --check
+          python tools/build_fixture.py fixtures/ocean-beach --check
+      - name: Fixtures load through the broker and export byte-identically
+        run: python -m pipeline verify-fixtures --out "$RUNNER_TEMP/verify"
+      - name: Tests
+        run: python -m unittest discover -s tests -t . -v

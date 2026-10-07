@@ -1,0 +1,432 @@
+# Nantucket Condo plank repair: golden-fixture claim ledger.
+# Hand-authored in the shape the pipeline will produce. Generated files
+# (ledger.csv, proposal.md, xref.csv, corrections.md) come from
+# tools/build_fixture.py and are never edited by hand.
+#
+# The `audit` field is deliberately blank on every row: only the Auditor sets it.
+# `flag` marks rows the Auditor must not pass as-is (unverified / conflict).
+
+job: NAN
+job_name: Nantucket Condo plank repair
+original: source/nantucket-condo-plank-repair_scope-and-materials_2026-10-07.pdf
+agent: hand-fixture (Claude, project thread)
+timestamp: 2026-10-07T19:00Z
+codes_note: 'Pages were read through a fetch tool that returns an extract, so quotes may differ from the page in punctuation or spacing; the Auditor re-fetches and character-checks each one.'
+status_line: 'Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only Chris releases a bid.'
+
+rows:
+  # ---------- Header (S-1 title block) ----------
+  - {id: NAN-H-001, role: header, method: clause, confidence: exact, source: S-1, locator: title block, tag: S-1 TB,
+     statement: 'Concrete Floor Plank Remediation, Nantucket Condominium, Unit #1'}
+  - {id: NAN-H-002, role: header, method: clause, confidence: exact, source: S-1, locator: title block, tag: S-1 TB,
+     statement: '12503 Wight Street, Ocean City, Maryland'}
+  - {id: NAN-H-003, role: header, method: clause, confidence: exact, source: S-1, locator: title block, tag: S-1 TB,
+     statement: 'Engineer of record: NTDesigns Structural Engineering, Berlin MD 21811, 302.841.4671'}
+  - {id: NAN-H-004, role: header, method: clause, confidence: exact, source: S-1, locator: title block and revision table, tag: S-1 TB,
+     statement: 'Sheet S-1 "Plans and Detail", revision 10/06/26 "For Construction", sealed by a Maryland professional engineer, seal dated 06 OCT 26'}
+  - {id: NAN-H-005, role: header, method: clause, confidence: exact, source: S-1, locator: Design Loads, tag: S-1 DL,
+     statement: 'Design loads per IBC 2021: first floor dead load 70 psf, live load 100 psf'}
+  - {id: NAN-F-001, role: header, method: FIELD, confidence: missing, source: none, tag: FIELD,
+     statement: 'Client: S-1 names the building, not the owner or association. Confirm who the proposal is addressed to'}
+
+  # ---------- Drawing values: dimensioned and counted ----------
+  - {id: NAN-D-001, role: quantity, method: dimensioned, confidence: exact, source: S-1, locator: Partial Foundation Plan, tag: S-1 Fnd,
+     value: 182, unit: in, derivation: '15''-2" dimension string = 182 in',
+     statement: 'Bracket run 15''-2" between wall faces'}
+  - {id: NAN-D-002, role: quantity, method: dimensioned, confidence: exact, source: S-1, locator: Partial Foundation Plan, tag: S-1 Fnd,
+     value: 32, unit: in, derivation: '2''-8" = 32 in, five spaces drawn',
+     statement: 'Bracket spacing 2''-8" on center'}
+  - {id: NAN-D-003, role: quantity, method: dimensioned, confidence: exact, source: S-1, locator: Partial Foundation Plan, tag: S-1 Fnd,
+     value: 11, unit: in, statement: 'First and last bracket 11" from the wall face at each end'}
+  - {id: NAN-D-004, role: quantity, method: counted, confidence: exact, source: S-1, locator: Partial Foundation Plan, tag: S-1 Fnd,
+     value: 6, unit: each, statement: 'Bracket symbols drawn on the foundation plan, labeled NEW BRACKET SUPPORT (REF. DET. 1/S-1)'}
+  - {id: NAN-D-005, role: quantity, method: counted, confidence: exact, source: S-1, locator: Partial First Floor Framing Plan, tag: S-1 Frm,
+     value: 6, unit: each, statement: 'Bracket symbols drawn on the framing plan'}
+  - {id: NAN-Q-001, role: quantity, method: dimensioned, confidence: exact, source: S-1, locator: Partial Foundation Plan, tag: S-1 Fnd,
+     value: 5, unit: spaces, calc: '({NAN-D-001} - 2 * {NAN-D-003}) / {NAN-D-002}',
+     statement: 'Spaces between brackets: (182 - 2 x 11) / 32'}
+  - {id: NAN-Q-002, role: quantity, method: counted, confidence: exact, source: S-1, locator: Fnd and Frm, tag: S-1 Fnd + Frm,
+     value: 6, unit: each, calc: '{NAN-Q-001} + 1',
+     statement: '6 bracket supports: 5 spaces + 1, which agrees with the 6 symbols drawn on each plan (NAN-D-004, NAN-D-005)'}
+  - {id: NAN-D-006, role: quantity, method: counted, confidence: exact, source: S-1, locator: Support Detail 1/S-1, tag: S-1 Det 1,
+     value: 3, unit: per bracket, question: NAN-OQ-03,
+     statement: 'Adhesive anchors drawn into the CMU wall per bracket; the callout says (TYP.) with no count'}
+  - {id: NAN-D-007, role: quantity, method: counted, confidence: exact, source: S-1, locator: Support Detail 1/S-1, tag: S-1 Det 1,
+     value: 3, unit: per bracket, question: NAN-OQ-03,
+     statement: 'A325 bolts drawn per bracket (one at the vertical-to-horizontal corner, one at each kicker end); the callout says (TYP.) with no count'}
+  - {id: NAN-Q-003, role: quantity, method: counted, confidence: exact, source: S-1, locator: Det 1 x Fnd, tag: S-1 Det 1 + Fnd,
+     value: 18, unit: each, calc: '{NAN-D-006} * {NAN-Q-002}', statement: 'Adhesive anchors, 3 per bracket x 6 brackets'}
+  - {id: NAN-Q-004, role: quantity, method: counted, confidence: exact, source: S-1, locator: Det 1 x Fnd, tag: S-1 Det 1 + Fnd,
+     value: 18, unit: each, calc: '{NAN-D-007} * {NAN-Q-002}', statement: 'A325 bolts, 3 per bracket x 6 brackets'}
+  - {id: NAN-D-008, role: quantity, method: counted, confidence: exact, source: S-1, locator: Partial First Floor Framing Plan, tag: S-1 Frm,
+     value: 1, unit: plank, statement: 'One hatched plank beside the stairwell, noted EXISTING CONCRETE PLANK TO BE REMEDIATED. SEE SUPPORT DETAIL 1/S-1'}
+
+  # ---------- Drawing notes (clause) ----------
+  - {id: NAN-D-009, role: scope, method: clause, confidence: exact, source: S-1, locator: Support Detail 1/S-1, tag: S-1 Det 1, division: '05',
+     statement: 'Each bracket is L3x3x1/4 steel angle (TYP.): a vertical leg against the CMU wall, a horizontal leg under the plank and a diagonal kicker'}
+  - {id: NAN-D-010, role: scope, method: clause, confidence: exact, source: S-1, locator: Support Detail 1/S-1, tag: S-1 Det 1, division: '05',
+     flag: conflict, question: NAN-OQ-01,
+     statement: 'Anchor each vertical leg to the existing 8" CMU foundation wall with 1/2" dia adhesive anchors. S-1 calls for "HILTI HIT HY 70 EPOXY ANCHOR (TYP.)", which Hilti has set to phase-out (NAN-C-014); the substitute needs the engineer''s approval'}
+  - {id: NAN-D-011, role: scope, method: clause, confidence: exact, source: S-1, locator: Det 1 and Structural Steel Framing notes, tag: S-1 Det 1 + SN, division: '05',
+     statement: 'Bolt angle-to-angle connections with 5/8" dia ASTM A325 bolts (TYP.). SN sets A325 3/4" "unless otherwise noted on the drawings"; Det 1 notes 5/8"'}
+  - {id: NAN-D-012, role: scope, method: clause, confidence: exact, source: S-1, locator: Support Detail 1/S-1, tag: S-1 Det 1, division: '05',
+     statement: 'Install 1-1/2" x 20 ga Type "B" galvanized steel deck on the horizontal legs, under the bearing edge of the plank'}
+  - {id: NAN-D-013, role: scope, method: clause, confidence: exact, source: S-1, locator: Support Detail 1/S-1, tag: S-1 Det 1, division: '02',
+     statement: 'Existing construction: 6" Flexicore plank with 2" topping bearing on an existing 8" CMU foundation wall'}
+  - {id: NAN-D-014, role: scope, method: clause, confidence: exact, source: S-1, locator: Support Detail 1/S-1 note, tag: S-1 Det 1, division: '02',
+     statement: 'Remove existing concrete on the underside of the plank down to sound material and prepare the surface per the repair mortar manufacturer''s recommendations'}
+  - {id: NAN-D-015, role: scope, method: clause, confidence: exact, source: S-1, locator: Support Detail 1/S-1 note, tag: S-1 Det 1, division: '03',
+     statement: 'Provide vertical repair mortar (Sika Quick VOH or approved equal) so that the bottom of the existing plank bears on the steel deck'}
+
+  # ---------- General Notes (clause) ----------
+  - {id: NAN-G-001, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '01',
+     statement: 'Field verify all dimensions and field conditions on the drawings and in the field prior to starting construction and fabrication'}
+  - {id: NAN-G-002, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '01',
+     statement: 'Provide project management and supervision and the temporary facilities and controls required for construction'}
+  - {id: NAN-G-003, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '01',
+     statement: 'Design, furnish, erect and remove any temporary shoring and bracing during construction'}
+  - {id: NAN-G-004, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '01',
+     statement: 'Protect existing buildings, owner equipment, roads, walks and utilities, and repair all damages at no additional expense to the owner'}
+  - {id: NAN-G-005, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '01',
+     statement: 'Remove demolished materials from the site and provide proper and legal disposal'}
+  - {id: NAN-G-006, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '01',
+     statement: 'Notify the architect and engineer when materials and assemblies are ready for observation, with sufficient notice to schedule'}
+  - {id: NAN-G-007, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '01',
+     statement: 'Provide and maintain barricades, warning signs, flashing lights and traffic control devices; coordinate sequencing with the owner to keep the existing facility in operation'}
+  - {id: NAN-G-008, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '05',
+     statement: 'Install all specialty bolts, including expansion and epoxy type anchors, in strict accordance with the manufacturer''s printed instructions'}
+  - {id: NAN-G-009, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '01',
+     flag: conflict, question: NAN-OQ-05,
+     statement: 'S-1 makes the contractor responsible for the costs of all building permitting and all soils, concrete and metal structure testing and inspections required during construction. Mersco''s standard exclusions list "Permits, fees, inspections, or third-party testing" (PFE p.16)'}
+
+  # ---------- Structural Steel Framing notes (clause) ----------
+  - {id: NAN-N-001, role: scope, method: clause, confidence: exact, source: S-1, locator: Structural Steel Framing, tag: S-1 SN, division: '05',
+     statement: 'Prime paint all structural steel after fabrication; field connections bolted'}
+  - {id: NAN-N-002, role: scope, method: clause, confidence: exact, source: S-1, locator: Structural Steel Framing, tag: S-1 SN, division: '05',
+     statement: 'Structural steel other than W-shapes to ASTM A36, Grade 36'}
+  - {id: NAN-N-003, role: scope, method: clause, confidence: exact, source: S-1, locator: Structural Steel Framing, tag: S-1 SN, division: '05',
+     statement: 'Design, fabrication and erection per the AISC "Specification for Structural Steel Buildings"; any welding per AWS "Structural Welding Code - Steel" with E70 series electrodes'}
+  - {id: NAN-N-004, role: scope, method: clause, confidence: exact, source: S-1, locator: Structural Steel Framing, tag: S-1 SN, division: '05',
+     statement: 'The steel fabricator is solely responsible for field surveying and verifying existing conditions, including the location, elevation and dimensions of existing walls and framing'}
+  - {id: NAN-N-005, role: scope, method: clause, confidence: exact, source: S-1, locator: Structural Steel Framing, tag: S-1 SN, division: '05',
+     statement: 'No field cutting of structural steel members for the work of other trades without prior approval of the design professional'}
+
+  # ---------- Scaled values: two readings, neither orders anything ----------
+  - {id: NAN-S-001, role: note, method: scaled, confidence: scaled, source: S-1, locator: Support Detail 1/S-1 at 3/4"=1'-0", tag: S-1 Det 1,
+     value: '1''-8" (reading A) / 1''-10" (reading B)', flag: conflict, question: NAN-OQ-04,
+     supersedes: 'NAN-TB p.4 "Vertical angle leg ~1''-8" (scaled)"',
+     reason: 'Re-scaled at 400 dpi using the 8" CMU courses: about 1''-10". Two readings disagree; both kept, neither used',
+     statement: 'Vertical angle leg length, scaled'}
+  - {id: NAN-S-002, role: note, method: scaled, confidence: scaled, source: S-1, locator: Support Detail 1/S-1 at 3/4"=1'-0", tag: S-1 Det 1,
+     value: '1''-2" (reading A) / 1''-4" (reading B)', flag: conflict, question: NAN-OQ-04,
+     supersedes: 'NAN-TB p.4 "Horizontal angle leg ~1''-2" (scaled)"',
+     reason: 'Second scaling disagrees; both kept, neither used',
+     statement: 'Horizontal angle leg length (wall face to end of deck), scaled'}
+  - {id: NAN-S-003, role: note, method: scaled, confidence: scaled, source: S-1, locator: Support Detail 1/S-1 at 3/4"=1'-0", tag: S-1 Det 1,
+     value: '1''-10" (reading A) / 2''-0" (reading B)', flag: conflict, question: NAN-OQ-04,
+     supersedes: 'NAN-TB p.4 "Diagonal kicker ~1''-10" (scaled)"',
+     reason: 'Second scaling disagrees; both kept, neither used',
+     statement: 'Diagonal kicker length, scaled'}
+
+  # ---------- FIELD ----------
+  - {id: NAN-F-002, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1 (undimensioned), tag: S-1 Det 1 + SN,
+     supersedes: 'NAN-TB p.4-5 "Angle total ~28 LF net, order 40 LF (2 x 20'' sticks)"',
+     reason: 'Order quantity was built from scaled legs; the architecture (p.6) forbids that. Fabricator field survey is required by S-1 SN',
+     statement: 'Angle leg and kicker cut lengths and total L3x3x1/4 footage: fabricator field survey (S-1 SN), or dimensions from NTDesigns'}
+  - {id: NAN-F-003, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: S-1 Det 1,
+     supersedes: 'NAN-TB p.5 "Galvanized deck 15''-2" x ~1''-2" strip; order 1 sheet 36" x 16''-0""',
+     reason: 'Deck width was scaled and the length is not dimensioned (the 15''-2" string locates brackets, not deck)',
+     statement: 'Galvanized deck length along the wall and width out from the wall'}
+  - {id: NAN-F-004, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1 note "as required", tag: S-1 Det 1,
+     supersedes: 'NAN-TB p.3 "(Mersco allowance of 15 LF of plank underside repair)"',
+     reason: 'S-1 says repair "as required"; 15 LF was the 15''-2" bracket run rounded down, which is neither stated nor dimensioned for the repair',
+     statement: 'Length of plank underside repair (hammer-sound survey)'}
+  - {id: NAN-F-005, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1 note "down to sound material", tag: S-1 Det 1,
+     statement: 'Depth of unsound concrete on the plank underside, and repair width'}
+  - {id: NAN-F-006, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: S-1 Det 1,
+     supersedes: 'NAN-TB p.5 "Repair mortar 1.5 cu ft per 1" average depth"; p.6 "4 bags per 1" depth"',
+     reason: 'Volume used a scaled width; the bag figure used 50 lb / ~0.42 cu ft, but Sika lists 44 lb / 0.44 cu ft (NAN-C-021)',
+     statement: 'Repair mortar volume = NAN-F-004 length x NAN-F-005 width x depth; bags = volume / 0.44 cu ft per bag (NAN-C-021)'}
+  - {id: NAN-F-007, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1 (cells not shown grouted or hollow), tag: S-1 Det 1,
+     statement: 'Are the CMU cells grouted at the bracket line? Decides whether screen tubes are required (NAN-C-018)'}
+  - {id: NAN-F-008, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: S-1 Det 1,
+     supersedes: 'NAN-TB p.5 "20 ea HAS-E 1/2" x 6" threaded rod"',
+     reason: 'Rod type and length are not on S-1; 20 added an unsourced spare count',
+     statement: 'Anchor rod type, length and embedment, from the approved adhesive''s installation instructions'}
+  - {id: NAN-F-009, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: S-1 Det 1 + SN,
+     supersedes: 'NAN-TB p.6 "20 ea 5/8" x 1-1/2", A563 nut + F436 washer"',
+     reason: 'Bolt length, nut and washer specs are not on S-1; 20 added an unsourced spare count',
+     statement: 'A325 bolt length and nut/washer specification (fabricator)'}
+  - {id: NAN-F-010, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: General Notes, tag: S-1 GN,
+     supersedes: 'NAN-TB p.6 "4 post shores, 2 ea 4x4x16'', 2 ea 2x10x16''"',
+     reason: 'S-1 GN makes shoring a contractor design; the counts had no source',
+     statement: 'Temporary shoring design and materials under the affected plank (contractor-designed per S-1 GN)'}
+  - {id: NAN-F-011, role: quantity, method: FIELD, confidence: missing, source: none, tag: FIELD,
+     statement: 'Access route to the underside of the plank and working headroom (crawl space, basement or excavation)'}
+  - {id: NAN-F-012, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: SN, tag: S-1 SN,
+     statement: 'Bearing elevation of the plank underside relative to the CMU wall (fabricator survey per S-1 SN)'}
+  - {id: NAN-F-013, role: quantity, method: FIELD, confidence: missing, source: none, tag: FIELD,
+     supersedes: 'NAN-TB p.6 "2 cartridges + 4 nozzles" citing "Hilti yield tables"',
+     reason: 'No yield table was cited by URL, and the product itself is open (NAN-OQ-01)',
+     statement: 'Adhesive cartridge count, from the approved product''s published yield for the hole size and embedment'}
+
+  # ---------- Allowances (only dimensioned / counted / FIELD) ----------
+  - {id: NAN-A-001, role: allowance, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: NAN-F-004, unit: LF, division: '02', part: base,
+     statement: 'plank underside concrete removal, one plank, length per field survey'}
+  - {id: NAN-A-002, role: allowance, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: NAN-F-006, unit: CF, division: '03', part: base,
+     statement: 'overhead/vertical repair mortar, volume per field survey'}
+  - {id: NAN-A-003, role: allowance, method: counted, confidence: exact, source: S-1, locator: Fnd and Frm, tag: S-1 Fnd + Frm,
+     value: 6, unit: each, calc: '{NAN-Q-002}', division: '05', part: base, statement: 'steel bracket supports'}
+  - {id: NAN-A-004, role: allowance, method: counted, confidence: exact, source: S-1, locator: Det 1 x Fnd, tag: S-1 Det 1 + Fnd,
+     value: 18, unit: each, calc: '{NAN-Q-003}', division: '05', part: base, question: NAN-OQ-03,
+     statement: '1/2" dia adhesive anchors into CMU'}
+  - {id: NAN-A-005, role: allowance, method: counted, confidence: exact, source: S-1, locator: Det 1 x Fnd, tag: S-1 Det 1 + Fnd,
+     value: 18, unit: each, calc: '{NAN-Q-004}', division: '05', part: base, question: NAN-OQ-03,
+     supersedes: 'NAN-TB p.3 "(Mersco allowance of 6 bracket supports, 18 adhesive anchors, 18 A325 bolts, 16 LF of galvanized deck)"',
+     reason: 'Counts kept; 16 LF of deck dropped because it rounded a scaled/inferred length into an allowance',
+     statement: '5/8" dia A325 bolts'}
+  - {id: NAN-A-006, role: allowance, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: NAN-F-003, unit: LF, division: '05', part: base,
+     statement: '1-1/2" 20 ga Type B galvanized deck, length per field survey'}
+
+  # ---------- Materials (no pricing; order qty only from counted/dimensioned) ----------
+  - {id: NAN-M-001, role: material, method: FIELD, confidence: missing, source: S-1, locator: Det 1 + SN, tag: S-1 Det 1 + SN, unit: LF,
+     statement: 'Steel angle L3x3x1/4, ASTM A36 Gr 36, shop prime painted; footage per NAN-F-002'}
+  - {id: NAN-M-002, role: material, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: S-1 Det 1, unit: LF,
+     statement: 'Galvanized steel deck 1-1/2" deep, 20 ga, Type B; size per NAN-F-003'}
+  - {id: NAN-M-003, role: material, method: counted, confidence: exact, source: S-1, locator: Det 1 x Fnd, tag: S-1 Det 1 + Fnd,
+     value: 18, unit: each, calc: '{NAN-Q-003}', flag: conflict, question: NAN-OQ-01,
+     supersedes: 'NAN-TB p.5 "Hilti HIT-HY 70 ... order 20 ea" while p.10 says "Do not order HY 70"',
+     reason: 'The bid ordered a product it also said is discontinued. Product now left open for the engineer; no spares added',
+     statement: '1/2" dia adhesive anchor; adhesive product pending engineer approval (S-1 names HIT HY 70, phase-out per NAN-C-014)'}
+  - {id: NAN-M-004, role: material, method: FIELD, confidence: missing, source: S-1 + WEB, locator: Det 1; Hilti bulletin, tag: NAN-F-007 + NAN-C-019, unit: each,
+     flag: unverified,
+     supersedes: 'NAN-TB p.6 "Anchor screen tubes Hilti HIT-SC 16 x 85, 20 ea"',
+     reason: 'Hilti''s HY 270 masonry bulletin lists HIT-SC 18x50 for a 1/2" rod in a hollow CMU face, not 16x85 (extract unconfirmed); count depends on grout condition',
+     statement: 'Screen tubes, only if cells are hollow (NAN-F-007); size per the approved adhesive''s instructions'}
+  - {id: NAN-M-005, role: material, method: FIELD, confidence: missing, source: none, tag: NAN-F-013, unit: cartridges,
+     statement: 'Adhesive cartridges and mixing nozzles; count per NAN-F-013'}
+  - {id: NAN-M-006, role: material, method: counted, confidence: exact, source: S-1, locator: Det 1 x Fnd, tag: S-1 Det 1 + Fnd,
+     value: 18, unit: each, calc: '{NAN-Q-004}',
+     statement: 'Structural bolts 5/8" dia ASTM A325; length, nuts and washers per NAN-F-009'}
+  - {id: NAN-M-007, role: material, method: FIELD, confidence: missing, source: S-1 + WEB, locator: Det 1; Sika product page, tag: S-1 Det 1 + NAN-C-021, unit: bags,
+     supersedes: 'NAN-TB p.6 "Sika Quick VOH or approved equal, 50 lb bag (~0.42 cu ft)"',
+     reason: 'Sika''s product page lists 44 lb and 0.44 cu ft per bag',
+     statement: 'SikaQuick VOH or approved equal, 44 lb bag yielding 0.44 cu ft; bag count per NAN-F-006'}
+  - {id: NAN-M-008, role: material, method: FIELD, confidence: missing, source: S-1, locator: SN, tag: S-1 SN, unit: gal,
+     supersedes: 'NAN-TB p.6 "Steel primer, 1 gal"',
+     reason: 'S-1 requires prime paint but names no product or quantity',
+     statement: 'Shop primer for all bracket steel (S-1 SN); product and quantity by fabricator'}
+
+  # ---------- Exclusions specific to this job ----------
+  - {id: NAN-X-001, role: exclusion, method: clause, confidence: exact, source: S-1, locator: Frm (one hatched plank), tag: S-1 Frm,
+     statement: 'Repairs to planks other than the one hatched on the framing plan; full-depth plank or topping replacement'}
+  - {id: NAN-X-002, role: exclusion, method: FIELD, confidence: missing, source: none, tag: NAN-F-011,
+     statement: 'Excavation, dewatering or interior finish removal to reach the underside of the plank, until access is confirmed'}
+  - {id: NAN-X-003, role: exclusion, method: FIELD, confidence: missing, source: none, tag: FIELD,
+     statement: 'Paint, drywall, ceiling or flooring restoration above or below the work area'}
+
+  # ---------- Open questions ----------
+  - {id: NAN-OQ-01, role: question, method: clause, confidence: exact, source: S-1 + WEB, locator: Det 1; Hilti letter; ESR-4143, tag: S-1 Det 1 + NAN-C-014,
+     statement: 'S-1 specifies Hilti HIT HY 70, which Hilti set to phase-out and names HIT-HY 270 as its direct replacement in masonry (NAN-C-014; ESR-4143 per NAN-C-015). Ask NTDesigns to approve a substitute in writing. Do not order HY 70, and do not order HY 270 before approval'}
+  - {id: NAN-OQ-02, role: question, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: S-1 Det 1,
+     statement: 'Repair depth and extent on the plank underside (NAN-F-004, NAN-F-005): S-1 gives "down to sound material" with no dimension'}
+  - {id: NAN-OQ-03, role: question, method: counted, confidence: exact, source: S-1, locator: Det 1, tag: S-1 Det 1,
+     statement: 'Confirm with NTDesigns: 3 anchors and 3 bolts per bracket are counted from the drawing; the callouts say (TYP.) without a number'}
+  - {id: NAN-OQ-04, role: question, method: scaled, confidence: scaled, source: S-1, locator: Det 1, tag: S-1 Det 1,
+     statement: 'Angle leg lengths exist only as scale on an undimensioned detail, and two scalings disagree (NAN-S-001 to NAN-S-003). Ask NTDesigns for dimensions or rely on the fabricator survey'}
+  - {id: NAN-OQ-05, role: question, method: clause, confidence: exact, source: S-1 + PFE, locator: GN; PFE p.16, tag: S-1 GN + PFE p.16,
+     supersedes: 'NAN-TB p.7 listed permits, fees and inspections as an exclusion',
+     reason: 'S-1 GN assigns these costs to the contractor, so excluding them conflicts with the drawing. Both readings shown; Chris decides',
+     statement: 'Permits, testing and inspections: S-1 GN assigns their cost to the contractor; Mersco''s standard proposal excludes them. Carry an allowance, or exclude with the owner''s written acceptance?'}
+  - {id: NAN-OQ-06, role: question, method: clause, confidence: exact, source: WEB, locator: Bus. Reg. 8-101; Ocean City forms, tag: NAN-C-004 + NAN-C-005,
+     statement: 'Licensing: Ocean City requires MHIC and an Ocean City Business License for condominium repair (NAN-C-004), while the state MHIC definition excludes condominium common areas (NAN-C-005) and Maryland issues construction licenses for commercial work through the Circuit Court clerks (NAN-C-006). Ask the Ocean City permit desk and the Worcester County Clerk which licenses apply'}
+  - {id: NAN-OQ-07, role: question, method: clause, confidence: exact, source: WEB, locator: ICC; MAA matrix, tag: NAN-C-012 + NAN-C-013,
+     statement: 'Special inspection of the adhesive anchors: the IBC 2021 Chapter 17 text could not be opened (NAN-C-012). Ask the Ocean City building official whether it is required and who performs it'}
+  - {id: NAN-OQ-08, role: question, method: clause, confidence: exact, source: WEB, locator: MD BCA news, tag: NAN-C-010,
+     statement: 'Maryland has proposed adopting the 2024 IBC (NAN-C-010). Confirm the code edition in force when the permit is filed'}
+
+  # ---------- Codes, permits, standards (fetched 2026-10-07) ----------
+  - {id: NAN-C-001, role: code, method: fetched, confidence: exact, source: WEB, tag: Ocean City online permitting, retrieved: 2026-10-07,
+     url: 'https://oceancitymd.gov/oc/departments/planning-community-development/online-permitting/',
+     quote: 'All applications REQUIRE PLANS OR DRAWINGS. Please attach plans and necessary information with your application in .pdf format.',
+     statement: 'Ocean City accepts digital permit submissions only, with plans attached as PDF'}
+  - {id: NAN-C-002, role: code, method: fetched, confidence: exact, source: WEB, tag: Ocean City online permitting, retrieved: 2026-10-07,
+     url: 'https://oceancitymd.gov/oc/departments/planning-community-development/online-permitting/',
+     quote: 'Permits will be issued 2-4 weeks on average after submission is confirmed.',
+     statement: 'Permit turnaround 2-4 weeks on average'}
+  - {id: NAN-C-003, role: code, method: fetched, confidence: exact, source: WEB, tag: OC permit application 6/12/2024, retrieved: 2026-10-07,
+     url: 'https://oceancitymd.gov/oc/wp-content/uploads/Updated-Permit-Application-6-12-2024-1.pdf', flag: unverified,
+     quote: '',
+     statement: 'Permit application asks for MHIC License No. and OC Business License No. (field labels reported by the fetch tool, not quoted text)'}
+  - {id: NAN-C-004, role: code, method: fetched, confidence: exact, source: WEB, tag: OC building forms, retrieved: 2026-10-07,
+     url: 'https://oceancitymd.gov/oc/departments/planning-community-development/building-forms-and-applications/',
+     quote: 'Contractors who perform additions. alterations, conversions, improvement, modernization, remodeling, and repair or replacement of a residential building, including condominiums, must have a Maryland Home Improvement License (MHIC) and an Ocean City Business License.',
+     statement: 'Ocean City requires MHIC and an Ocean City Business License for repair of residential buildings including condominiums'}
+  - {id: NAN-C-005, role: code, method: fetched, confidence: exact, source: WEB, tag: MD Bus. Reg. § 8-101, retrieved: 2026-10-07,
+     url: 'https://mgaleg.maryland.gov/2026RS/Statute_Web/gbr/8-101.pdf',
+     quote: '(vi) work done on the commonly owned areas of condominiums.',
+     statement: '"Home improvement" does not include work on the commonly owned areas of condominiums (§ 8-101(g)(3)(vi))'}
+  - {id: NAN-C-006, role: code, method: fetched, confidence: exact, source: WEB, tag: MD Labor licensing, retrieved: 2026-10-07,
+     url: 'https://labor.maryland.gov/license/oplinks.shtml',
+     quote: 'Construction licenses are issued by the Clerks of the Circuit Court and are required for commercial work and new home construction.',
+     statement: 'Maryland construction licenses come from the Circuit Court clerks and are required for commercial work'}
+  - {id: NAN-C-007, role: code, method: fetched, confidence: exact, source: WEB, tag: Worcester Circuit Court clerk, retrieved: 2026-10-07,
+     url: 'https://www.courts.state.md.us/clerks/worcester/business',
+     quote: 'Many business licenses may be obtained from the Clerks of the Circuit Court.',
+     statement: 'Worcester County Clerk of the Circuit Court issues business licenses (contact details on the linked page)'}
+  - {id: NAN-C-008, role: code, method: fetched, confidence: exact, source: WEB, tag: COMAR 09.12.51, retrieved: 2026-10-07,
+     url: 'https://labor.md.gov/labor/build/comar091251.pdf',
+     quote: '2021 International Building Code (International Code Council);  ... Effective as of May 29, 2023',
+     statement: 'Maryland Building Performance Standards incorporate the 2021 IBC, effective May 29, 2023'}
+  - {id: NAN-C-009, role: code, method: fetched, confidence: exact, source: WEB, tag: MD Building Codes Administration, retrieved: 2026-10-07,
+     url: 'https://labor.maryland.gov/labor/build/buildadmin.shtml',
+     quote: 'State law requires local jurisdiction to start implementing & enforcing the new requirements by May 29, 2024',
+     statement: 'Local enforcement of the 2021 codes required by May 29, 2024'}
+  - {id: NAN-C-010, role: code, method: fetched, confidence: exact, source: WEB, tag: MD BCA news, retrieved: 2026-10-07,
+     url: 'https://www.dllr.state.md.us/labor/build/buildnews.shtml',
+     quote: 'These updates will adopt the 2024 editions of the International Building Code (IBC), the International Residential Code (IRC), and the International Energy Conservation Code (IECC) through incorporation by reference, with specific amendments.',
+     statement: 'Maryland has proposed (not yet final) adoption of the 2024 IBC'}
+  - {id: NAN-C-011, role: code, method: fetched, confidence: exact, source: WEB, tag: Ocean City building code, retrieved: 2026-10-07,
+     url: 'https://oceancitymd.gov/oc/departments/planning-community-development/building-code/',
+     quote: '2021 International Building Code (IBC)',
+     statement: 'Ocean City lists the 2021 IBC (and 2021 IEBC) as adopted'}
+  - {id: NAN-C-012, role: code, method: fetched, confidence: missing, source: WEB, tag: ICC IBC 2021 Ch. 17, retrieved: 2026-10-07,
+     url: 'https://codes.iccsafe.org/content/IBC2021P2/chapter-17-special-inspections-and-tests', flag: unverified,
+     supersedes: 'NAN-TB p.9 special-inspection row citing "MAA special inspections matrix, STRUCTURE magazine on 1705.1.1"',
+     reason: 'Code text behind a paywall; the only matrix found is an airport (MAA) document, not Worcester County or Ocean City',
+     statement: 'IBC 2021 § 1705.1.1 and special inspection of post-installed anchors: code text did not open'}
+  - {id: NAN-C-013, role: code, method: fetched, confidence: inferred, source: WEB, tag: MAA special inspections matrix, retrieved: 2026-10-07,
+     url: 'https://maa.maryland.gov/wp-content/uploads/2022/02/MAA-Special-Inspections-Matrix.pdf', flag: unverified,
+     quote: '4- Inspect anchors post-installed in hardened concrete members a. Adhesive anchors installed in horizontally or upwardly inclined orientations to resist sustained tension load',
+     statement: 'Maryland Aviation Administration matrix lists inspection of post-installed adhesive anchors in concrete. Airport permits only; has no row for anchors in masonry'}
+  - {id: NAN-C-014, role: code, method: fetched, confidence: exact, source: WEB, tag: Hilti HY 70 transition letter, retrieved: 2026-10-07,
+     url: 'https://files-ask.hilti.com/original/un/unhmbciryf.pdf',
+     quote: 'The new Hilti HIT-HY 270 Adhesive Anchoring System is now available as a direct replacement for Hilti HIT-HY 70 Adhesive Anchoring System in masonry applications. ... Hilti HIT-HY 70 has been set to phase-out status.',
+     supersedes: 'NAN-TB p.9 quote "HIT-HY 70 has been replaced by HIT-HY 270."',
+     reason: 'That wording was not found; Hilti''s letter says "direct replacement" and "phase-out status"',
+     statement: 'Hilti set HIT-HY 70 to phase-out and names HIT-HY 270 as the direct replacement in masonry (letter dated Jan 15, 2018)'}
+  - {id: NAN-C-015, role: code, method: fetched, confidence: exact, source: WEB, tag: ICC-ES ESR-4143, retrieved: 2026-10-07,
+     url: 'https://icc-es.org/wp-content/uploads/report-directory/ESR-4143.pdf',
+     quote: 'HILTI HIT-HY 270 ADHESIVE ANCHOR SYSTEM IN CRACKED AND UNCRACKED GROUTED AND UNGROUTED CONCRETE MASONRY UNIT WALLS AND CLAY BRICK MASONRY WALLS ... Reissued January 2026 ... This report is subject to renewal January 2028',
+     statement: 'ESR-4143 covers HIT-HY 270 in grouted and ungrouted CMU; reissued January 2026'}
+  - {id: NAN-C-016, role: code, method: fetched, confidence: missing, source: WEB, tag: ICC-ES ESR-2682, retrieved: 2026-10-07,
+     url: 'https://icc-es.org/report-listing/esr-2682/', flag: unverified,
+     statement: 'ESR-2682 (HY 70 in CMU): listing returned HTTP 404; status not stated anywhere'}
+  - {id: NAN-C-017, role: code, method: fetched, confidence: missing, source: WEB, tag: ICC-ES ESR-3342, retrieved: 2026-10-07,
+     url: 'https://icc-es.org/report-listing/esr-3342/', flag: unverified,
+     statement: 'ESR-3342 (HY 70 in URM): listing returned HTTP 404; status not stated anywhere'}
+  - {id: NAN-C-018, role: code, method: fetched, confidence: exact, source: WEB, tag: ICC-ES ESR-4143, retrieved: 2026-10-07,
+     url: 'https://icc-es.org/wp-content/uploads/report-directory/ESR-4143.pdf',
+     quote: 'The use of a screen tube or similar device to prevent unrestricted flow of adhesive is required',
+     statement: 'Screen tube required for HY 270 in ungrouted CMU'}
+  - {id: NAN-C-019, role: code, method: fetched, confidence: inferred, source: WEB, tag: Hilti HY 270 masonry bulletin, retrieved: 2026-10-07,
+     url: 'https://hilti.com/content/dam/urgent-folder/w1/pdf/anchors/hit-hy-270/Technical-information-ASSET-DOC-LOC-8942443.pdf', flag: unverified,
+     quote: '1/2 | 11/16 | 18x50',
+     statement: 'Table row read as 1/2" rod with HIT-SC 18x50 in a hollow CMU face. The fetch tool gave inconsistent table readings; check the PDF by eye'}
+  - {id: NAN-C-020, role: code, method: fetched, confidence: exact, source: WEB, tag: Hilti HIT-HY 270 product page, retrieved: 2026-10-07,
+     url: 'https://www.hilti.com/c/CLS_FASTENER_7135/CLS_CHEMICAL_ANCHORS_7135/2194247',
+     quote: '11.16 fl oz (US) ... 16.91 fl oz (US)',
+     statement: 'HIT-HY 270 cartridges listed in 11.16 fl oz and 16.91 fl oz sizes'}
+  - {id: NAN-C-021, role: code, method: fetched, confidence: exact, source: WEB, tag: SikaQuick VOH product page, retrieved: 2026-10-07,
+     url: 'https://usa.sika.com/en/construction/concrete-repair/mortars/vertical-overhead/sikaquick-voh.html',
+     quote: 'Overhead | 1/8" (3 mm)* | 2" (51 mm) ... 0.44 ft3 (0.01 m3) per bag',
+     statement: 'SikaQuick VOH: overhead lifts 1/8" to 2"; 44 lb bag yields 0.44 cu ft'}
+  - {id: NAN-C-022, role: code, method: fetched, confidence: exact, source: WEB, tag: SikaQuick VOH data sheet, retrieved: 2026-10-07,
+     url: 'https://usa.sika.com/dam/dms/us01/z/sikaquick_voh.pdf',
+     quote: 'an exposed aggregate surface profile of ±1/16" (1.6 mm) (CSP-5) ... Saturated Surface Dry (SSD) with clean water prior to application. No standing water should remain during application.',
+     statement: 'Surface prep for SikaQuick VOH: CSP-5 profile, saturated surface dry, no standing water'}
+  - {id: NAN-C-023, role: code, method: fetched, confidence: exact, source: WEB, tag: AISC standards, retrieved: 2026-10-07,
+     url: 'https://www.aisc.org/publications/steel-standards/',
+     quote: '2022 Specification for Structural Steel Buildings (ANSI/AISC 360)',
+     statement: 'AISC 360-22 is the current Specification for Structural Steel Buildings'}
+  - {id: NAN-C-024, role: code, method: fetched, confidence: exact, source: WEB, tag: AWS D1.1 release, retrieved: 2026-10-07,
+     url: 'https://www.aws.org/about/news/d11-release/',
+     quote: 'AWS Announces Release of D1.1/D1.1M:2025, Structural Welding Code – Steel',
+     statement: 'AWS D1.1/D1.1M:2025 released'}
+  - {id: NAN-C-025, role: code, method: fetched, confidence: exact, source: WEB, tag: 29 CFR 1926.501, retrieved: 2026-10-07,
+     url: 'https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-M/section-1926.501',
+     quote: 'Each employee on a walking/working surface (horizontal and vertical surface) with an unprotected side or edge which is 6 feet (1.8 m) or more above a lower level shall be protected from falling',
+     statement: 'Fall protection at 6 ft or more above a lower level'}
+  - {id: NAN-C-026, role: code, method: fetched, confidence: exact, source: WEB, tag: 29 CFR 1926.1153 Table 1, retrieved: 2026-10-07,
+     url: 'https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-Z/section-1926.1153',
+     quote: 'Use tool with water delivery system that supplies a continuous stream or spray of water at the point of impact.',
+     statement: 'Silica, chipping concrete: water at the point of impact (Table 1 entry x)'}
+  - {id: NAN-C-027, role: code, method: fetched, confidence: exact, source: WEB, tag: 29 CFR 1926.1153 Table 1, retrieved: 2026-10-07,
+     url: 'https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-Z/section-1926.1153',
+     quote: 'Use drill equipped with commercially available shroud or cowling with dust collection system ... Use a HEPA-filtered vacuum when cleaning holes.',
+     supersedes: 'NAN-TB p.10 "Chipping and drilling concrete and CMU: Table 1 controls (water delivery or dust collection)" quoting the water clause',
+     reason: 'Drilling (anchor holes) is Table 1 entry vii: shroud with dust collection and HEPA vacuum, not water',
+     statement: 'Silica, drilling anchor holes: shroud with dust collection, HEPA vacuum to clean holes (Table 1 entry vii)'}
+  - {id: NAN-C-028, role: code, method: fetched, confidence: exact, source: WEB, tag: 29 CFR 1926.1053, retrieved: 2026-10-07,
+     url: 'https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-X/section-1926.1053',
+     quote: 'the ladder side rails shall extend at least 3 feet (.9 m) above the upper landing surface to which the ladder is used to gain access',
+     statement: 'Ladders: side rails 3 ft above the upper landing'}
+  - {id: NAN-C-029, role: code, method: fetched, confidence: exact, source: WEB, tag: 29 CFR 1926.650, retrieved: 2026-10-07,
+     url: 'https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-P/section-1926.650',
+     quote: 'This subpart applies to all open excavations made in the earth''s surface. Excavations are defined to include trenches.',
+     statement: 'Excavation rules apply only if the wall is reached by excavation (NAN-F-011)'}
+
+dropped:
+  - {was: 'NAN-TB p.6 "SikaTop Armatec 110 EpoCem or equal, 1 kit"', why: 'Not on S-1 and not required by the fetched Sika data; add back only if NTDesigns or the mortar data sheet calls for it'}
+  - {was: 'NAN-TB p.6 "9/16" or 5/8" SDS bit, hole brush, blow-out pump"', why: 'Bit sizes had no source; drilling consumables follow the approved adhesive''s instructions'}
+  - {was: 'NAN-TB p.1-10 codes table without URLs', why: 'Replaced by NAN-C-001 to NAN-C-029, each with URL, date and quote'}
+
+proposal:
+  header: {project: NAN-H-001, address: NAN-H-002, client: NAN-F-001}
+  sections:
+    - title: Division 01 General Conditions
+      numbered: true
+      tasks:
+        - items:
+            - {phrase: gc_site}
+            - {phrase: gc_ppe}
+            - {row: NAN-G-001}
+            - {row: NAN-G-002}
+            - {row: NAN-G-003}
+            - {row: NAN-G-004}
+            - {row: NAN-G-005}
+            - {row: NAN-G-006}
+            - {row: NAN-G-007}
+            - {row: NAN-G-009}
+            - {phrase: gc_clear}
+    - title: Division 02 Site Construction
+      tasks:
+        - title: 2.1 Plank Underside Removal
+          items:
+            - {row: NAN-D-013}
+            - {row: NAN-D-014}
+            - {row: NAN-C-022}
+            - {phrase: conc_rebar}
+            - {phrase: conc_square}
+          allowance: [NAN-A-001]
+          close: concealed_reinforcement
+    - title: Division 03 Concrete
+      tasks:
+        - title: 3.1 Plank Underside Rebuild
+          items:
+            - {row: NAN-D-015}
+            - {row: NAN-C-021}
+            - {phrase: conc_bond}
+          allowance: [NAN-A-002]
+          close: concealed_reinforcement
+    - title: Division 05 Metals
+      tasks:
+        - title: 5.1 Bracket Supports
+          items:
+            - {row: NAN-Q-002}
+            - {row: NAN-D-009}
+            - {row: NAN-D-001}
+            - {row: NAN-D-002}
+            - {row: NAN-D-003}
+            - {row: NAN-D-010}
+            - {row: NAN-G-008}
+            - {row: NAN-D-011}
+            - {row: NAN-D-012}
+            - {row: NAN-N-001}
+            - {row: NAN-N-002}
+            - {row: NAN-N-003}
+            - {row: NAN-N-004}
+            - {row: NAN-N-005}
+          allowance: [NAN-A-003, NAN-A-004, NAN-A-005, NAN-A-006]
+  exclusion_phrases: [excl_engineered, excl_concealed, excl_full_depth, excl_electrical, excl_mep, excl_mold, excl_tenants]
+  terms: [change_orders, costs, warranty, allowance_definition]

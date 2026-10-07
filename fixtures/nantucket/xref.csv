@@ -1,0 +1,117 @@
+para,section,claims,phrases,text
+1,header,,license_line,"FL CGC. License# CGC1532923 MHIC#110254 DE#2015604245 • Mailing Address: 772 Bantry Ct, Merritt Island FL 32953"
+2,header,NAN-H-002,,"Job Address:  
+12503 Wight Street, Ocean City, Maryland (S-1 TB)"
+3,header,,contractor_block,"Mersco Inc.  
+Address: 2805 Philadelphia Ave. Ocean City MD 21842  
+Ph: 1-855-227-2505  
+Email: info@mersconow.com"
+4,header,NAN-F-001,greeting,"Hello FIELD, thank you for considering Mersco Inc. The purpose of this document is to define the deliverables, descripti"
+5,Division 01 General Conditions,,gc_site,1. Prepare the site for the project. Set up work trailer and/or equipment needed to complete the project. The work site 
+6,Division 01 General Conditions,,gc_ppe,"2. Safety glasses, hard hats and masks will be worn. Work areas will have signs posted and will be caution taped off. (P"
+7,Division 01 General Conditions,NAN-G-001,,3. Field verify all dimensions and field conditions on the drawings and in the field prior to starting construction and 
+8,Division 01 General Conditions,NAN-G-002,,4. Provide project management and supervision and the temporary facilities and controls required for construction (S-1 G
+9,Division 01 General Conditions,NAN-G-003,,"5. Design, furnish, erect and remove any temporary shoring and bracing during construction (S-1 GN)"
+10,Division 01 General Conditions,NAN-G-004,,"6. Protect existing buildings, owner equipment, roads, walks and utilities, and repair all damages at no additional expe"
+11,Division 01 General Conditions,NAN-G-005,,7. Remove demolished materials from the site and provide proper and legal disposal (S-1 GN)
+12,Division 01 General Conditions,NAN-G-006,,"8. Notify the architect and engineer when materials and assemblies are ready for observation, with sufficient notice to "
+13,Division 01 General Conditions,NAN-G-007,,"9. Provide and maintain barricades, warning signs, flashing lights and traffic control devices; coordinate sequencing wi"
+14,Division 01 General Conditions,NAN-G-009,,"10. S-1 makes the contractor responsible for the costs of all building permitting and all soils, concrete and metal stru"
+15,Division 01 General Conditions,,gc_clear,"11. Mersco will ensure that the site is cleared of all equipment, tools, work trailers, rental equipment and materials. "
+16,2.1 Plank Underside Removal,NAN-D-013,,"- Existing construction: 6"" Flexicore plank with 2"" topping bearing on an existing 8"" CMU foundation wall (S-1 Det 1)"
+17,2.1 Plank Underside Removal,NAN-D-014,,- Remove existing concrete on the underside of the plank down to sound material and prepare the surface per the repair m
+18,2.1 Plank Underside Removal,NAN-C-022,,"- Surface prep for SikaQuick VOH: CSP-5 profile, saturated surface dry, no standing water (SikaQuick VOH data sheet)"
+19,2.1 Plank Underside Removal,,conc_rebar,- Expose reinforcing steel where present and clean to bright metal using mechanical methods. (PFE p.3)
+20,2.1 Plank Underside Removal,,conc_square,- Square repair edges to establish defined boundaries and eliminate feathering. (PFE p.3)
+21,2.1 Plank Underside Removal,NAN-A-001,allowance concealed_reinforcement,"_(Mersco allowance of FIELD LF for plank underside concrete removal, one plank, length per field survey (NAN-F-004). Any"
+22,3.1 Plank Underside Rebuild,NAN-D-015,,- Provide vertical repair mortar (Sika Quick VOH or approved equal) so that the bottom of the existing plank bears on th
+23,3.1 Plank Underside Rebuild,NAN-C-021,,"- SikaQuick VOH: overhead lifts 1/8"" to 2""; 44 lb bag yields 0.44 cu ft (SikaQuick VOH product page)"
+24,3.1 Plank Underside Rebuild,,conc_bond,- Treat exposed rebar with a corrosion-inhibiting bonding agent to ensure proper adhesion and long-term durability. (PFE
+25,3.1 Plank Underside Rebuild,NAN-A-002,allowance concealed_reinforcement,"_(Mersco allowance of FIELD CF for overhead/vertical repair mortar, volume per field survey (NAN-F-006). Any concealed d"
+26,5.1 Bracket Supports,NAN-Q-002,,"- 6 bracket supports: 5 spaces + 1, which agrees with the 6 symbols drawn on each plan (NAN-D-004, NAN-D-005) (S-1 Fnd +"
+27,5.1 Bracket Supports,NAN-D-009,,"- Each bracket is L3x3x1/4 steel angle (TYP.): a vertical leg against the CMU wall, a horizontal leg under the plank and"
+28,5.1 Bracket Supports,NAN-D-001,,"- Bracket run 15'-2"" between wall faces (S-1 Fnd)"
+29,5.1 Bracket Supports,NAN-D-002,,"- Bracket spacing 2'-8"" on center (S-1 Fnd)"
+30,5.1 Bracket Supports,NAN-D-003,,"- First and last bracket 11"" from the wall face at each end (S-1 Fnd)"
+31,5.1 Bracket Supports,NAN-D-010,,"- Anchor each vertical leg to the existing 8"" CMU foundation wall with 1/2"" dia adhesive anchors. S-1 calls for ""HILTI H"
+32,5.1 Bracket Supports,NAN-G-008,,"- Install all specialty bolts, including expansion and epoxy type anchors, in strict accordance with the manufacturer's "
+33,5.1 Bracket Supports,NAN-D-011,,"- Bolt angle-to-angle connections with 5/8"" dia ASTM A325 bolts (TYP.). SN sets A325 3/4"" ""unless otherwise noted on the"
+34,5.1 Bracket Supports,NAN-D-012,,"- Install 1-1/2"" x 20 ga Type ""B"" galvanized steel deck on the horizontal legs, under the bearing edge of the plank (S-1"
+35,5.1 Bracket Supports,NAN-N-001,,- Prime paint all structural steel after fabrication; field connections bolted (S-1 SN)
+36,5.1 Bracket Supports,NAN-N-002,,"- Structural steel other than W-shapes to ASTM A36, Grade 36 (S-1 SN)"
+37,5.1 Bracket Supports,NAN-N-003,,"- Design, fabrication and erection per the AISC ""Specification for Structural Steel Buildings""; any welding per AWS ""Str"
+38,5.1 Bracket Supports,NAN-N-004,,"- The steel fabricator is solely responsible for field surveying and verifying existing conditions, including the locati"
+39,5.1 Bracket Supports,NAN-N-005,,- No field cutting of structural steel members for the work of other trades without prior approval of the design profess
+40,5.1 Bracket Supports,NAN-A-003 NAN-A-004 NAN-A-005 NAN-A-006,allowance,"_(Mersco allowance of 6 each for steel bracket supports (S-1 Fnd + Frm). Mersco allowance of 18 each for 1/2"" dia adhesi"
+41,Exclusions,,excl_engineered,"- Engineered repair details, designs, or specialty materials required. (PFE p.15)"
+42,Exclusions,,excl_concealed,"- Concealed deterioration, structural deficiencies, reinforcement loss, or substrate failures discovered during demoliti"
+43,Exclusions,,excl_full_depth,- Full-depth structural concrete repairs unless specifically listed. (PFE p.16)
+44,Exclusions,,excl_electrical,"- Electrical conduit relocation, wiring modifications, or power supply adjustments. (PFE p.16)"
+45,Exclusions,,excl_mep,"- HVAC, plumbing, or mechanical system modifications. (PFE p.16)"
+46,Exclusions,,excl_mold,"- Mold remediation, hazardous material abatement, or environmental testing. (PFE p.16)"
+47,Exclusions,,excl_tenants,- Temporary relocation of tenants or furnishings. (PFE p.16)
+48,Exclusions,NAN-X-001,,- Repairs to planks other than the one hatched on the framing plan; full-depth plank or topping replacement (S-1 Frm)
+49,Exclusions,NAN-X-002,,"- Excavation, dewatering or interior finish removal to reach the underside of the plank, until access is confirmed (NAN-"
+50,Exclusions,NAN-X-003,,"- Paint, drywall, ceiling or flooring restoration above or below the work area (FIELD)"
+51,Open questions,NAN-OQ-01,,"- **NAN-OQ-01** S-1 specifies Hilti HIT HY 70, which Hilti set to phase-out and names HIT-HY 270 as its direct replaceme"
+52,Open questions,NAN-OQ-02,,"- **NAN-OQ-02** Repair depth and extent on the plank underside (NAN-F-004, NAN-F-005): S-1 gives ""down to sound material"
+53,Open questions,NAN-OQ-03,,- **NAN-OQ-03** Confirm with NTDesigns: 3 anchors and 3 bolts per bracket are counted from the drawing; the callouts say
+54,Open questions,NAN-OQ-04,,"- **NAN-OQ-04** Angle leg lengths exist only as scale on an undimensioned detail, and two scalings disagree (NAN-S-001 t"
+55,Open questions,NAN-OQ-05,,"- **NAN-OQ-05** Permits, testing and inspections: S-1 GN assigns their cost to the contractor; Mersco's standard proposa"
+56,Open questions,NAN-OQ-06,,- **NAN-OQ-06** Licensing: Ocean City requires MHIC and an Ocean City Business License for condominium repair (NAN-C-004
+57,Open questions,NAN-OQ-07,,- **NAN-OQ-07** Special inspection of the adhesive anchors: the IBC 2021 Chapter 17 text could not be opened (NAN-C-012)
+58,Open questions,NAN-OQ-08,,- **NAN-OQ-08** Maryland has proposed adopting the 2024 IBC (NAN-C-010). Confirm the code edition in force when the perm
+59,Field takeoff,NAN-F-001,,"- **NAN-F-001** Client: S-1 names the building, not the owner or association. Confirm who the proposal is addressed to ("
+60,Field takeoff,NAN-F-002,,"- **NAN-F-002** Angle leg and kicker cut lengths and total L3x3x1/4 footage: fabricator field survey (S-1 SN), or dimens"
+61,Field takeoff,NAN-F-003,,- **NAN-F-003** Galvanized deck length along the wall and width out from the wall (S-1 Det 1)
+62,Field takeoff,NAN-F-004,,- **NAN-F-004** Length of plank underside repair (hammer-sound survey) (S-1 Det 1)
+63,Field takeoff,NAN-F-005,,"- **NAN-F-005** Depth of unsound concrete on the plank underside, and repair width (S-1 Det 1)"
+64,Field takeoff,NAN-F-006,,- **NAN-F-006** Repair mortar volume = NAN-F-004 length x NAN-F-005 width x depth; bags = volume / 0.44 cu ft per bag (N
+65,Field takeoff,NAN-F-007,,- **NAN-F-007** Are the CMU cells grouted at the bracket line? Decides whether screen tubes are required (NAN-C-018) (S-
+66,Field takeoff,NAN-F-008,,"- **NAN-F-008** Anchor rod type, length and embedment, from the approved adhesive's installation instructions (S-1 Det 1"
+67,Field takeoff,NAN-F-009,,- **NAN-F-009** A325 bolt length and nut/washer specification (fabricator) (S-1 Det 1 + SN)
+68,Field takeoff,NAN-F-010,,- **NAN-F-010** Temporary shoring design and materials under the affected plank (contractor-designed per S-1 GN) (S-1 GN
+69,Field takeoff,NAN-F-011,,"- **NAN-F-011** Access route to the underside of the plank and working headroom (crawl space, basement or excavation) (F"
+70,Field takeoff,NAN-F-012,,- **NAN-F-012** Bearing elevation of the plank underside relative to the CMU wall (fabricator survey per S-1 SN) (S-1 SN
+71,Field takeoff,NAN-F-013,,"- **NAN-F-013** Adhesive cartridge count, from the approved product's published yield for the hole size and embedment (F"
+72,Materials,NAN-M-001,,"| NAN-M-001 | Steel angle L3x3x1/4, ASTM A36 Gr 36, shop prime painted; footage per NAN-F-002 | FIELD | LF | S-1 Det 1 +"
+73,Materials,NAN-M-002,,"| NAN-M-002 | Galvanized steel deck 1-1/2"" deep, 20 ga, Type B; size per NAN-F-003 | FIELD | LF | S-1 Det 1 | FIELD |"
+74,Materials,NAN-M-003,,"| NAN-M-003 | 1/2"" dia adhesive anchor; adhesive product pending engineer approval (S-1 names HIT HY 70, phase-out per N"
+75,Materials,NAN-M-004,,"| NAN-M-004 | Screen tubes, only if cells are hollow (NAN-F-007); size per the approved adhesive's instructions [unverif"
+76,Materials,NAN-M-005,,| NAN-M-005 | Adhesive cartridges and mixing nozzles; count per NAN-F-013 | FIELD | cartridges | NAN-F-013 | FIELD |
+77,Materials,NAN-M-006,,"| NAN-M-006 | Structural bolts 5/8"" dia ASTM A325; length, nuts and washers per NAN-F-009 | 18 | each | S-1 Det 1 + Fnd "
+78,Materials,NAN-M-007,,"| NAN-M-007 | SikaQuick VOH or approved equal, 44 lb bag yielding 0.44 cu ft; bag count per NAN-F-006 | FIELD | bags | S"
+79,Materials,NAN-M-008,,| NAN-M-008 | Shop primer for all bracket steel (S-1 SN); product and quantity by fabricator | FIELD | gal | S-1 SN | FI
+80,Codes,NAN-C-001,,"| NAN-C-001 | Ocean City accepts digital permit submissions only, with plans attached as PDF | “All applications REQUIRE"
+81,Codes,NAN-C-002,,| NAN-C-002 | Permit turnaround 2-4 weeks on average | “Permits will be issued 2-4 weeks on average after submission is 
+82,Codes,NAN-C-003,,| NAN-C-003 | Permit application asks for MHIC License No. and OC Business License No. (field labels reported by the fet
+83,Codes,NAN-C-004,,| NAN-C-004 | Ocean City requires MHIC and an Ocean City Business License for repair of residential buildings including 
+84,Codes,NAN-C-005,,"| NAN-C-005 | ""Home improvement"" does not include work on the commonly owned areas of condominiums (§ 8-101(g)(3)(vi)) |"
+85,Codes,NAN-C-006,,| NAN-C-006 | Maryland construction licenses come from the Circuit Court clerks and are required for commercial work | “
+86,Codes,NAN-C-007,,| NAN-C-007 | Worcester County Clerk of the Circuit Court issues business licenses (contact details on the linked page) 
+87,Codes,NAN-C-008,,"| NAN-C-008 | Maryland Building Performance Standards incorporate the 2021 IBC, effective May 29, 2023 | “2021 Internati"
+88,Codes,NAN-C-009,,"| NAN-C-009 | Local enforcement of the 2021 codes required by May 29, 2024 | “State law requires local jurisdiction to s"
+89,Codes,NAN-C-010,,| NAN-C-010 | Maryland has proposed (not yet final) adoption of the 2024 IBC | “These updates will adopt the 2024 editio
+90,Codes,NAN-C-011,,| NAN-C-011 | Ocean City lists the 2021 IBC (and 2021 IEBC) as adopted | “2021 International Building Code (IBC)” | [Oce
+91,Codes,NAN-C-012,,| NAN-C-012 | IBC 2021 § 1705.1.1 and special inspection of post-installed anchors: code text did not open [unverified] 
+92,Codes,NAN-C-013,,| NAN-C-013 | Maryland Aviation Administration matrix lists inspection of post-installed adhesive anchors in concrete. A
+93,Codes,NAN-C-014,,| NAN-C-014 | Hilti set HIT-HY 70 to phase-out and names HIT-HY 270 as the direct replacement in masonry (letter dated J
+94,Codes,NAN-C-015,,| NAN-C-015 | ESR-4143 covers HIT-HY 270 in grouted and ungrouted CMU; reissued January 2026 | “HILTI HIT-HY 270 ADHESIV
+95,Codes,NAN-C-016,,| NAN-C-016 | ESR-2682 (HY 70 in CMU): listing returned HTTP 404; status not stated anywhere [unverified] | — | [ICC-ES 
+96,Codes,NAN-C-017,,| NAN-C-017 | ESR-3342 (HY 70 in URM): listing returned HTTP 404; status not stated anywhere [unverified] | — | [ICC-ES 
+97,Codes,NAN-C-018,,| NAN-C-018 | Screen tube required for HY 270 in ungrouted CMU | “The use of a screen tube or similar device to prevent 
+98,Codes,NAN-C-019,,"| NAN-C-019 | Table row read as 1/2"" rod with HIT-SC 18x50 in a hollow CMU face. The fetch tool gave inconsistent table "
+99,Codes,NAN-C-020,,| NAN-C-020 | HIT-HY 270 cartridges listed in 11.16 fl oz and 16.91 fl oz sizes | “11.16 fl oz (US) ... 16.91 fl oz (US)
+100,Codes,NAN-C-021,,"| NAN-C-021 | SikaQuick VOH: overhead lifts 1/8"" to 2""; 44 lb bag yields 0.44 cu ft | “Overhead \| 1/8"" (3 mm)* \| 2"" (5"
+101,Codes,NAN-C-022,,"| NAN-C-022 | Surface prep for SikaQuick VOH: CSP-5 profile, saturated surface dry, no standing water | “an exposed aggr"
+102,Codes,NAN-C-023,,| NAN-C-023 | AISC 360-22 is the current Specification for Structural Steel Buildings | “2022 Specification for Structur
+103,Codes,NAN-C-024,,"| NAN-C-024 | AWS D1.1/D1.1M:2025 released | “AWS Announces Release of D1.1/D1.1M:2025, Structural Welding Code – Steel”"
+104,Codes,NAN-C-025,,| NAN-C-025 | Fall protection at 6 ft or more above a lower level | “Each employee on a walking/working surface (horizon
+105,Codes,NAN-C-026,,"| NAN-C-026 | Silica, chipping concrete: water at the point of impact (Table 1 entry x) | “Use tool with water delivery "
+106,Codes,NAN-C-027,,"| NAN-C-027 | Silica, drilling anchor holes: shroud with dust collection, HEPA vacuum to clean holes (Table 1 entry vii)"
+107,Codes,NAN-C-028,,| NAN-C-028 | Ladders: side rails 3 ft above the upper landing | “the ladder side rails shall extend at least 3 feet (.9
+108,Codes,NAN-C-029,,| NAN-C-029 | Excavation rules apply only if the wall is reached by excavation (NAN-F-011) | “This subpart applies to al
+109,Terms,,change_orders,Change orders: Adjustments can be made to the initial contract and scope of the project to account for changing needs th
+110,Terms,,costs,Costs: The customer is responsible for accessibility to areas of the building and utilities. Prompt payment at key miles
+111,Terms,,warranty,Warranty: A 1-year workmanship warranty period will begin at completion of the job. (PFE p.16)
+112,Terms,,allowance_definition,Allowance is the quantity of unit pricing included in the base bid. (PFE p.16)

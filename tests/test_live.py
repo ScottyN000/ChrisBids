@@ -280,6 +280,20 @@ class UnitsCase(unittest.TestCase):
             self.assertEqual(len(obv["photo"]), 5)
 
 
+class PacketHashCase(unittest.TestCase):
+    def test_a_packet_file_that_differs_from_the_register_stops_the_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            packet = Path(tmp) / "packet"
+            photos = packet / "source" / "ocean-beach-villas_photos"
+            photos.mkdir(parents=True)
+            (photos / "IMG_8316.jpg").write_bytes(b"not the registered photo")
+            job = Path(tmp) / "job"
+            shutil.copytree(ROOT / "fixtures" / "ocean-beach", job)
+            (job / "units.yaml").write_text("photo:\n  - {unit_id: IMG_8316, source_id: IMG_8316}\n")
+            with self.assertRaisesRegex(live.LiveRunError, "does not match its register hash"):
+                live.units_for(job, packet, Path(tmp) / "work")
+
+
 @unittest.skipUnless(os.environ.get("CHRISBIDS_LIVE") == "1"
                      and (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MERSCO_ANTHROPIC_API_KEY"))
                      and PACKET.exists(), "live gate: set CHRISBIDS_LIVE=1 with the API key and the packet")

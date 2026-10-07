@@ -60,6 +60,13 @@ through the SDK's `transform_schema`, with the rest written into the field
 descriptions; `run.read` still checks each response against the full schema and
 discards any that fail.
 
+In GitHub Actions the same check is the manual `live` workflow
+(`.github/workflows/live.yml`): Actions > live > Run workflow. It needs the
+repository secrets `ANTHROPIC_API_KEY` and `PACKET_URL` (an https link to a
+.zip or .tar.gz of the packet, laid out as the register paths expect). Every
+file a unit reads is checked against its register hash first. Each job uploads
+its comparison, ledger, recordings and the view images it sent.
+
 The gate is the same function as replay: `golden.replay(job, ledger, client=LiveClient(...), units=...)`
 must reproduce the fixture's dimensioned and counted rows. `tests/test_live.py`
 runs the whole live path with the model replaced by the expected answers; the

@@ -191,7 +191,8 @@ def main(argv=None) -> int:
     p.add_argument("--out", required=True)
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--model", default="claude-haiku-5-5")
-    p.add_argument("--effort", default="low", help="low | medium | high; empty for the model default")
+    p.add_argument("--effort", default="low", choices=["low", "medium", "high", ""],
+                   help="empty for the model default")
     p.set_defaults(func=cmd_live)
 
     a = ap.parse_args(argv)

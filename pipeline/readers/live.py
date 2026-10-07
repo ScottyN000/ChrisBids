@@ -30,6 +30,7 @@ from pathlib import Path
 
 import yaml
 
+from ..intake import sha256_file
 from . import tiles
 from .clients import prompt_version
 from .rows import Unit
@@ -60,6 +61,7 @@ def units_for(job_dir: Path, packet: Path, work: Path) -> dict[str, list[Unit]]:
     from .. import fixtures
     _, register = fixtures.read_fixture(job_dir)
     files = {r["source_id"]: r["file"] for r in register if r["status"] == "present" and r["file"]}
+    hashes = {r["source_id"]: r["sha256"] for r in register}
 
     out: dict[str, list[Unit]] = {}
     for reader, entries in spec.items():
@@ -69,6 +71,9 @@ def units_for(job_dir: Path, packet: Path, work: Path) -> dict[str, list[Unit]]:
             src = packet / files[e["source_id"]]
             if not src.exists():
                 raise LiveRunError(f"{e['unit_id']}: {src} not found under the packet root {packet}")
+            # The file read must be the file registered (architecture p.10), wherever the packet came from.
+            if sha256_file(src) != hashes[e["source_id"]]:
+                raise LiveRunError(f"{e['unit_id']}: {files[e['source_id']]} does not match its register hash")
             path = _prepare(reader, e, src, work)
             # A text unit carries the exact text the model is shown, so run.read
             # can hold every verbatim field to it. Rasters carry none.

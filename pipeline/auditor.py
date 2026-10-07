@@ -28,7 +28,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import schema
+from . import guard, schema
 from .broker import Broker
 from .schema import Claim
 
@@ -230,7 +230,11 @@ def confirm_on_page(c: Claim, register: dict[str, dict], packet: Path) -> RowVer
     page = int(page_no.group(1))
     opened = []
     for s in pdfs:
-        text = page_text(Path(packet) / s["file"], page)
+        try:
+            pdf = guard.inside(packet, s["file"])
+        except guard.UnsafeInput as e:
+            return RowVerdict(c.claim_id, "fail", f"{s['source_id']}: register path refused: {e}")
+        text = page_text(pdf, page)
         if text is None:
             return RowVerdict(c.claim_id, "unverified",
                               f"{s['source_id']} p.{page} has no text layer; needs the page image")
@@ -253,16 +257,37 @@ def confirm_on_page(c: Claim, register: dict[str, dict], packet: Path) -> RowVer
                       f"not found on {pdfs[0]['source_id']} p.{page}: {(c.quote or c.value)[:60]!r}")
 
 
+class _PublicRedirects(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only to another public http(s) address."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        guard.public_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_PublicRedirects)
+
+
 def link_live(url: str, *, timeout: int = 20) -> tuple[bool, str]:
-    """A dead link at audit time is a fail (architecture p.6)."""
+    """A dead link at audit time is a fail (architecture p.6).
+
+    The URL was written by an agent that read a web page, so it is checked
+    before it is opened: http(s) only, public hosts only, redirects included.
+    """
+    try:
+        guard.public_url(url)
+    except guard.UnsafeInput as e:
+        return False, f"not checked: {e}"
     req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "ChrisBids-Auditor/0.1"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with _OPENER.open(req, timeout=timeout) as r:  # nosec B310 - scheme and host checked by guard.public_url
             return (200 <= r.status < 400), f"HTTP {r.status}"
     except urllib.error.HTTPError as e:
         if e.code in (403, 405):  # HEAD refused; the page may still be there
             return True, f"HTTP {e.code} on HEAD, not checked further"
         return False, f"HTTP {e.code}"
+    except guard.UnsafeInput as e:
+        return False, f"redirect refused: {e}"
     except (urllib.error.URLError, OSError, ValueError) as e:
         return False, f"{type(e).__name__}: {e}"
 

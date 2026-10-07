@@ -7,6 +7,8 @@ stored row later with the same code.
 """
 from __future__ import annotations
 
+import ast
+import operator
 import re
 from dataclasses import dataclass, fields
 from typing import Any
@@ -36,6 +38,14 @@ LEDGER_FIELDS = (
 
 CALC_REF = re.compile(r"\{([A-Z0-9-]+)\}")
 CALC_SAFE = re.compile(r"[0-9.+\-*/() ]+")
+# A calc is written by an agent, so it is evaluated as data: + - * / and
+# parentheses over numbers, nothing else. `**` passes CALC_SAFE but is refused
+# here, so "9**9**9**9" cannot hang the broker.
+_ARITH_OPS = {
+    ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
+    ast.USub: operator.neg, ast.UAdd: operator.pos,
+}
+CALC_MAX_LEN = 400
 
 
 class LedgerError(Exception):
@@ -201,7 +211,33 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
         expr = expr.replace("{" + ref + "}", repr(src.value_num))
     if not CALC_SAFE.fullmatch(expr):
         return errors + [f"{c.claim_id}: calc {c.calc!r} is not plain arithmetic"]
-    got = eval(expr, {"__builtins__": {}})  # arithmetic only, checked by CALC_SAFE
+    try:
+        got = arith(expr)
+    except (ValueError, ZeroDivisionError) as e:
+        return errors + [f"{c.claim_id}: calc {c.calc!r} does not evaluate: {e}"]
     if c.value_num is None or abs(got - c.value_num) > 1e-9:
         errors.append(f"{c.claim_id}: calc {c.calc} = {got}, ledger says {c.value or '(blank)'}")
     return errors
+
+
+def arith(expr: str) -> float:
+    """Evaluate plain arithmetic without eval: numbers, + - * / and parentheses."""
+    if len(expr) > CALC_MAX_LEN or not CALC_SAFE.fullmatch(expr):
+        raise ValueError("not plain arithmetic")
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError as e:
+        raise ValueError(f"not plain arithmetic ({e.msg})") from None
+
+    def ev(node):
+        if isinstance(node, ast.Expression):
+            return ev(node.body)
+        if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+            return node.value
+        if isinstance(node, ast.BinOp) and type(node.op) in _ARITH_OPS:
+            return _ARITH_OPS[type(node.op)](ev(node.left), ev(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _ARITH_OPS:
+            return _ARITH_OPS[type(node.op)](ev(node.operand))
+        raise ValueError(f"{type(node).__name__} is not allowed in a calc")
+
+    return ev(tree)

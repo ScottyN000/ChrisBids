@@ -18,6 +18,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import guard
 from .broker import Broker
 
 KINDS = (
@@ -189,8 +190,11 @@ def scan(packet: Path, *, images: bool = False, image_root: Path | None = None) 
     is registered as a duplicate so the register still accounts for it and no
     reader opens it twice.
     """
-    packet = Path(packet)
-    files = sorted(p for p in packet.rglob("*") if p.is_file())
+    # Absolute, so no file name can reach poppler looking like an option
+    # ("-opw.pdf"); symlinks skipped, so a packet cannot pull in a file from
+    # outside itself.
+    packet = Path(packet).resolve()
+    files = sorted(p for p in packet.rglob("*") if p.is_file() and not p.is_symlink())
     by_hash: dict[str, str] = {}
     taken: set[str] = set()
     sources: list[Source] = []
@@ -242,7 +246,11 @@ def verify(broker: Broker, packet: Path) -> list[str]:
     for sid, s in broker.ledger.register().items():
         if not s.get("file") or s.get("status") not in ("present", "duplicate"):
             continue
-        path = Path(packet) / s["file"]
+        try:
+            path = guard.inside(packet, s["file"])
+        except guard.UnsafeInput as e:
+            problems.append(f"{sid}: {e}")
+            continue
         if not path.exists():
             problems.append(f"{sid}: {s['file']} is in the register but not in the packet")
             continue

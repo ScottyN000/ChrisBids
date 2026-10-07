@@ -9,6 +9,7 @@ the rest trustworthy.
 | [pipeline/](pipeline/) | **Phase 1**: the append-only claim ledger behind a broker, Intake, and the Auditor. [How it works](pipeline/README.md) |
 | [fixtures/](fixtures/) | The two hand-made test bids as claim ledgers: the answer key every change must reproduce |
 | [tools/build_fixture.py](tools/build_fixture.py) | Validates a fixture ledger against the method rules and renders its proposal |
+| [SECURITY.md](SECURITY.md) | What keeps document content from steering the pipeline, and what CI scans for |
 | [tests/](tests/) | The access matrix, the method rules, intake, the auditor and the golden tests |
 
 ## Quick start

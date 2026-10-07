@@ -1,0 +1,54 @@
+name: security
+
+# Kept apart from ci.yml so the scanners can change without touching the golden
+# tests. Every job is read-only; none of them sees a secret.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"   # weekly, so a new CVE in a pinned dependency surfaces without a push
+
+permissions:
+  contents: read
+
+jobs:
+  bandit:
+    name: bandit (Python static analysis)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --quiet bandit==1.9.4
+      # Medium and high severity fail the build. A finding that is a false
+      # positive is silenced on its line with `# nosec <ID>` and a reason.
+      - run: bandit -r pipeline tools -ll
+
+  pip-audit:
+    name: pip-audit (known vulnerabilities in dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --quiet pip-audit==2.10.1
+      - run: pip-audit -r requirements.txt --strict
+
+  gitleaks:
+    name: gitleaks (secrets in the code or its history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

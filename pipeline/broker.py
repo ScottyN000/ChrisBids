@@ -16,7 +16,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import roles, schema
+from . import guard, roles, schema
 from .ledger import SCHEMA_VERSION, Ledger
 from .schema import Claim, LedgerError
 
@@ -29,7 +29,7 @@ DEFAULT_MODEL_ID = "none (code only)"
 # Secrets live in the broker's environment, never in a prompt or a tool result
 # (architecture p.12). Phase 1 needs none; the names are fixed here so a later
 # phase does not invent its own.
-SECRET_ENV = ("CHRISBIDS_RATE_BOOK", "CHRISBIDS_API_KEY")
+SECRET_ENV = ("CHRISBIDS_RATE_BOOK", "CHRISBIDS_API_KEY", "ANTHROPIC_API_KEY")
 
 
 def utcnow() -> str:
@@ -137,10 +137,12 @@ class Broker:
             self.ledger.db.commit()
             raise LedgerError("\n".join(errors))
 
+        # Who wrote a row and when is the broker's to say, not the caller's: a
+        # reader cannot label its row as another agent's or backdate it.
         c = replace(
             c,
-            agent=c.agent or self.agent_label,
-            timestamp=c.timestamp or self.clock(),
+            agent=self.agent_label,
+            timestamp=self.clock(),
             run_id=self.run_id,
             model_id=self.model_id,
             prompt_version=self.prompt_version,
@@ -151,7 +153,9 @@ class Broker:
         cols = list(schema.CLAIM_FIELDS)
         values = [getattr(c, col) for col in cols]
         self.ledger.db.execute(
-            f"INSERT INTO claims({', '.join(cols)}, principal, written_at) "
+            # Column names come from schema.CLAIM_FIELDS, never from the caller;
+            # every value is a bound parameter.
+            f"INSERT INTO claims({', '.join(cols)}, principal, written_at) "  # nosec B608
             f"VALUES({', '.join('?' * len(cols))}, ?, ?)",
             (*values, self.principal.name, self.clock()),
         )
@@ -216,8 +220,19 @@ class Broker:
     # ---- egress -----------------------------------------------------------
 
     def may_fetch(self, url: str) -> bool:
-        """Outbound network is for Codes & Regs, Materials and the Auditor only."""
-        return self.principal.egress and bool(url)
+        """Outbound network is for Codes & Regs, Materials and the Auditor only,
+        and only to a public http(s) address. The per-domain allowlist is the
+        egress proxy's job (hosting plan); this refuses what no allowlist should
+        ever pass: file:, loopback, private and cloud-metadata addresses."""
+        if not self.principal.egress:
+            return False
+        try:
+            guard.public_url(url, resolve=False)
+        except guard.UnsafeInput as e:
+            self._log("denied", "fetch", f"{url[:200]}: {e}")
+            self.ledger.db.commit()
+            return False
+        return True
 
     def secret(self, name: str) -> str:
         """Secrets come from the broker's environment, never from a prompt."""

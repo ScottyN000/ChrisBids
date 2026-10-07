@@ -74,7 +74,7 @@ CREATE TRIGGER IF NOT EXISTS claims_no_delete BEFORE DELETE ON claims BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS claims_no_edit
-BEFORE UPDATE OF {", ".join(_LOCKED_COLUMNS)} ON claims BEGIN
+BEFORE UPDATE OF {", ".join(["seq", *_LOCKED_COLUMNS, "principal", "written_at"])} ON claims BEGIN
     SELECT RAISE(ABORT, 'ledger is append-only: only the audit field is updated in place');
 END;
 
@@ -83,11 +83,15 @@ CREATE TRIGGER IF NOT EXISTS register_no_delete BEFORE DELETE ON register BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS register_no_edit
-BEFORE UPDATE OF source_id, file, sha256, kind ON register BEGIN
+BEFORE UPDATE ON register BEGIN
     SELECT RAISE(ABORT, 'the Source Register is write-once: re-run intake into a new ledger');
 END;
 
 CREATE TRIGGER IF NOT EXISTS log_no_delete BEFORE DELETE ON audit_log BEGIN
+    SELECT RAISE(ABORT, 'the audit log is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS log_no_edit BEFORE UPDATE ON audit_log BEGIN
     SELECT RAISE(ABORT, 'the audit log is append-only');
 END;
 """

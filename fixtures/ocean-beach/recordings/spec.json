@@ -1,0 +1,100 @@
+{
+ "reader": "spec",
+ "note": "Expected Spec Reader answer for SW p.17 (Metal Doors & Steel Supports system), copied verbatim from the page's text layer. Three identical runs. `text` is the page's text layer (pdftotext -f 17 -l 17), the input the reader is shown; every verbatim field is checked against it.",
+ "units": [
+  {
+   "unit_id": "SW#p17",
+   "source_id": "SW",
+   "locator": "p.17",
+   "tag": "SW p.17",
+   "path": "source/ocean-beach-villas_sherwin-williams-paint-spec_2026-09-25.pdf",
+   "text": "The Sherwin-Williams Company\n\nRecommended Coatings Systems\nMetal Doors & Steel Supports\nA. Prime Coat (as needed for rust): Pro Industrial Kem Kromik Universal Metal Primer, B50 series\nKEM KROMIK UNIVERSAL METAL PRIMER is a rust inhibiting, modified phenolic alkyd resin primer designed\nfor use over iron and steel substrates. Can be used as a universal primer under high performance topcoats.\nSuitable as a barrier coat over conventional coatings which would normally be attacked by strong solvents in\nhigh performance coatings. Recommended Spreading Rate per coat: Wet mils: 6.0-8.0 Dry mils: 3.2-4.2\nCoverage sq. ft. per gallon: 202-265\nB. Finish Coat (1 coat): Pro Industrial WB Urethane Alkyd Enamel, B53 series\nPro Industrial Waterbased Alkyd Urethane Enamel is a premium quality interior/exterior enamel formulated\nwith a urethane modified alkyd resin system for high performance. It provides beauty and durability when\napplied to interior/exterior surfaces such as properly prepared drywall, wood, masonry and metal. It brings\ntogether the convenience and ease of use of a waterborne coating with the performance and coating\ncharacteristics of a traditional oil-based enamel. Recommended Spread Rate per coat: Wet mils: 4.0 - 5.0 Dry\nmils: 1.4 - 1.7 Coverage: 320 - 400 sq ft/gal\n\nGarage Doors\nA. Prime Coat (as needed for rust): Pro Industrial Kem Kromik Universal Metal Primer, B50 series\nKEM KROMIK UNIVERSAL METAL PRIMER is a rust inhibiting, modified phenolic alkyd resin primer designed\nfor use over iron and steel substrates. Can be used as a universal primer under high performance topcoats.\nSuitable as a barrier coat over conventional coatings which would normally be attacked by strong solvents in\nhigh performance coatings. Recommended Spreading Rate per coat: Wet mils: 6.0-8.0 Dry mils: 3.2-4.2\nCoverage sq. ft. per gallon: 202-265\nB. Finish Coat (1 coat): Pro Industrial WB Urethane Alkyd Enamel, B53 series\nPro Industrial Waterbased Alkyd Urethane Enamel is a premium quality interior/exterior enamel formulated with a\nurethane modified alkyd resin system for high performance. It provides beauty and durability when applied to\ninterior/exterior surfaces such as properly prepared drywall, wood, masonry and metal. It brings together the\nconvenience and ease of use of a waterborne coating with the performance and coating characteristics of a traditional\noil-based enamel. Recommended Spread Rate per coat: Wet mils: 4.0 - 5.0 Dry mils: 1.4 - 1.7 Coverage: 320 - 400 sq ft/gal\n\nPage 17 of 18",
+   "runs": [
+    {
+     "items": [
+      {
+       "clause": "A",
+       "requirement": "Prime Coat (as needed for rust): Pro Industrial Kem Kromik Universal Metal Primer, B50 series",
+       "division": "09",
+       "product": "Pro Industrial Kem Kromik Universal Metal Primer, B50 series"
+      },
+      {
+       "clause": "A",
+       "requirement": "Recommended Spreading Rate per coat: Wet mils: 6.0-8.0 Dry mils: 3.2-4.2 Coverage sq. ft. per gallon: 202-265",
+       "division": "09",
+       "product": null
+      },
+      {
+       "clause": "B",
+       "requirement": "Finish Coat (1 coat): Pro Industrial WB Urethane Alkyd Enamel, B53 series",
+       "division": "09",
+       "product": "Pro Industrial WB Urethane Alkyd Enamel, B53 series"
+      },
+      {
+       "clause": "B",
+       "requirement": "Recommended Spread Rate per coat: Wet mils: 4.0 - 5.0 Dry mils: 1.4 - 1.7 Coverage: 320 - 400 sq ft/gal",
+       "division": "09",
+       "product": null
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "clause": "A",
+       "requirement": "Prime Coat (as needed for rust): Pro Industrial Kem Kromik Universal Metal Primer, B50 series",
+       "division": "09",
+       "product": "Pro Industrial Kem Kromik Universal Metal Primer, B50 series"
+      },
+      {
+       "clause": "A",
+       "requirement": "Recommended Spreading Rate per coat: Wet mils: 6.0-8.0 Dry mils: 3.2-4.2 Coverage sq. ft. per gallon: 202-265",
+       "division": "09",
+       "product": null
+      },
+      {
+       "clause": "B",
+       "requirement": "Finish Coat (1 coat): Pro Industrial WB Urethane Alkyd Enamel, B53 series",
+       "division": "09",
+       "product": "Pro Industrial WB Urethane Alkyd Enamel, B53 series"
+      },
+      {
+       "clause": "B",
+       "requirement": "Recommended Spread Rate per coat: Wet mils: 4.0 - 5.0 Dry mils: 1.4 - 1.7 Coverage: 320 - 400 sq ft/gal",
+       "division": "09",
+       "product": null
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "clause": "A",
+       "requirement": "Prime Coat (as needed for rust): Pro Industrial Kem Kromik Universal Metal Primer, B50 series",
+       "division": "09",
+       "product": "Pro Industrial Kem Kromik Universal Metal Primer, B50 series"
+      },
+      {
+       "clause": "A",
+       "requirement": "Recommended Spreading Rate per coat: Wet mils: 6.0-8.0 Dry mils: 3.2-4.2 Coverage sq. ft. per gallon: 202-265",
+       "division": "09",
+       "product": null
+      },
+      {
+       "clause": "B",
+       "requirement": "Finish Coat (1 coat): Pro Industrial WB Urethane Alkyd Enamel, B53 series",
+       "division": "09",
+       "product": "Pro Industrial WB Urethane Alkyd Enamel, B53 series"
+      },
+      {
+       "clause": "B",
+       "requirement": "Recommended Spread Rate per coat: Wet mils: 4.0 - 5.0 Dry mils: 1.4 - 1.7 Coverage: 320 - 400 sq ft/gal",
+       "division": "09",
+       "product": null
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

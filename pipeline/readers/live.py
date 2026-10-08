@@ -24,7 +24,6 @@ import copy
 import hashlib
 import json
 import subprocess
-import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -40,7 +39,7 @@ MODEL = "claude-haiku-5-5"
 # cloud sessions set to their own endpoint; a different URL has to be passed to
 # LiveClient explicitly.
 API_URL = "https://api.anthropic.com"
-MEDIA = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
+MEDIA = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 
 class LiveRunError(RuntimeError):
@@ -204,7 +203,6 @@ class LiveClient:
         self.recorder = Recorder(record, model_id=model, note=(
             "Live responses, recorded as returned. Replay with ReplayClient to re-check this run offline."
         )) if record else None
-        self.calls_log = Path(record) / "calls.jsonl" if record else None
         self._schemas: dict[int, dict] = {}
 
     def request(self, reader: str, unit: Unit, system: str, schema: dict) -> dict:
@@ -237,44 +235,41 @@ class LiveClient:
         self.api = anthropic.Anthropic(api_key=key, base_url=self.base_url)
         self.check()
 
-    def check(self) -> None:
-        """One tiny call, so a missing key stops the run before any unit is read."""
+    def _create(self, **body):
+        """One Messages API call; a refused key becomes a LiveRunError that says so."""
         try:
-            self.api.messages.create(model=self.model_id, max_tokens=1,
-                                     messages=[{"role": "user", "content": "ok"}])
+            return self.api.messages.create(**body)
         except Exception as e:
             if type(e).__name__ in ("AuthenticationError", "PermissionDeniedError"):
                 raise _refused(e) from e
             raise
 
+    def check(self) -> None:
+        """One tiny call, so a missing key stops the run before any unit is read."""
+        self._create(model=self.model_id, max_tokens=1, messages=[{"role": "user", "content": "ok"}])
+
     def complete(self, reader: str, unit: Unit, system: str, schema: dict, run: int) -> dict | str:
         body = self.request(reader, unit, system, schema)
-        started = time.monotonic()
-        try:
-            msg = self.api.messages.create(**body)
-        except Exception as e:
-            if type(e).__name__ in ("AuthenticationError", "PermissionDeniedError"):
-                raise _refused(e) from e
-            raise
-        text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
-        try:
-            response = json.loads(text) if msg.stop_reason == "end_turn" else text
-        except json.JSONDecodeError:
-            response = text
-        if msg.stop_reason != "end_turn" and not text:
-            response = f"(no output: stop_reason {msg.stop_reason})"
+        msg = self._create(**body)
+        text = "".join(b.text for b in msg.content if b.type == "text")
+        if msg.stop_reason != "end_turn":
+            # Cut off or refused: kept as text, so run.read discards it as not JSON.
+            response = text or f"(no output: stop_reason {msg.stop_reason})"
+        else:
+            try:
+                response = json.loads(text)
+            except json.JSONDecodeError:
+                response = text
         if self.recorder:
             self.recorder.add(reader, unit, run, response)
-        if self.calls_log:
-            usage = getattr(msg, "usage", None)
+            usage = msg.usage
             line = {
-                "reader": reader, "unit_id": unit.unit_id, "run": run + 1, "model": getattr(msg, "model", self.model_id),
-                "request_id": getattr(msg, "_request_id", None), "stop_reason": msg.stop_reason,
-                "seconds": round(time.monotonic() - started, 2),
+                "reader": reader, "unit_id": unit.unit_id, "run": run + 1, "model": msg.model,
+                "request_id": msg._request_id, "stop_reason": msg.stop_reason,
                 "input_sha256": hashlib.sha256(json.dumps(body["messages"], sort_keys=True).encode()).hexdigest()[:16],
-                "usage": {k: getattr(usage, k, None) for k in (
+                "usage": {k: getattr(usage, k) for k in (
                     "input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")},
             }
-            with open(self.calls_log, "a") as f:
+            with open(self.recorder.directory / "calls.jsonl", "a") as f:
                 f.write(json.dumps(line) + "\n")
         return response

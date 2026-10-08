@@ -299,6 +299,286 @@ class PacketHashCase(unittest.TestCase):
                 live.units_for(job, packet, Path(tmp) / "work")
 
 
+def msg(text="{}", stop="end_turn", blocks=None):
+    """A Messages API response as the SDK returns it, reduced to what LiveClient reads."""
+    return SimpleNamespace(
+        content=blocks if blocks is not None else [SimpleNamespace(type="text", text=text)],
+        stop_reason=stop, model="claude-haiku-5-5-x", _request_id="req_1",
+        usage=SimpleNamespace(input_tokens=1, output_tokens=2,
+                              cache_creation_input_tokens=3, cache_read_input_tokens=4),
+    )
+
+
+class OneAnswer:
+    """A Messages API that gives one fixed answer, or raises one fixed error."""
+
+    def __init__(self, answer=None, error=None):
+        self.answer, self.error, self.requests = answer, error, []
+        self.messages = self
+
+    def create(self, **body):
+        self.requests.append(body)
+        if self.error:
+            raise self.error
+        return self.answer
+
+
+class ExactCase(unittest.TestCase):
+    """Exact values for what the live path writes and sends."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.page = self.tmp / "p.txt"
+        self.page.write_text("A. Prime")
+        self.unit = Unit("SW#p1", "SW", "p.1", "", str(self.page))
+
+    def test_the_calls_log_and_recording_hold_exactly_what_came_back(self):
+        api = OneAnswer(msg('{"items": []}'))
+        client = live.LiveClient(api=api, record=self.tmp / "rec")
+        self.assertEqual(client.complete("spec", self.unit, "sys", schemas.SPEC, 1), {"items": []})
+        digest = live.hashlib.sha256(json.dumps(api.requests[0]["messages"], sort_keys=True).encode()).hexdigest()[:16]
+        line = json.loads((self.tmp / "rec" / "calls.jsonl").read_text())
+        self.assertEqual(line, {
+            "reader": "spec", "unit_id": "SW#p1", "run": 2, "model": "claude-haiku-5-5-x",
+            "request_id": "req_1", "stop_reason": "end_turn", "input_sha256": digest,
+            "usage": {"input_tokens": 1, "output_tokens": 2,
+                      "cache_creation_input_tokens": 3, "cache_read_input_tokens": 4},
+        })
+        rec = json.loads((self.tmp / "rec" / "spec.json").read_text())
+        self.assertEqual(rec, {
+            "reader": "spec", "model": "claude-haiku-5-5", "prompt_version": live.prompt_version("spec"),
+            "note": client.recorder.note,
+            "units": [{"unit_id": "SW#p1", "source_id": "SW", "locator": "p.1", "path": str(self.page),
+                       "runs": [None, {"items": []}]}],
+        })
+        self.assertTrue(client.recorder.note.startswith("Live responses"))
+        client.complete("spec", Unit("SW#p2", "SW", "p.2", "", str(self.page)), "sys", schemas.SPEC, 0)
+        self.assertEqual(len((self.tmp / "rec" / "calls.jsonl").read_text().splitlines()), 2)
+        rec = json.loads((self.tmp / "rec" / "spec.json").read_text())
+        self.assertEqual([u["unit_id"] for u in rec["units"]], ["SW#p1", "SW#p2"])
+        client.complete("spec", self.unit, "sys", schemas.SPEC, 0)
+        rec = json.loads((self.tmp / "rec" / "spec.json").read_text())
+        self.assertEqual(rec["units"][0]["runs"], [{"items": []}, {"items": []}])
+
+    def test_without_a_recorder_nothing_is_written(self):
+        client = live.LiveClient(api=OneAnswer(msg("[1]")))
+        self.assertIsNone(client.recorder)
+        self.assertEqual(client.complete("spec", self.unit, "sys", schemas.SPEC, 0), [1])
+
+    def test_text_blocks_are_joined_and_other_blocks_skipped(self):
+        blocks = [SimpleNamespace(type="thinking", text="{no"), SimpleNamespace(type="text", text='{"a"'),
+                  SimpleNamespace(type="text", text=": 1}")]
+        client = live.LiveClient(api=OneAnswer(msg(blocks=blocks)))
+        self.assertEqual(client.complete("spec", self.unit, "s", schemas.SPEC, 0), {"a": 1})
+
+    def test_anything_but_a_finished_json_answer_is_kept_as_text(self):
+        for answer, want in [(msg("not json"), "not json"),
+                             (msg('{"a": 1}', stop="max_tokens"), '{"a": 1}'),
+                             (msg("", stop="refusal"), "(no output: stop_reason refusal)")]:
+            with self.subTest(want=want):
+                client = live.LiveClient(api=OneAnswer(answer))
+                self.assertEqual(client.complete("spec", self.unit, "s", schemas.SPEC, 0), want)
+
+    def test_the_request_body_exactly(self):
+        client = live.LiveClient(api=OneAnswer(), model="m", max_tokens=7)
+        self.assertEqual(client.request("spec", self.unit, "sys", schemas.SPEC), {
+            "model": "m", "max_tokens": 7,
+            "system": [{"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}],
+            "messages": [{"role": "user", "content": live.content_for("spec", self.unit)}],
+            "output_config": {"format": {"type": "json_schema", "schema": live.api_schema(schemas.SPEC)},
+                              "effort": "low"},
+        })
+        none = live.LiveClient(effort=None).request("spec", self.unit, "sys", schemas.SPEC)
+        self.assertNotIn("effort", none["output_config"])
+        self.assertEqual(live.LiveClient().max_tokens, 16000)
+        self.assertEqual(live.LiveClient().model_id, "claude-haiku-5-5")
+
+    def test_the_key_check_is_one_token(self):
+        api = OneAnswer(msg())
+        live.LiveClient(api=api, model="m").check()
+        self.assertEqual(api.requests, [{"model": "m", "max_tokens": 1, "messages": [{"role": "user", "content": "ok"}]}])
+
+    def test_refusals_say_so_and_other_errors_pass_through(self):
+        PermissionDeniedError = type("PermissionDeniedError", (Exception,), {})
+        client = live.LiveClient(api=OneAnswer(error=PermissionDeniedError("no")))
+        with self.assertRaises(live.LiveRunError) as cm:
+            client.complete("spec", self.unit, "s", schemas.SPEC, 0)
+        self.assertEqual(str(cm.exception), "the API refused ANTHROPIC_API_KEY (PermissionDeniedError); "
+                                            "check the key in the cloud environment")
+        with self.assertRaises(KeyError):
+            live.LiveClient(api=OneAnswer(error=KeyError("x"))).check()
+
+    def test_bind_keeps_a_given_api_and_names_both_keys_when_neither_is_set(self):
+        api = OneAnswer()
+        client = live.LiveClient(api=api)
+        client.bind(None)   # never asks the broker
+        self.assertIs(client.api, api)
+        with self.assertRaises(live.LiveRunError) as cm:
+            live.LiveClient().bind(SimpleNamespace(secret=lambda name: ""))
+        self.assertEqual(str(cm.exception), "neither ANTHROPIC_API_KEY nor MERSCO_ANTHROPIC_API_KEY is set; "
+                                            "add the key to the cloud environment and start a new session")
+        asked = []
+        client = live.LiveClient()
+        client.check = lambda: asked.append("check")
+        client.bind(SimpleNamespace(secret=lambda name: asked.append(name) or "sk-x"))
+        self.assertEqual(asked, ["ANTHROPIC_API_KEY", "check"])
+
+    def test_content_for_an_image_unit(self):
+        for suffix, media in ((".png", "image/png"), (".JPG", "image/jpeg"), (".jpeg", "image/jpeg")):
+            img = self.tmp / f"v{suffix}"
+            img.write_bytes(b"\x01\x02")
+            with self.subTest(suffix=suffix):
+                self.assertEqual(live.content_for("drawing", Unit("S-1#Fnd", "S-1", "Fnd", "", str(img), '1/4"=1\'')), [
+                    {"type": "image", "source": {"type": "base64", "media_type": media, "data": "AQI="}},
+                    {"type": "text", "text": "Sheet S-1 Fnd, stated scale 1/4\"=1'. Return the JSON for this drawing unit."}])
+        img = self.tmp / "v.png"
+        self.assertEqual(live.content_for("drawing", Unit("S-1#A", "S-1", "", "", str(img)))[1]["text"],
+                         "Sheet S-1. Return the JSON for this drawing unit.")
+        self.assertEqual(live.content_for("photo", Unit("IMG_1", "IMG_1", "x", "", str(img)))[1]["text"],
+                         "Photo IMG_1. Return the JSON for this photo unit.")
+        self.assertEqual(live.content_for("other", Unit("u", "SRC", "p.2", "", str(img)))[1]["text"],
+                         "SRC p.2. Return the JSON for this other unit.")
+
+    def test_content_for_a_text_unit(self):
+        tag = "unit-" + live.hashlib.sha256(b"body").hexdigest()[:16]
+        unit = Unit("m", 'S<"x">', "p.1", "", str(self.page), text="body")
+        self.assertEqual(live.content_for("correspondence", unit), [{"type": "text", "text":
+            f"<{tag} source=\"S'x' p.1\">\nbody\n</{tag}>\n"
+            f"The page is between the {tag} tags. Return the JSON for this correspondence unit."}])
+        # With no text carried, the file is read.
+        self.assertIn("\nA. Prime\n", live.content_for("spec", self.unit)[0]["text"])
+
+    def test_unit_ids_become_safe_file_names(self):
+        self.assertEqual(live._safe("S-1#Det 1/a_b"), "S-1_Det_1_a_b")
+
+    def test_api_schema_shorthands_exactly(self):
+        out = live.api_schema({"type": "object", "properties": {
+            "k": {"enum": ["a", None], "description": "d"},
+            "s": {"enum": ["b"]},
+            "n": {"type": ["string", "null"], "maxLength": 3, "title": "t"},
+            "l": {"type": "array", "items": {"type": "string"}},
+        }, "required": ["k", "s", "n", "l"], "additionalProperties": False})
+        props = out["properties"]
+        self.assertEqual(props["k"]["anyOf"], [{"type": "string", "enum": ["a"]}, {"type": "null"}])
+        self.assertEqual(props["k"]["description"], "d")
+        self.assertEqual(props["s"], {"type": "string", "enum": ["b"]})
+        self.assertEqual(props["n"]["anyOf"][1], {"type": "null"})
+        self.assertEqual(props["n"]["anyOf"][0]["type"], "string")
+        self.assertIn("maxLength", props["n"]["anyOf"][0].get("description", ""))
+        self.assertEqual(props["n"]["title"], "t")
+        self.assertEqual(props["l"], {"type": "array", "items": {"type": "string"}})
+
+
+class UnitsErrorCase(unittest.TestCase):
+    def job(self, tmp, units_yaml):
+        job = Path(tmp) / "job"
+        shutil.copytree(ROOT / "fixtures" / "nantucket", job)
+        (job / "units.yaml").write_text(units_yaml)
+        return job
+
+    def test_a_unit_whose_source_is_not_registered(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            job = self.job(tmp, "drawing:\n  - {unit_id: X, source_id: NOPE}\n")
+            with self.assertRaisesRegex(live.LiveRunError, r"^job X: NOPE is not a present source in register.csv$"):
+                live.units_for(job, PACKET, Path(tmp) / "w")
+
+    def test_a_missing_packet_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            job = self.job(tmp, "drawing:\n  - {unit_id: S-1#Fnd, source_id: S-1, box: [0, 0, 1, 1]}\n")
+            with self.assertRaisesRegex(live.LiveRunError, r"^S-1#Fnd: .* not found under the packet root"):
+                live.units_for(job, Path(tmp) / "empty", Path(tmp) / "w")
+
+    @unittest.skipUnless(PACKET.exists(), "needs the packet")
+    def test_a_drawing_unit_needs_a_box(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            job = self.job(tmp, "drawing:\n  - {unit_id: S-1#Fnd, source_id: S-1}\n")
+            with self.assertRaisesRegex(live.LiveRunError, r"^S-1#Fnd: a drawing unit needs a box"):
+                live.units_for(job, PACKET, Path(tmp) / "w")
+
+    @unittest.skipUnless(PACKET.exists(), "needs the packet")
+    def test_an_empty_units_file_reads_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(live.units_for(self.job(tmp, ""), PACKET, Path(tmp) / "w"), {})
+
+    @unittest.skipUnless(PACKET.exists() and HAVE_POPPLER, "needs poppler-utils")
+    def test_unit_fields_and_the_spec_page_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            obv = live.units_for(ROOT / "fixtures" / "ocean-beach", PACKET, Path(tmp))
+            spec = obv["spec"][0]
+            self.assertEqual(spec.path, str(Path(tmp) / "units" / "SW_p17.txt"))
+            self.assertEqual((spec.unit_id, spec.source_id), ("SW#p17", "SW"))
+            nan = live.units_for(ROOT / "fixtures" / "nantucket", PACKET, Path(tmp))
+            fnd = nan["drawing"][0]
+            self.assertEqual((fnd.source_id, fnd.path), ("S-1", str(Path(tmp) / "units" / "S-1_Fnd.png")))
+            self.assertTrue(fnd.scale)
+            photo = obv["photo"][0]
+            self.assertTrue(photo.path.startswith(str(PACKET)))
+
+
+class TileExactCase(unittest.TestCase):
+    def test_grid_boxes_exactly(self):
+        self.assertEqual(tiles.grid(2, 1, overlap=0.1), [
+            ("r1c1", tiles.Box(0.0, 0.0, 0.55, 1.0)),
+            ("r1c2", tiles.Box(0.45, 0.0, 1.0, 1.0)),
+        ])
+        self.assertEqual([n for n, _ in tiles.grid(2, 2, overlap=0)], ["r1c1", "r1c2", "r2c1", "r2c2"])
+        self.assertEqual(tiles.grid(1, 2, overlap=0.2)[1][1], tiles.Box(0.0, 0.4, 1.0, 1.0))
+        self.assertEqual(tiles.grid(1, 1), [("r1c1", tiles.Box(0, 0, 1, 1))])
+        self.assertEqual(tiles.grid(3, 1)[1][1], tiles.Box(1 / 3 - 0.05 / 3, 0, 2 / 3 + 0.05 / 3, 1))
+
+    def test_grid_refuses_bad_arguments(self):
+        for args in ((0, 1, 0.1), (1, 0, 0.1), (1, 1, 0.5), (1, 1, -0.1)):
+            with self.subTest(args=args), self.assertRaises(ValueError):
+                tiles.grid(args[0], args[1], overlap=args[2])
+        tiles.grid(1, 1, overlap=0)   # the edges are allowed
+
+    def test_box_edges(self):
+        self.assertEqual(tiles.Box.of(["0", 0, 1, "1"]), tiles.Box(0.0, 0.0, 1.0, 1.0))
+        for bad in ((0, 0, 0, 1), (0, 0.5, 1, 0.5), (-0.1, 0, 1, 1), (0, 0, 1.1, 1), (0, -0.1, 1, 1), (0, 0, 1, 1.1)):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                tiles.Box(*bad)
+
+    def test_fit_dpi_uses_the_long_edge_either_way(self):
+        self.assertEqual(tiles.fit_dpi((10, 40), tiles.Box(0, 0, 1, 1), max_edge=400), 10)
+        self.assertEqual(tiles.fit_dpi((40, 10), tiles.Box(0, 0, 1, 1), max_edge=400), 10)
+        self.assertEqual(tiles.fit_dpi((1, 1), tiles.Box(0, 0, 1, 1), max_dpi=50), 50)
+        self.assertEqual(tiles.fit_dpi((1000, 1), tiles.Box(0, 0, 1, 1), max_edge=10), 1)
+
+    def test_page_size_reads_each_rotation(self):
+        out = ("Page    2 size: 720 x 360 pts\nPage    2 rot:  {rot}\n")
+        for rot, want in ((0, (10.0, 5.0)), (90, (5.0, 10.0)), (180, (10.0, 5.0)), (270, (5.0, 10.0))):
+            with self.subTest(rot=rot), mock.patch.object(tiles.subprocess, "run",
+                                                          return_value=SimpleNamespace(stdout=out.format(rot=rot))) as run:
+                self.assertEqual(tiles.page_size_in(Path("a.pdf"), 2), want)
+                self.assertEqual(run.call_args.args[0], ["pdfinfo", "-f", "2", "-l", "2", "a.pdf"])
+                self.assertEqual(run.call_args.kwargs, {"capture_output": True, "text": True, "check": True,
+                                                        "env": tiles.tool_env()})
+        single = "Page size:      144 x 72 pts\nPage rot:       90\n"
+        with mock.patch.object(tiles.subprocess, "run", return_value=SimpleNamespace(stdout=single)):
+            self.assertEqual(tiles.page_size_in(Path("a.pdf")), (1.0, 2.0))
+        with mock.patch.object(tiles.subprocess, "run", return_value=SimpleNamespace(stdout="Page size: 144 x 72 pts\n")):
+            self.assertEqual(tiles.page_size_in(Path("a.pdf")), (2.0, 1.0))
+        with mock.patch.object(tiles.subprocess, "run", return_value=SimpleNamespace(stdout="nothing")), \
+                self.assertRaisesRegex(ValueError, "pdfinfo gave no page size for page 1"):
+            tiles.page_size_in(Path("a.pdf"))
+
+    def test_render_box_sends_pdftoppm_the_exact_crop(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(tiles, "page_size_in", return_value=(10.0, 20.0)), \
+                mock.patch.object(tiles.subprocess, "run") as run:
+            out = tiles.render_box(Path("s.pdf"), Path(tmp) / "d" / "v.png", tiles.Box(0.1, 0.25, 0.5, 0.5),
+                                   page=3, max_edge=500)
+            self.assertEqual(out, Path(tmp) / "d" / "v.png")
+            self.assertTrue((Path(tmp) / "d").is_dir())
+            # long edge 5 in -> 100 dpi; x 1 in, y 5 in, 4 x 5 in
+            self.assertEqual(run.call_args.args[0], [
+                "pdftoppm", "-png", "-singlefile", "-r", "100", "-f", "3", "-l", "3",
+                "-x", "100", "-y", "500", "-W", "400", "-H", "500", "s.pdf", str(Path(tmp) / "d" / "v")])
+            self.assertEqual(run.call_args.kwargs, {"check": True, "capture_output": True, "env": tiles.tool_env()})
+            tiles.page_size_in.assert_called_with(Path("s.pdf"), 3)
+
+
 @unittest.skipUnless(os.environ.get("CHRISBIDS_LIVE") == "1"
                      and (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MERSCO_ANTHROPIC_API_KEY"))
                      and PACKET.exists(), "live gate: set CHRISBIDS_LIVE=1 with the API key and the packet")

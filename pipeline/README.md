@@ -113,7 +113,8 @@ Code then refuses a layout that:
 - lists an exclusion, question, material or allowance row as a task item (code prints those itself);
 - uses an exclusion, terms or concealed-conditions phrase in the wrong place, or lists anything twice.
 
-Both reads must be valid. Only what both place, in the same section, is kept
+Both reads must be valid; the live schema lists only the job's own row IDs and
+phrase keys, so a read cannot name one that does not exist. Only what both place, in the same section, is kept
 (order and titles come from the first); everything else is reported as dropped,
 a header slot the reads fill differently prints FIELD, and if they share no
 placement nothing is rendered. Scope and allowance rows left out, by a read or

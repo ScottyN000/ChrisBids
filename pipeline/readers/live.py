@@ -226,12 +226,12 @@ class LiveClient:
         self.recorder = Recorder(record, model_id=model, note=(
             "Live responses, recorded as returned. Replay with ReplayClient to re-check this run offline."
         )) if record else None
-        self._schemas: dict[int, dict] = {}
+        self._schemas: dict[str, dict] = {}
 
     def request(self, reader: str, unit: Unit, system: str, schema: dict) -> dict:
         """The request body for one call. Identical for every run of a unit, so the
         three runs differ only by sampling, and the system prompt prefix is cached."""
-        key = id(schema)
+        key = json.dumps(schema, sort_keys=True)   # a per-job schema is a new object each run
         if key not in self._schemas:
             self._schemas[key] = api_schema(schema)
         output_config = {"format": {"type": "json_schema", "schema": self._schemas[key]}}

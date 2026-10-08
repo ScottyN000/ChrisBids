@@ -375,6 +375,33 @@ class ShapeCase(unittest.TestCase):
             frozenset(sw.TERMS_PHRASES),
         ))
 
+    def test_schema_for_narrows_every_reference_to_the_job(self):
+        claims = CLAIMS + [row("J-X-001", "exclusion"), row("J-H-009", "header")]
+        phrases = {"seal_tool": {"text": "t"}, "greeting": {"text": "g"}, "warranty": {"text": "w"},
+                   "excl_mold": {"text": "m"}, "concealed_preparation": {"text": "c"}}
+        sch = sw.schema_for(claims, phrases)
+        props = sch["properties"]
+        task = props["sections"]["items"]["properties"]["tasks"]["items"]["properties"]
+        self.assertEqual(props["header"]["properties"]["client"], {"enum": ["J-F-001", "J-H-001", "J-H-002", "J-H-009", ""]})
+        self.assertEqual(props["header"]["properties"]["project"], props["header"]["properties"]["address"])
+        self.assertEqual(task["items"]["items"]["properties"]["ref"],
+                         {"enum": ["J-Q-001", "J-S-001", "J-S-002", "J-S-003", "J-S-004", "J-S-005", "seal_tool"]})
+        self.assertEqual(task["allowance"]["items"], {"enum": ["J-A-001", "J-A-002"]})
+        self.assertEqual(task["close"], {"enum": ["concealed_preparation", ""]})
+        self.assertEqual(props["exclusion_phrases"]["items"], {"enum": ["excl_mold"]})
+        self.assertEqual(props["terms"]["items"], {"enum": list(sw.TERMS_PHRASES)})
+        self.assertEqual(task["title"], sw.SCHEMA["properties"]["sections"]["items"]["properties"]["tasks"]["items"]
+                         ["properties"]["title"])
+        self.assertNotEqual(sch, sw.SCHEMA)
+        self.assertEqual(sw.SCHEMA["properties"]["terms"]["items"]["pattern"], sw.ID_PATTERN)   # left untouched
+        self.assertEqual(validate.errors(layout(), sw.schema_for(CLAIMS, PHRASES)), [])
+        bare = sw.schema_for([row("J-S-001", "scope")], {})
+        bare_task = bare["properties"]["sections"]["items"]["properties"]["tasks"]["items"]["properties"]
+        self.assertEqual(bare_task["allowance"]["items"], {"type": "string", "maxLength": 0})
+        self.assertEqual(bare["properties"]["exclusion_phrases"]["items"], {"type": "string", "maxLength": 0})
+        self.assertEqual(validate.errors({"header": {"project": "", "address": "", "client": ""}, "sections": [],
+                                          "exclusion_phrases": [""], "terms": []}, bare), [])
+
     def test_agree_keeps_only_what_every_run_places(self):
         a, b = layout(), layout(exclusions=("excl_mold", "excl_mep"), terms=("warranty", "costs"))
         b["header"] = {"project": "J-H-002", "address": "J-H-002", "client": ""}
@@ -465,7 +492,7 @@ class RunCase(RunBase):
         self.assertEqual(res.text, sw.render(layout(), sw.current(self.broker), PHRASES, self.broker)[0])
         self.assertEqual([c[0] for c in client.calls], ["scope_writer", "scope_writer"])
         self.assertEqual([c[4] for c in client.calls], [0, 1])
-        self.assertIs(client.calls[0][3], sw.SCHEMA)
+        self.assertEqual(client.calls[0][3], sw.schema_for(sw.current(self.broker), PHRASES))
         self.assertEqual(client.calls[0][2], prompt("scope_writer"))
         self.assertEqual(client.calls[0][1], sw.unit_for("J", sw.current(self.broker), PHRASES))
         self.assertEqual(self.calls(), [("J#scope", f"fake-model; {prompt_version('scope_writer')}; run 1; valid"),

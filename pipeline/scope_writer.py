@@ -17,6 +17,7 @@ Auditor's orphan check runs on the result.
 """
 from __future__ import annotations
 
+import copy
 import json
 import re
 from collections import defaultdict
@@ -116,6 +117,33 @@ SCHEMA = {
             "type": "string", "maxLength": 40, "pattern": ID_PATTERN}},
     },
 }
+
+
+def schema_for(claims: list[Claim], phrases: dict[str, dict]) -> dict:
+    """SCHEMA with every reference narrowed to this job's own IDs and keys.
+
+    With structured outputs the model then cannot name a row that is not in
+    the ledger or a phrase that is not in the library (a live run named
+    'NAN-NAN-Q-001'). Which section a row may go in is still checked in code.
+    """
+    def ids(*roles):
+        return sorted(c.claim_id for c in claims if c.role in roles)
+
+    keys = sorted(selectable_phrases(phrases))
+    scope_keys = [k for k in keys if k not in TERMS_PHRASES and not k.startswith((EXCLUSION_PREFIX, CLOSE_PREFIX))]
+    out = copy.deepcopy(SCHEMA)
+    props = out["properties"]
+    for slot in props["header"]["properties"].values():
+        slot.clear()
+        slot["enum"] = ids("header") + [""]
+    task = props["sections"]["items"]["properties"]["tasks"]["items"]["properties"]
+    task["items"]["items"]["properties"]["ref"] = {"enum": ids(*ITEM_ROLES) + scope_keys}
+    task["allowance"]["items"] = {"enum": ids("allowance")} if ids("allowance") else {"type": "string", "maxLength": 0}
+    task["close"] = {"enum": [k for k in keys if k.startswith(CLOSE_PREFIX)] + [""]}
+    excl = [k for k in keys if k.startswith(EXCLUSION_PREFIX)]
+    props["exclusion_phrases"]["items"] = {"enum": excl} if excl else {"type": "string", "maxLength": 0}
+    props["terms"]["items"] = {"enum": list(TERMS_PHRASES)}
+    return out
 
 
 @dataclass
@@ -388,17 +416,18 @@ def run(broker: Broker, job: str, client: ModelClient, phrase_library: Path, *, 
     by_id = {c.claim_id: c for c in claims}
     unit = unit_for(job, claims, phrases)
     system = prompt(NAME)
+    schema = schema_for(claims, phrases)
     result = ScopeResult(units=1)
     valid = []
     for r in range(repeats):
         result.calls += 1
-        raw = client.complete(NAME, unit, system, SCHEMA, r)
+        raw = client.complete(NAME, unit, system, schema, r)
         try:
             data = json.loads(raw) if isinstance(raw, str) else raw
         except json.JSONDecodeError as e:
             data, errs = None, [f"not JSON: {e}"]
         else:
-            errs = validate.errors(data, SCHEMA)
+            errs = validate.errors(data, SCHEMA)   # the shape; layout_errors names a bad reference plainly
             if not errs:
                 errs = layout_errors(data, by_id, phrases)
         writer.log_call(unit.unit_id, f"run {r + 1}; {'discarded: ' + errs[0] if errs else 'valid'}")

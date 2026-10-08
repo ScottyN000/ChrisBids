@@ -13,12 +13,14 @@ verbatim quote and one sentence. Code keeps an answer only if:
 
 * the quote is on the page (`web.quote_in`);
 * the figures it fills the ask's # marks with (`figures`) are in the quote, a
-  range counting as one figure, or part of the page's own identifiers (`ids`
-  in the table: ESR-4143);
-* the sentence gives no figure but those, the identifiers taken out whole;
-* two runs fill the marks with exactly the same figures, or, when the ask has
-  none, quote mostly the same passage. A run that is discarded, or an answer
-  that is refused, gets up to SPARES spare runs for the page.
+  range counting as one figure, or part of one of the page's own identifiers
+  (`ids` in the table: ESR-4143) that the page carries;
+* the sentence gives each of those figures and none its quote lacks, the
+  identifiers taken out whole;
+* two runs quote mostly the same passage and fill the marks with exactly the
+  same figures; when the ask has none, their sentences give the same figures.
+  A run that is discarded, or an answer that is refused, gets up to SPARES
+  spare runs for the page.
 
 Each kept answer is one `fetched` row with the URL, the retrieval date and the
 quote. When the runs find differing readings on the page, code does not pick
@@ -212,6 +214,9 @@ def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> li
     the A24W8300 sheet is still a figure."""
     if not answer["found"]:
         return []
+    # an identifier stands in for a figure only if the page carries it: a
+    # product name the model recalled (HY 70 -> HY 270, p.7) gets no pass
+    ids = tuple(i for i in ids if web.quote_in(i, page_text))
     errs = []
     if len(answer["quote"]) > QUOTE_MAX:
         errs.append(f"the quote is longer than {QUOTE_MAX} characters")
@@ -390,7 +395,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
     system = prompt(NAME)
     writers = {a: broker.as_principal(a, model_id=client.model_id, prompt_version=prompt_version(NAME))
                for a in agents}
-    taken = {c.claim_id for c in claims}
+    taken = {c.claim_id for c in broker.ledger.claims()}    # superseded rows keep their IDs too
     n = 0
 
     def write(claim: Claim, agent: str) -> None:
@@ -422,6 +427,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                   source.agent)
             continue
         unit, cut = unit_for(job, i, source, page)
+        ids = tuple(x for x in source.ids if web.quote_in(x, unit.text))     # only those on the page
         if cut:
             result.notes.append(f"{source.url}: page cut to its first {MAX_CHARS} characters")
         schema = schema_for(source)
@@ -447,7 +453,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                 continue
             kept = {}
             for a in data["answers"]:
-                why = answer_errors(a, unit.text, source.ids)
+                why = answer_errors(a, unit.text, ids)
                 if why:
                     result.discarded.append(f"{unit.unit_id} run {r + 1} {a['ask']}: {'; '.join(why)}")
                 else:
@@ -460,7 +466,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                 write(_gap(job, next_id(), source, page, ask, why), source.agent)
             continue
         for ask in source.asks:
-            agreed, why, readings = _agree(runs, ask, repeats, source.ids)
+            agreed, why, readings = _agree(runs, ask, repeats, ids)
             if agreed is None:
                 kept = f"; {len(readings)} readings kept, flagged unverified" if readings else ""
                 result.unanswered.append(f"{source.url} {ask.id} ({ask.ask}): {why}{kept}")

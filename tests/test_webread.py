@@ -193,11 +193,15 @@ class AnswerCase(unittest.TestCase):
 
     def test_the_statement_may_name_the_page_s_own_identifiers(self):
         a = answer("a1", "Permits will be issued 2-4 weeks", "HIT-HY 270 permits take 2-4 weeks.", figures=["2-4"])
-        self.assertEqual(webread.answer_errors(a, self.TEXT, ("HIT-HY 270",)), [])
-        self.assertEqual(webread.answer_errors(a, self.TEXT, ("HIT-HY 200",)),
+        page = self.TEXT + " Product: HIT-HY 270, HIT-HY 200."
+        self.assertEqual(webread.answer_errors(a, page, ("HIT-HY 270",)), [])
+        self.assertEqual(webread.answer_errors(a, page, ("HIT-HY 200",)),
+                         ["the statement has figures not among its quoted figures: 270"])
+        # an identifier the page does not carry gets no pass: a recalled product name (HY 70 -> HY 270, p.7)
+        self.assertEqual(webread.answer_errors(a, self.TEXT, ("HIT-HY 270",)),
                          ["the statement has figures not among its quoted figures: 270"])
         # only the whole identifier comes out: its digits are still figures elsewhere
-        text = "Recoat: 4 hours."
+        text = "A24W8300 data sheet. Recoat: 4 hours."
         ok = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 4 hours.", figures=["4"])
         self.assertEqual(webread.answer_errors(ok, text, ("A24W08300", "A24W8300")), [])
         bad = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 24 hours.", figures=["4"])
@@ -219,7 +223,8 @@ class AnswerCase(unittest.TestCase):
 
     def test_a_figure_may_come_from_the_page_s_identifier(self):
         a = answer("a1", "Permits will be issued 2-4 weeks", "ESR-4143: 2-4 weeks.", figures=["4143", "2-4"])
-        self.assertEqual(webread.answer_errors(a, self.TEXT, ("ESR-4143",)), [])
+        self.assertEqual(webread.answer_errors(a, self.TEXT + " ESR-4143", ("ESR-4143",)), [])
+        self.assertEqual(webread.answer_errors(a, self.TEXT, ("ESR-4143",))[0], "figures the quote does not carry: 4143")
         self.assertEqual(webread.answer_errors(a, self.TEXT)[0], "figures the quote does not carry: 4143")
         self.assertEqual(webread.slots(a), (("4143",), ("2-4",)))
         self.assertEqual(webread.slots({"figures": ["", "Jan 15, 2018"]}), ((), ("15", "2018")))
@@ -383,7 +388,7 @@ class RunCase(unittest.TestCase):
         b2, res2 = run(Fake(), tbl=table(source(agent="materials")), agents=("codes",))
         self.assertEqual((res2.pages, res2.notes[0][:20]), (0, "no page in the table"))
 
-    def test_disagreement_and_refused_answers_are_reported_not_written(self):
+    def test_disagreement_and_refused_answers_become_unverified_rows(self):
         bad = answer("a2", "All applications need a fee", "x")
         client = Fake({"answers": [TURNAROUND, bad]}, {"answers": [answer("a1", found=False), PLANS]}, *[{
             "answers": [TURNAROUND, bad]}] * 2)

@@ -151,9 +151,7 @@ pages:
   title: Hilti HY 70 transition letter
   ids:
   - HIT-HY 70
-  - HIT-HY 270
   - HY 70
-  - HY 270
   agent: materials
   when:
   - - hit-hy
@@ -162,8 +160,8 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'What the letter says about HIT-HY # (its status) and which product it names in its place in masonry (letter
-      dated Jan #, #)'
+    ask: 'What the letter says about HIT-HY # (its status), which product it names in its place in masonry (HIT-HY
+      #), and its date (Jan #, #)'
     fixture: NAN-C-014
 - url: https://icc-es.org/wp-content/uploads/report-directory/ESR-4143.pdf
   title: ICC-ES ESR-4143 (Hilti HIT-HY 270)

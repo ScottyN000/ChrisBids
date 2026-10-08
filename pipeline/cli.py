@@ -12,6 +12,7 @@
                                 [--takeoff-model claude-sonnet-5-5] [--takeoff-effort high]   (needs ANTHROPIC_API_KEY)
     python3 -m pipeline scope   fixtures/nantucket --out runs/nan-scope [--repeats 2]
                                 [--live [--model claude-haiku-5-5] [--effort high]]           (--live needs ANTHROPIC_API_KEY)
+    python3 -m pipeline web     fixtures/nantucket --out runs/nan-web [--repeats 2]   (fetches pages; needs ANTHROPIC_API_KEY)
     python3 -m pipeline bid     <packet-dir> --job J --out runs/j [--plan-only] [--repeats 2]
                                 [--model claude-haiku-5-5] [--takeoff-model claude-sonnet-5-5]   (needs ANTHROPIC_API_KEY)
 """
@@ -223,6 +224,7 @@ def cmd_bid(a) -> int:
         print(plan.text())
         return 0
     rec = out / "recordings"
+    table = webread.load()      # one load: the allowlist and the pages read come from the same table
     try:
         result = orchestrator.bid(
             Path(a.packet), a.job, out,
@@ -230,7 +232,7 @@ def cmd_bid(a) -> int:
             takeoff_client=live.LiveClient(model=a.takeoff_model, effort=a.effort or None, record=rec),
             scope_client=live.LiveClient(model=a.model, effort=a.effort or None, record=rec,
                                          max_tokens=orchestrator.scope_writer.MAX_TOKENS),
-            repeats=a.repeats, fetcher=None if a.no_web else web.Fetcher(webread.load().named),
+            repeats=a.repeats, fetcher=None if a.no_web else web.Fetcher(table.named), web_table=table,
         )
     except live.LiveRunError as e:
         print(f"NOT RUN: {e}", file=sys.stderr)

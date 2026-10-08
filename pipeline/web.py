@@ -1,8 +1,9 @@
 """Fetching a web page for Codes & Regs and Materials, and checking a quote against it.
 
 Only those two agents (and the Auditor) have outbound network (architecture
-p.12), and only to an allowlisted domain: `.gov` and `.us` hosts, plus the
-domains a page table names (manufacturers, code publishers). Every hop of a
+p.12), and only to an allowlisted domain: `.gov` hosts, `.us` state portals
+(`*.state.xx.us`), plus the domains a page table names (manufacturers, code
+publishers). Every hop of a
 redirect is checked again, so an allowed page cannot hand the fetch to a host
 that is not.
 

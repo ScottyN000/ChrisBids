@@ -3,11 +3,11 @@
     python3 -m pipeline intake  <packet-dir> --job NAN --out runs/nan [--images]
     python3 -m pipeline load    fixtures/nantucket --out runs/nan-fixture
     python3 -m pipeline export  runs/nan-fixture/ledger.db [--out ledger.csv]
-    python3 -m pipeline audit   runs/nan-fixture/ledger.db [--packet /mnt/project-files]
+    python3 -m pipeline audit   runs/nan-fixture/ledger.db [--packet fixtures/packet]
                                 [--proposal fixtures/nantucket/proposal.md] [--links]
     python3 -m pipeline verify-fixtures
     python3 -m pipeline replay  fixtures/nantucket --out runs/nan-replay [--repeats 3]
-    python3 -m pipeline live    fixtures/nantucket --out runs/nan-live [--packet /mnt/project-files]
+    python3 -m pipeline live    fixtures/nantucket --out runs/nan-live [--packet fixtures/packet]
                                 [--model claude-haiku-5-5] [--effort low]   (needs ANTHROPIC_API_KEY)
 """
 from __future__ import annotations
@@ -187,7 +187,7 @@ def main(argv=None) -> int:
 
     p = sub.add_parser("live", help="run the readers live on Haiku against a fixture's packet and compare")
     p.add_argument("fixture")
-    p.add_argument("--packet", default="/mnt/project-files", help="packet root the register's paths are relative to")
+    p.add_argument("--packet", default="fixtures/packet", help="packet root the register's paths are relative to")
     p.add_argument("--out", required=True)
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--model", default="claude-haiku-5-5")

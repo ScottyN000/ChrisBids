@@ -6,7 +6,7 @@ request each call sends, the schema the API is given, the recording written
 back, and that replaying that recording gives the same comparison.
 
 The live gate itself (`CHRISBIDS_LIVE=1`, with ANTHROPIC_API_KEY and the packet
-at /mnt/project-files) runs both golden jobs on Haiku and spends money, so it
+at fixtures/packet) runs both golden jobs on Haiku and spends money, so it
 never runs by default.
 """
 import json
@@ -23,7 +23,7 @@ from pipeline.readers.clients import ReplayClient
 from pipeline.readers.rows import Unit
 
 ROOT = Path(__file__).resolve().parent.parent
-PACKET = Path("/mnt/project-files")
+PACKET = ROOT / "fixtures" / "packet"   # the 7 source files the golden jobs read
 HAVE_POPPLER = shutil.which("pdftoppm") and shutil.which("pdfinfo")
 
 # A one-page PDF, 10 x 5 in, rotated 90 degrees, so it displays 5 x 10 in.
@@ -270,7 +270,7 @@ class LiveClientCase(unittest.TestCase):
         self.assertEqual(str(clients[1].api.base_url).rstrip("/"), "https://gateway.example")
 
 
-@unittest.skipUnless(PACKET.exists() and HAVE_POPPLER, "needs the packet at /mnt/project-files")
+@unittest.skipUnless(PACKET.exists() and HAVE_POPPLER, "needs poppler-utils")
 class UnitsCase(unittest.TestCase):
     def test_units_yaml_prepares_every_unit(self):
         with tempfile.TemporaryDirectory() as tmp:

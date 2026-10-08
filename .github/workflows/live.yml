@@ -6,12 +6,9 @@ name: live
 # starts it by hand (Actions > live > Run workflow); no push or pull request,
 # and so no fork, can trigger it.
 #
-# It needs two repository secrets:
-#   ANTHROPIC_API_KEY  the key the readers call the API with
-#   PACKET_URL         an https link to a .zip or .tar.gz of the source packet,
-#                      laid out as the register paths expect (source/...)
-# The packet stays out of the repository. Every file a unit reads is checked
-# against its register hash before any call, so a wrong packet stops the run.
+# It needs the repository secret ANTHROPIC_API_KEY. The source files the two
+# jobs read are committed under fixtures/packet/ (Scott, 2026-10-08), and every
+# one is checked against its register hash before any call.
 
 on:
   workflow_dispatch:
@@ -54,21 +51,6 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils
           python -m pip install --quiet -r requirements.txt
-      - name: Fetch the source packet
-        env:
-          PACKET_URL: ${{ secrets.PACKET_URL }}
-        run: |
-          if [ -z "$PACKET_URL" ]; then
-            echo "::error::PACKET_URL secret is not set; the live run needs the source packet"
-            exit 1
-          fi
-          mkdir -p "$RUNNER_TEMP/packet"
-          curl -fsSL --proto '=https' "$PACKET_URL" -o "$RUNNER_TEMP/packet.archive"
-          case "$(file -b --mime-type "$RUNNER_TEMP/packet.archive")" in
-            application/zip) unzip -q "$RUNNER_TEMP/packet.archive" -d "$RUNNER_TEMP/packet" ;;
-            application/gzip|application/x-gzip) tar -xzf "$RUNNER_TEMP/packet.archive" -C "$RUNNER_TEMP/packet" --no-same-owner ;;
-            *) echo "::error::PACKET_URL is not a .zip or .tar.gz"; exit 1 ;;
-          esac
       - name: Run the readers live and compare with the fixture
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -77,7 +59,7 @@ jobs:
           REPEATS: ${{ inputs.repeats }}
         run: >
           python -m pipeline live "fixtures/$JOB"
-          --packet "$RUNNER_TEMP/packet"
+          --packet fixtures/packet
           --out "runs/$JOB-live"
           --effort "$EFFORT"
           --repeats "$REPEATS"

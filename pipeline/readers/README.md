@@ -50,7 +50,7 @@ python3 -m pipeline live fixtures/ocean-beach --out runs/obv-live
 | [`tiles.py`](tiles.py) | Crops one view (or one tile of a fixed grid) from a drawing page with pdftoppm, at the DPI where its long edge fits 1568 px, the size the model is shown |
 | `fixtures/<job>/units.yaml` | What a live run reads: the three S-1 views by box, SW p.17 as its text layer, the five photos as uploaded |
 
-A live run needs the packet at `--packet` (default `/mnt/project-files`) and
+A live run needs the packet at `--packet` (default `fixtures/packet`) and
 `ANTHROPIC_API_KEY` in the environment, or `MERSCO_ANTHROPIC_API_KEY` when the cloud environment will not pass the first name through, read through `broker.secret` (p.12). Without the key it stops with `NOT RUN`;
 with one, a 1-token call checks the key before any unit is read.
 
@@ -62,9 +62,9 @@ discards any that fail.
 
 In GitHub Actions the same check is the manual `live` workflow
 (`.github/workflows/live.yml`): Actions > live > Run workflow. It needs the
-repository secrets `ANTHROPIC_API_KEY` and `PACKET_URL` (an https link to a
-.zip or .tar.gz of the packet, laid out as the register paths expect). Every
-file a unit reads is checked against its register hash first. Each job uploads
+repository secret `ANTHROPIC_API_KEY`. The 7 source files the golden jobs read
+are committed under `fixtures/packet/`, and every file a unit reads is checked
+against its register hash first. Each job uploads
 its comparison, ledger, recordings and the view images it sent. Those images
 (`units/`) are crops of the customer's drawings: if this repository ever goes
 public, drop `units/` from the uploaded artifacts first.

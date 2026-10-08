@@ -174,86 +174,93 @@ class Fake:
         raise AssertionError(reader)
 
 
-class BidBase(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.packet = Path(self.tmp.name) / "packet"
-        self.packet.mkdir()
-        write_pdf(self.packet / "paint-spec.pdf", ["Pressure wash all walls before coating", "Prime bare stucco"])
-        write_pdf(self.packet / "sheet-plans.pdf", ["GENERAL NOTES"])
-        write_png(self.packet / "IMG_0001.png")
-        (self.packet / "email-from-chris.txt").write_text("Keep the base bid simple\n")
-        write_pdf(self.packet / "proposal-format-example.pdf", ["Template"])
-        self.out = Path(self.tmp.name) / "out"
+def make_packet(root: Path, *, drawing: bool = True) -> Path:
+    packet = root / "packet"
+    packet.mkdir()
+    write_pdf(packet / "paint-spec.pdf", ["Pressure wash all walls before coating", "Prime bare stucco"])
+    if drawing:
+        write_pdf(packet / "sheet-plans.pdf", ["GENERAL NOTES"])
+    write_png(packet / "IMG_0001.png")
+    (packet / "email-from-chris.txt").write_text("Keep the base bid simple\n")
+    write_pdf(packet / "proposal-format-example.pdf", ["Template"])
+    return packet
 
 
-class BidCase(BidBase):
+class Bound(Fake):
+    def bind(self, broker):
+        self.bound = getattr(self, "bound", 0) + 1
+        self.principal = broker.principal.name
+
+
+class BidCase(unittest.TestCase):
+    """Two bid runs in all: each one renders drawing tiles and runs every agent, so
+    they are few and each checks a lot (the mutation job runs them per mutant)."""
 
     def test_a_packet_runs_end_to_end(self):
-        client = Fake()
-        res = orch.bid(self.packet, "J", self.out, reader_client=client, takeoff_client=client,
-                       scope_client=client, repeats=2)
-        self.assertEqual(res.problems, [])
-        self.assertEqual(sorted(res.results), ["correspondence", "drawing", "photo", "spec", "takeoff"])
-        self.assertTrue(res.scope.ok, res.scope.report())
-        self.assertTrue(res.audit.ok, res.audit.text())
-        self.assertTrue(res.ok, res.text())
-        text = (self.out / "proposal.md").read_text()
-        self.assertTrue(text.startswith("# FIELD: project name not in the ledger\n"))
-        self.assertIn("Job Address:  \nFIELD: job address not in the ledger\n", text)
-        self.assertIn("[client: not in the ledger]", text)
-        self.assertIn("Pressure wash all walls before coating", text)
-        self.assertIn("## Division 09 Finishes\n", text)
-        for name in ("plan.json", "ledger.db", "ledger.csv", "xref.csv", "bid.txt"):
-            self.assertTrue((self.out / name).exists(), name)
-        self.assertTrue((self.out / "bid.txt").read_text().endswith("bid: OK\n"))
-        plan = json.loads((self.out / "plan.json").read_text())
-        self.assertEqual([s["agent"] for s in plan["steps"] if s["run"]],
-                         ["drawing", "spec", "photo", "correspondence", "takeoff", "scope_writer", "auditor"])
-        readers = [c for c in client.calls if c[0] in orch.READERS]
-        self.assertEqual(len(readers), (6 + 2 + 1 + 1) * 2)
-        self.assertEqual([c for c in client.calls if c[0] == "scope_writer"],
-                         [("scope_writer", "J#scope", 0), ("scope_writer", "J#scope", 1)])
-        self.assertEqual([c[0] for c in client.calls].count("takeoff"), 2)   # the wall run is an input
-        self.assertIn("FIELD", (self.out / "ledger.csv").read_text())
+        with tempfile.TemporaryDirectory() as d:
+            packet = make_packet(Path(d))
+            out = Path(d) / "nested" / "run"
+            out.mkdir(parents=True)
+            (out / "ledger.db").write_text("junk")                # an old ledger is replaced
+            clients = [Bound("r"), Bound("t"), Bound("s")]
+            res = orch.bid(packet, "J", out, reader_client=clients[0], takeoff_client=clients[1],
+                           scope_client=clients[2])                 # default repeats: 2
+            self.assertEqual(res.problems, [])
+            self.assertEqual(sorted(res.results), ["correspondence", "drawing", "photo", "spec", "takeoff"])
+            self.assertTrue(res.scope.ok, res.scope.report())
+            self.assertTrue(res.audit.ok, res.audit.text())
+            self.assertTrue(res.ok, res.text())
+            self.assertEqual([(c.bound, c.principal) for c in clients], [(1, "intake")] * 3)
+            text = (out / "proposal.md").read_text()
+            self.assertTrue(text.startswith("# FIELD: project name not in the ledger\n"))
+            self.assertIn("Job Address:  \nFIELD: job address not in the ledger\n", text)
+            self.assertIn("[client: not in the ledger]", text)
+            self.assertIn("- Pressure wash all walls before coating (PS p.1)\n", text)
+            self.assertIn("## Division 09 Finishes\n", text)
+            for name in ("plan.json", "ledger.db", "ledger.csv", "xref.csv", "bid.txt"):
+                self.assertTrue((out / name).exists(), name)
+            self.assertTrue((out / "bid.txt").read_text().endswith("bid: OK\n"))
+            plan = json.loads((out / "plan.json").read_text())
+            self.assertEqual([s["agent"] for s in plan["steps"] if s["run"]],
+                             ["drawing", "spec", "photo", "correspondence", "takeoff", "scope_writer", "auditor"])
+            self.assertEqual(len(clients[0].calls), (6 + 2 + 1 + 1) * 2)
+            self.assertEqual([c[2] for c in clients[1].calls], [0, 1])      # Takeoff: the wall run is an input
+            self.assertEqual(clients[2].calls, [("scope_writer", "J#scope", 0), ("scope_writer", "J#scope", 1)])
+            self.assertEqual(res.results["takeoff"].calls, 2)
+            self.assertEqual(res.audit.verdicts, {"pass": 3, "unverified": 3})
+            from pipeline.ledger import Ledger
+            with Ledger(out / "ledger.db") as led:
+                self.assertEqual(led.meta("job"), "J")
+                self.assertEqual(led.meta("status_line"), orch.STATUS_LINE)
+                claims = led.claims()
+                self.assertTrue(claims and all(c.claim_id.startswith("J-") for c in claims))
+                self.assertTrue(all(c.run_id == "bid-J" for c in claims))
+                self.assertIn("FIELD", {c.method for c in claims})
+            self.assertIn("FIELD", (out / "ledger.csv").read_text())
 
     def test_a_layout_that_never_agrees_is_a_problem_not_a_proposal(self):
         class Split(Fake):
             def complete(self, reader, unit, system, schema, run):
                 out = super().complete(reader, unit, system, schema, run)
                 if reader == "scope_writer" and run == 1:
-                    out["exclusion_phrases"] = []
+                    out["terms"] = []
                 return out
 
-        res = orch.bid(self.packet, "J", self.out, reader_client=Split(), takeoff_client=Split(),
-                       scope_client=Split(), repeats=2)
-        self.assertFalse(res.ok)
-        self.assertEqual(len(res.problems), 1)
-        self.assertTrue(res.problems[0].startswith("no proposal was rendered: J#scope: the runs place rows"))
-        self.assertFalse((self.out / "proposal.md").exists())
-        self.assertIn("PROBLEM no proposal was rendered", res.text())
-        self.assertTrue(res.text().endswith("bid: NOT OK"))
+        with tempfile.TemporaryDirectory() as d:
+            packet = make_packet(Path(d), drawing=False)
+            out = Path(d) / "out"
+            res = orch.bid(packet, "J", out, reader_client=Split(), takeoff_client=Split(), scope_client=Split(),
+                           repeats=2)
+            self.assertFalse(res.ok)
+            self.assertEqual(res.problems, ["no proposal was rendered: J#scope: the runs place rows differently; "
+                                            "terms: only in the first ['warranty']; only in the second nothing"])
+            self.assertFalse((out / "proposal.md").exists())
+            self.assertIn("PROBLEM no proposal was rendered", res.text())
+            self.assertTrue(res.text().endswith("bid: NOT OK"))
 
-    def test_an_old_ledger_is_replaced_and_live_clients_are_bound_once(self):
-        self.out.mkdir()
-        (self.out / "ledger.db").write_text("junk")
 
-        class Bound(Fake):
-            binds = 0
-
-            def bind(self, broker):
-                Bound.binds += 1
-                self.principal = broker.principal.name
-
-        client = Bound()
-        res = orch.bid(self.packet, "J", self.out, reader_client=client, takeoff_client=client,
-                       scope_client=client, repeats=1)
-        self.assertEqual(Bound.binds, 1)
-        self.assertEqual(client.principal, "intake")
-        self.assertTrue(res.ok, res.text())
-
-    def test_the_orchestrator_reads_no_document_and_writes_no_row(self):
+class BidResultCase(unittest.TestCase):
+    def test_the_orchestrator_reads_no_document(self):
         # The plan takes register rows only; nothing in it opens a file.
         p = orch.plan("J", [src("SPEC", "spec", pages="2", file="/nonexistent/spec.pdf")])
         self.assertEqual(len(p.step("spec").units), 2)
@@ -264,57 +271,11 @@ class BidCase(BidBase):
         good = scope_writer.ScopeResult(layout={}, text="x")
         self.assertFalse(orch.BidResult(plan=p, scope=good).ok)
 
-
-class MoreBidCase(BidBase):
-    def test_every_part_runs_under_the_job_and_the_default_repeats(self):
-        clients = [Fake("r"), Fake("t"), Fake("s")]
-        out = self.out / "nested" / "run"
-        res = orch.bid(self.packet, "J", out, reader_client=clients[0], takeoff_client=clients[1],
-                       scope_client=clients[2])
-        self.assertTrue(res.ok, res.text())
-        self.assertEqual(len(clients[0].calls), (6 + 2 + 1 + 1) * 2)
-        self.assertEqual([c[2] for c in clients[1].calls], [0, 1])      # Takeoff: the wall run is an input
-        self.assertEqual([c[1] for c in clients[2].calls], ["J#scope", "J#scope"])
-        from pipeline.ledger import Ledger
-        with Ledger(out / "ledger.db") as led:
-            self.assertEqual(led.meta("job"), "J")
-            self.assertEqual(led.meta("status_line"), orch.STATUS_LINE)
-            claims = led.claims()
-            self.assertTrue(claims and all(c.claim_id.startswith("J-") for c in claims))
-            self.assertTrue(all(c.run_id == "bid-J" for c in claims))
-            self.assertIn("FIELD", {c.method for c in claims})
-        self.assertEqual(res.audit.verdicts, {"pass": 3, "unverified": 3})
-        self.assertEqual(res.results["takeoff"].calls, 2)
-
-    def test_each_distinct_client_is_bound(self):
-        class Bound(Fake):
-            def bind(self, broker):
-                self.bound = True
-
-        clients = [Bound("r"), Bound("t"), Bound("s")]
-        orch.bid(self.packet, "J", self.out, reader_client=clients[0], takeoff_client=clients[1],
-                 scope_client=clients[2], repeats=1)
-        self.assertEqual([getattr(c, "bound", False) for c in clients], [True, True, True])
-
-    def test_a_split_layout_names_the_reason(self):
-        class Split(Fake):
-            def complete(self, reader, unit, system, schema, run):
-                out = super().complete(reader, unit, system, schema, run)
-                if reader == "scope_writer" and run == 1:
-                    out["terms"] = []
-                return out
-
-        res = orch.bid(self.packet, "J", self.out, reader_client=Split(), takeoff_client=Split(),
-                       scope_client=Split(), repeats=2)
-        self.assertEqual(res.problems, ["no proposal was rendered: J#scope: the runs place rows differently; "
-                                        "terms: only in the first ['warranty']; only in the second nothing"])
-
     def test_bid_text_lists_each_part_in_order(self):
         p = orch.plan("J", [])
         r = orch.BidResult(plan=p, problems=["x"], scope=scope_writer.ScopeResult(), audit=None)
         self.assertEqual(r.text(), p.text() + "\nPROBLEM x\n" + scope_writer.ScopeResult().report() + "\nbid: NOT OK")
         self.assertEqual(orch.BidResult(plan=p).text(), p.text() + "\nbid: NOT OK")
-
 
 class MorePlanCase(unittest.TestCase):
     def test_as_json_is_indented_and_keeps_unicode(self):

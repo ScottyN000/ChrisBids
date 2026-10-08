@@ -270,3 +270,5 @@ Not built yet: order quantities from spread rates (a `material` row may not be
 `fetched`, p.6), the cold-cache search, the 90-day cache for federal
 regulations, and the edition, effective-date, discontinuation and ESR-expiry
 comparisons between bids (p.8). The page hash is in the fetch log, not on the row.
+An agreed figure (a spread rate, a date) is checked by code but stored only in the
+row's sentence, not in `value`; the spread-rate quantities will need it stored as a field.

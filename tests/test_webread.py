@@ -668,7 +668,7 @@ class GateCase(unittest.TestCase):
 class GoldenCase(unittest.TestCase):
     """The whole golden path on a fixture's ledger, with every page served from its fixture quotes."""
 
-    def test_nantucket_passes_when_every_quote_is_answered(self):
+    def test_both_jobs_pass_when_every_quote_is_answered(self):
         tbl = webread.load()
         data = {}
         import yaml
@@ -689,13 +689,14 @@ class GoldenCase(unittest.TestCase):
                 for a in s.asks]}
         client = Fake(lambda unit: answers[unit.locator], lambda unit: copy.deepcopy(answers[unit.locator]))
         fetcher = web.Fetcher(tbl.named, opener=Sites(pages), clock=lambda: "2026-10-08", resolve=False)
-        with tempfile.TemporaryDirectory() as d:
-            broker, res, g = webread.golden(ROOT / "fixtures" / "nantucket", Path(d) / "l.db", client, fetcher,
-                                            table=tbl)
-            self.assertTrue(g.ok, g.text() + "\n" + res.text())
-            self.assertEqual(g.compared, 23)
-            self.assertEqual(res.refused, [])
-            broker.close()
+        for job, compared in (("nantucket", 23), ("ocean-beach", 27)):
+            with self.subTest(job=job), tempfile.TemporaryDirectory() as d:
+                broker, res, g = webread.golden(ROOT / "fixtures" / job, Path(d) / "l.db", client, fetcher,
+                                                table=tbl)
+                self.assertTrue(g.ok, g.text() + "\n" + res.text())
+                self.assertEqual(g.compared, compared)
+                self.assertEqual(res.refused, [])
+                broker.close()
         # a closed answer the fixture contradicts is a wrong answer, whatever the quote
         flip = next(p for p in tbl.pages if any(a.fixture == "NAN-C-005" for a in p.asks))
         for a in answers[flip.url]["answers"]:

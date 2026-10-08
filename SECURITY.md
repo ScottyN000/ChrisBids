@@ -39,8 +39,10 @@ produces is treated as data: it can fill a schema field, never steer the code.
 - The repository is public (Scott, 2026-10-08). The job documents under
   `fixtures/packet/` and the fixtures' ledgers (contact names, phone numbers,
   emails) are readable by anyone, in history too, and so are Actions logs and
-  the live run's artifact (its gate results and the model's answers; the
-  readers' page text, `units/`, is no longer uploaded). Neither workflow that
+  the live run's artifact (gate results, the model's answers, and in
+  `recordings/` the text of each unit the model read, which for the readers is
+  the packet's own text and for the web agents is public pages; `units/` is no
+  longer uploaded). Neither workflow that
   holds `ANTHROPIC_API_KEY` runs for a fork: the advisor skips fork PRs and
   live runs only when started by hand by someone with write access.
 - The Auditor's link check (`auditor.link_live`) follows redirects through `guard.public_url` only, not the domain allowlist; it sends a HEAD request and reads no body.

@@ -98,9 +98,9 @@ jobs:
           --out "runs/$JOB-web"
           --effort "$EFFORT"
           --repeats "$REPEATS"
-      # The repo is public (2026-10-08), so this artifact is too. units/ held
-      # the page text sent to the model and is left out; the rest are the
-      # gate's results and the model's answers.
+      # The repo is public (2026-10-08), so this artifact is too. units/ is
+      # left out; recordings/ still carry each unit's text, which is the
+      # packet (already public under fixtures/packet/) or a public web page.
       - name: Upload the run
         if: always()
         uses: actions/upload-artifact@v6

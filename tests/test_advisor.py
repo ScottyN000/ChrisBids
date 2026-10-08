@@ -119,6 +119,13 @@ class BriefCase(unittest.TestCase):
         self.assertIn("(architecture.txt)", brief)
         self.assertTrue((root / "docs" / "architecture.txt").read_text().startswith("Bid Pipeline"))
 
+    def test_the_model_gets_only_the_read_tools(self):
+        workflow = (Path(advisor.ROOT) / ".github" / "workflows" / "advisor.yml").read_text()
+        self.assertIn('--tools "Read,Glob,Grep"\n', workflow)
+        line = next(x for x in workflow.splitlines() if x.strip().startswith("--disallowedTools"))
+        for tool in ("Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch", "Agent", "mcp__*"):
+            self.assertIn(tool, line.split('"')[1].split(","))
+
 
 class UsageCase(unittest.TestCase):
     RESULT = {"type": "result", "num_turns": 9, "total_cost_usd": 1.234,

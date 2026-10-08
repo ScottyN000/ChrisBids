@@ -1,0 +1,811 @@
+Bid Pipeline — Agent Team Architecture (Scott Turner, 2026-10-07), text layer only.
+Extracted with `pdftotext -layout` from bid-pipeline-architecture_2026-10-07.pdf, sha256 0f92692dfae80b5ad11d56ad7a735c4685b991beb7136390a40202d3d1dd23a2.
+Page numbers are the "Page N of 17" footers. Read by the advisor (docs/advisor.md); the PDF is the source of record.
+
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+  Bid Pipeline — Agent Team Architecture
+    Oct 7, 2026         · ​@Scott Turner
+
+
+  The rule
+  No number reaches a bid document unless it points at a page, sheet, photo, clause or field
+  measurement that a human can open and check. An agent that cannot cite writes FIELD
+  and moves on; it never estimates, never fills from training memory, never rounds a scaled
+  dimension into a dimensioned one. The auditor agent enforces this mechanically: a figure
+  without a ledger entry is a build failure, not a warning.
+
+  Three corollaries shape everything below:
+
+   1. The source documents are the only ground truth. Codes, product data sheets and unit
+      prices are fetched and cited, never recalled.
+   2. Gaps are a deliverable. A list of what the crew must measure and what the owner must
+      answer is as much the output as the scope itself.
+   3. The job type is discovered from the documents, not told to the system. The same team
+      bids a pier, a window swap or a silo repaint because the team is organized by what a bid
+      needs, not by trade.
+
+
+
+
+                                                                                         Page 1 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+  Pipeline at a glance
+
+
+
+
+  bid pipeline · 10 agents, one ledger, one gate
+
+  Readers turn each source type into ledger rows; specialists add quantities, codes,
+  materials and customer instructions as more rows; the Scope Writer renders only from
+  rows, and the Auditor opens every cited source before the bid leaves. A figure the Auditor
+  cannot trace goes back to the ledger as an orphan, not to the customer.
+
+
+  Agent roster
+  Ten roles. The orchestrator spawns only the specialists a job's documents call for, so a silo
+  repaint runs fewer agents than a pier. Every agent writes to the shared claim ledger and
+  nowhere else; the scope writer and the auditor read only the ledger.
+
+
+
+
+                                                                                          Page 2 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Agent                         Reads               Produces            Allowed tools      Forbidden
+
+     Orchestrator                  The bid packet      Work plan, agent    Agent spawning,    Writing any
+                                   as received; the    dispatch, merge,    file system        figure itself
+                                   Source Register     audit log
+
+     Intake &                      Every file in the   Source Register:    pdftoppm,          Guessing
+     Classifier                    packet (email,      one ID per page,    image tools,       content of a
+                                   PDF, drawings,      sheet, photo and    hashing            file it could not
+                                   photos, zips,       message; file                          open
+                                   spreadsheets)       hashes;
+                                                       duplicates
+                                                       collapsed;
+                                                       detected job
+                                                       type and CSI
+                                                       divisions
+                                                       present
+
+     Drawing                       Plans, sections,    Dimensioned         Page rasterizer,   Reporting a
+     Reader                        details,            values (exact),     crop/zoom          scaled value
+                                   schedules,          scaled values                          as
+                                   general notes       (flagged),                             dimensioned
+                                                       counts, note
+                                                       text, design
+                                                       loads,
+                                                       referenced
+                                                       standards
+
+     Spec Reader                   Manufacturer        Requirement list,   PDF text + page    Summarizing
+                                   specs, owner        one row per         images             without a page
+                                   specs, RFPs,        clause with page                       number
+                                   addenda             cite; conflicting
+                                                       clauses paired
+
+     Photo Reader                  Site photos,        Condition           Image viewer,      Estimating a
+                                   inspection          observations per    contact sheets     quantity from
+                                   reports             photo: what,                           a photo
+                                                       where, severity
+                                                       words only;
+                                                       photo index by
+                                                       area
+
+
+
+
+                                                                                                          Page 3 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Agent                         Reads              Produces              Allowed tools      Forbidden
+
+     Customer                      Emails, PM task    Base bid vs           Text               Promoting a
+     Requirements                  notes, meeting     alternate split,                         preference
+                                   notes, prior       format and tone                          into a spec
+                                   proposals          instructions,                            requirement
+                                                      deadlines, owner
+                                                      preferences;
+                                                      conflicts with
+                                                      spec flagged
+
+     Takeoff                       Drawing Reader     Quantities with       Calculator, unit   Any quantity
+                                   and Photo          derivation            conversion         without a
+                                   Reader outputs     strings ("11 + 5 x                       derivation
+                                                      32 + 11 = 182 in");
+                                                      FIELD
+                                                      placeholders
+                                                      with what to
+                                                      measure
+
+     Codes &                       Job address, job   Applicable code       Web search and     Citing a code
+     Regulations                   type, detected     editions, AHJ         fetch, AHJ         from memory
+                                   divisions,         permit                portals
+                                   Mersco licenses    requirements,
+                                                      OSHA and
+                                                      industry
+                                                      standards
+                                                      (SSPC, AWS,
+                                                      ACI), licensing
+                                                      checks — each
+                                                      with a fetched
+                                                      URL and section
+
+     Materials                     Takeoff            Product data          Web fetch          Inventing a
+                                   quantities, spec   sheet figures         (manufacturer      spread rate or
+                                   product names      (spread rate,         sites)             yield
+                                                      yield, pack size),
+                                                      order quantities,
+                                                      substitution
+                                                      rules
+
+
+
+
+                                                                                                           Page 4 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Agent                         Reads                 Produces           Allowed tools      Forbidden
+
+     Scope Writer                  The claim ledger      Proposal in        Template           Any sentence
+                                   only                  Mersco division                       containing a
+                                                         format,                               figure not in
+                                                         allowance                             the ledger
+                                                         parentheticals,
+                                                         exclusions, open
+                                                         questions
+
+     Auditor                       The finished          Pass/fail per      File readers,      Approving a
+                                   proposal, the         figure; opens      fresh context      figure it did
+                                   ledger, the           each cited         (has not seen      not open
+                                   Source Register       source and         the drafting)
+                                                         confirms the
+                                                         value; list of
+                                                         orphan figures
+
+
+  Pricing is deliberately a later agent: it reads Mersco's own rate book and labor factors, and
+  every unit price it applies must cite a rate-book line the same way a quantity cites a
+  drawing.
+
+
+  The claim ledger
+  The ledger is one append-only table per job. Every figure that could appear in a bid — a
+  count, a length, a product name, a spread rate, a code section, a customer instruction — is
+  a row. The proposal is rendered from rows; a figure typed directly into the proposal is an
+  orphan and fails audit.
+
+
+     Field                          What goes in it                         Example from the Nantucket job
+
+     claim_id                       Stable key the proposal references      NAN-Q-003
+
+     value, unit                    The figure and its unit                 6, each
+
+     statement                      The claim in words                      Bracket supports along plank run
+
+     source_id                      Source Register ID                      S-1
+
+     locator                        Page, sheet, detail, photo, clause,     Partial Foundation Plan
+                                    paragraph
+
+
+
+
+                                                                                                           Page 5 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Field                          What goes in it                          Example from the Nantucket job
+
+     method                         dimensioned · counted · scaled ·         counted
+                                    clause · observed · fetched ·
+                                    customer · FIELD
+
+     derivation                     How the value was reached,               11" + 5 @ 2'-8" + 11" = 15'-2"; 5
+                                    reproducible                             spaces = 6 brackets
+
+     confidence                     exact · scaled · inferred · missing      exact
+
+     agent,                         Who wrote it and when                    takeoff, 2026-10-07T13:02Z
+     timestamp
+
+     audit                          pass · fail · unverified, with auditor   pass: 6 symbols on both plans
+                                    note
+
+
+  Method rules the auditor enforces
+
+         dimensioned and counted may feed a Mersco allowance as stated.
+         scaled must say so in the proposal text and carries a FIELD-verify note; it never
+        becomes an order quantity without a site check.
+         observed (from a photo) may name a condition and a location; it may never carry a
+        number.
+         fetched must store the URL and the retrieval date; a dead link at audit time is a fail.
+         customer captures an instruction verbatim with the message date; it cannot override
+        a spec clause, only sit beside it as a flagged conflict.
+         FIELD is a legitimate row: value blank, statement says exactly what to measure. The
+        proposal prints it as "FIELD" inside the allowance parenthetical, which is what the two
+        test bids do.
+
+  Prove-your-work output: alongside the proposal the pipeline emits the ledger as a
+  spreadsheet and a cross-reference view — every paragraph of the proposal listed with
+  the claim IDs it draws on. A reviewer can click from any number to the page image it came
+  from.
+
+
+
+  Job-agnostic design
+  The team never needs a "painting mode" or a "pier mode" because nothing in it is keyed to
+  a trade. Four design choices make that hold.
+
+
+
+
+                                                                                                                 Page 6 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+  CSI MasterFormat is the spine. Mersco already writes proposals by division (01 General
+  Conditions, 03 Concrete, 05 Metals, 07 Thermal & Moisture, 09 Finishes, 31 Earthwork, 35
+  Waterway & Marine). The Intake agent tags each source page with the divisions it
+  touches; the orchestrator spawns one Takeoff and one Materials pass per division
+  present. A pier bid lights up 31, 33 and 35; a silo repaint lights up 09 and 05; a condo
+  window job lights up 08. The proposal template is the same file every time.
+
+  Source types are the plug-in boundary, not job types. A reader exists per kind of
+  document (drawing, spec, photo, correspondence, schedule, spreadsheet, RFP). A new
+  job with an unfamiliar document type (a marine survey, an NRCS silo report, a window
+  schedule) adds a reader, not a new pipeline.
+
+  Codes are looked up by address and division. The Codes agent takes the job address,
+  resolves the AHJ and adopted code edition for that jurisdiction, and fetches the sections
+  the detected divisions trigger. Florida (FBC), Maryland (IBC with state amendments) and
+  Delaware all resolve the same way. Marine, agricultural and multifamily overlays (USACE
+  permits, grain-handling OSHA 1910.272, FHA/condo rules) come from the same lookup,
+  keyed by division and site type, with URLs stored in the ledger.
+
+  Customer requirements are a layer, not a rewrite. Chris's "keep the base bid simple"
+  instruction, an owner's warranty choice, a PM's phasing note — these are customer rows
+  that shape the base-vs-alternate split and the proposal's emphasis. They never change a
+  spec figure. When they conflict with a spec, both rows print under Open Questions, which
+  is how the Ocean Beach bid handles the garage doors and the missing deck-coating
+  product.
+
+  What changes per job is therefore only the packet. What stays fixed is the ledger schema,
+  the division template, the audit rule and the agent roster.
+
+  Codes are cached as evidence, never as conclusions. The two lookups on the test jobs
+  cost a third of the session, so reuse is tempting, but codes, permit pages and product
+  lines change. The discontinued Hilti HIT-HY 70 is the warning: a cached row naming it
+  would have looked traceable and been wrong. The Codes agent therefore keeps a per-
+  jurisdiction cache of fetched pages (URL, retrieval date, content hash, quoted clause, and
+  the edition or effective date the page states), and the Auditor applies a freshness rule
+  before any cached row may feed a bid:
+
+
+
+
+                                                                                             Page 7 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Source type                         Revalidate        How                      Why this interval
+
+     Statutes and adopted                Every bid         Re-fetch the edition     Editions change on
+     code editions (FBC,                                   page; compare stated     known cycles (FBC
+     IBC via COMAR, F.S.)                                  edition and effective    every 3 years,
+                                                           date to the cached one   Maryland on the I-
+                                                                                    code cycle) but
+                                                                                    amendments and
+                                                                                    emergency rules
+                                                                                    land between them
+
+     Municipal permit                    Every bid         Re-fetch; compare        Cities edit these
+     pages and fee                                         content hash; on         without notice; a fee
+     schedules                                             change, re-read the      or a permit-required
+                                                           page                     list can change mid-
+                                                                                    year
+
+     Manufacturer product                Every bid         Re-fetch; check for      Products are
+     pages, data sheets,                                   discontinuation          replaced (HY 70 to
+     ICC-ES reports                                        language and report      HY 270) and ESRs
+                                                           expiry dates             expire or are revised
+                                                                                    annually
+
+     Federal regulations                 90 days or on a   Hash compare;            Stable, but
+     (OSHA 1926, EPA RRP)                Federal           subscribe to the CFR     amendments do
+                                         Register hit      part's change feed       occur and the
+                                                                                    citation must survive
+                                                                                    audit
+
+     Site-specific                       Per job, never    Logged as a customer     A parcel or an
+     determinations (CCCL                shared across     or fetched row with      inspector's ruling is
+     position, AHJ answers               jobs              the person, date and     not transferable
+     by phone)                                             what was said
+
+
+  A cached row whose revalidation fails is demoted to unverified and printed that way in
+  the proposal until a fresh fetch succeeds. The savings come from skipping the search
+  step, not the fetch step: the agent already knows which Ocean City pages matter, so
+  revalidating them is a dozen cheap requests instead of sixty.
+
+
+
+
+                                                                                                        Page 8 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+  Determinism
+  A language model is never bit-for-bit repeatable, so the goal is that the ledger is
+  reproducible even when the model's wording is not. Two identical packets must yield
+  identical dimensioned, counted and clause rows; where they do not, the pipeline says so
+  instead of choosing.
+
+
+     Rule                                What it means in practice           Why it matters for Chris
+
+     Models extract, code                A model emits structured rows       A math error in a bid is a
+     computes                            only ("bracket symbols counted:     margin error; code does not
+                                         6, source S-1 Fnd"). Arithmetic,    transpose digits
+                                         unit conversion, bag yields,
+                                         stock lengths and order
+                                         quantities are computed by
+                                         plain code from the ledger
+
+     Schema-constrained                  Every call returns strict JSON      Removes the model's room to
+     output                              against a schema with               improvise; makes the output
+                                         enumerated fields (method,          machine-checkable
+                                         division, unit, confidence). Free
+                                         text is limited to statement
+                                         and derivation
+
+     Pinned versions,                    Model ID, prompt version hash       A row can always be traced to
+     recorded per row                    and tool versions are fixed per     the exact software that
+                                         release and written on every        produced it
+                                         ledger row
+
+     Content-addressed                   Run ID = hash(packet files +        Re-running a bid six months
+     runs                                prompt versions + model IDs).       later shows exactly what
+                                         Same inputs, same versions: the     changed and why
+                                         two ledgers are diffed field by
+                                         field
+
+     Redundancy, not                     Each extraction runs 2–3 times      The pipeline never silently
+     judgment                            (cheap on Haiku) and the fields     picks a winner on a figure that
+                                         are compared. Agreement             pays for Chris's week
+                                         passes; disagreement writes
+                                          unverified and routes to a
+                                         human
+
+
+
+
+                                                                                                        Page 9 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Rule                                  What it means in practice            Why it matters for Chris
+
+     Rendered, not written                 Mersco's Format Example              Identical ledgers produce
+                                           paragraphs become a phrase           identical proposals; Mersco's
+                                           library keyed by division and        voice stays Mersco's
+                                           task. The Scope Writer selects
+                                           paragraphs and fills slots from
+                                           the ledger; it composes no
+                                           prose
+
+     Golden tests                          The Nantucket and Ocean              A regression is caught on a
+                                           Beach packets are fixtures. Any      known job, not on a live bid
+                                           prompt or model change must
+                                           reproduce their ledgers exactly
+                                           on dimensioned and counted
+                                           fields before deployment
+
+     Human release                         Output is a draft, a ledger, and a   The income stream has a
+                                           diff against the previous run.       person at the gate
+                                           Chris releases; the pipeline
+                                           cannot
+
+
+  One consequence to accept up front: observed rows from photos and scaled rows from
+  undimensioned details are inherently judgment calls. They are allowed to vary between
+  runs, which is exactly why they can never carry an order quantity.
+
+
+  Permissioning
+  Each agent is a service principal with one role and the minimum access that role needs.
+  No agent sees everything, no agent can edit history, and the only principal who can
+  release a bid is Chris. Readers process untrusted documents, so they get no network and
+  no free-text channel: a PDF or email carrying injected instructions has nothing to call out
+  with and no way to talk to the orchestrator except through the schema.
+
+  Access matrix
+
+
+     Resource                      Read                    Write                       Notes
+
+      sources/                     Intake; each Reader     Nobody                      Write-once. Hashed at
+     (originals)                   for its own                                         intake; any hash
+                                   document type only                                  change fails the run
+
+
+
+                                                                                                           Page 10 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Resource                      Read                   Write                   Notes
+
+     Source                        All agents             Intake only             One ID per page, photo,
+     Register                                                                     message
+
+     Ledger rows                   All agents             Append-only, scoped     No edit, no delete. A
+                                                          by method: Photo        correction is a new row
+                                                          Reader writes           with supersedes
+                                                           observed only; Codes   pointing at the old one
+                                                          writes fetched only;
+                                                          Takeoff writes
+                                                           counted , scaled ,
+                                                           FIELD ; Spec Reader
+                                                          writes clause ;
+                                                          Customer
+                                                          Requirements writes
+                                                          customer
+
+     Ledger audit                  All agents             Auditor only            The only field that is
+     field                                                                        ever updated in place
+
+     Outbound                      Codes & Regs,          —                       Domain allowlist (.gov,
+     network                       Materials                                      .us state portals,
+                                                                                  named manufacturer
+                                                                                  domains). Every other
+                                                                                  agent has no egress
+
+     Code and                      Codes & Regs,          Codes & Regs,           Auditor revalidates;
+     product cache                 Materials, Auditor     Materials (append)      see freshness policy
+
+     Rate book and                 Pricing agent, Chris   Chris                   Scope Writer and
+     labor factors                                                                Readers never see
+                                                                                  prices, so scope text
+                                                                                  cannot leak margin
+
+     Proposal draft                Auditor, Chris         Scope Writer            Rendered from the
+                                                                                  ledger; the draft file is
+                                                                                  regenerated, never
+                                                                                  hand-edited by an
+                                                                                  agent
+
+     Release to                    —                      Chris, by hand          Not a pipeline
+     customer                                                                     capability
+
+
+
+
+                                                                                                       Page 11 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Resource                      Read                Write                Notes
+
+     Prompts and                   All agents (their   Chris, via version   A prompt change is a
+     phrase library                own)                control              release, gated by
+                                                                            golden tests
+
+     Audit log                     Chris               Every component,     Every model call: inputs
+                                                       append-only          hash, model ID, prompt
+                                                                            version, output hash,
+                                                                            cost
+
+
+  How it is enforced
+
+        Each agent runs with its own allowed-tools list in the Agent SDK and its own filesystem
+        scope: a container per role, or a single broker process that is the only thing with write
+        access to the ledger and checks the caller's role against the method it is trying to write.
+        The Orchestrator can spawn agents and read their status. It cannot write ledger rows
+        and does not see document content, only the Source Register.
+        Secrets (API keys, rate book path) live in the broker's environment, never in a prompt
+        or a tool result.
+        Document content is data. Reader prompts state it; the schema enforces it; the
+        missing network makes it moot.
+        Every access is logged with the principal, so a bad row can be traced to the agent and
+        the call that produced it.
+
+  Human roles
+
+        Chris: release authority, rate book owner, approves prompt changes, answers
+        unverified escalations.
+        Field crew: fills FIELD rows through a form that writes measured rows with the
+        person's name and date. They cannot change anything else.
+        Engineer or owner: never touches the system; their answers are entered by Chris as
+        customer rows with the message date.
+
+
+
+  Model tiering and cost
+  The pipeline is designed to run mostly on Haiku, with Sonnet where a task needs to hold
+  two things in mind at once. A small model is reliable when it is never asked a question with
+  two reasonable answers, so the frugality work is really ambiguity-removal work.
+
+
+
+
+                                                                                               Page 12 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+  Tiering by role
+
+
+     Agent                               Model        Why that tier is enough
+
+     Intake & Classifier                 Code, then   Hashing, dedupe, page splitting and text
+                                         Haiku        extraction are code. Haiku only tags each page
+                                                      with document type and divisions from a fixed
+                                                      list
+
+     Drawing Reader                      Haiku        One drawing tile per call: "list every dimension
+                                                      string, note, symbol and label on this tile."
+                                                      Dimensioned vs scaled is a rule, not a
+                                                      judgment
+
+     Spec Reader                         Haiku        One page per call, one row per clause. Pairing
+                                                      conflicting clauses across pages is a code step
+                                                      over the rows, then one Sonnet pass to
+                                                      confirm the pairs
+
+     Photo Reader                        Haiku        One photo per call, fixed vocabulary of
+                                                      conditions (crack, spall, rust, peeling,
+                                                      delamination, staining) and locations. No
+                                                      numbers allowed
+
+     Correspondence                      Haiku        Extracts instructions verbatim with sender
+     Reader                                           and date
+
+     Customer                            Sonnet       Must reconcile an instruction against a spec
+     Requirements                                     clause and decide "conflict" or "narrower
+                                                      scope"
+
+     Takeoff                             Sonnet       Writes derivation strings from dimension
+                                                      strings; code then evaluates the derivation
+                                                      and must get the same number
+
+     Codes & Regs,                       Haiku        Fetch a URL, extract the quoted clause or
+     Materials                                        spread rate into a schema. Which URLs to
+                                                      fetch comes from the per-jurisdiction cache
+                                                      plus a short Sonnet search plan when the
+                                                      cache is cold
+
+     Scope Writer                        Haiku        Selects paragraphs from the phrase library
+                                                      and fills slots. No composition
+
+
+
+
+                                                                                                  Page 13 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Agent                               Model        Why that tier is enough
+
+     Auditor                             Code, then   Schema checks, arithmetic replay, hash and
+                                         Haiku        link liveness are code. Haiku answers one
+                                                      question per row: does this quoted text
+                                                      support this claim, yes or no
+
+     Orchestrator                        Sonnet       Plans which agents run from the Source
+                                                      Register; the plan is a short list, not a
+                                                      conversation
+
+
+  Ambiguity-removal rules every prompt carries
+
+        One unit of input per call (a page, a tile, a photo, a URL). No accumulated conversation;
+        every call is stateless.
+        Output is the schema or nothing. Fields that are not stated in the input are null .
+        "Probably" is not a value.
+        Enumerated vocabularies for division, method, unit, condition and confidence. The
+        model picks from a list; it does not name things.
+        Two or three examples from the golden jobs in every prompt, chosen to show the null
+        case as well as the filled one.
+        No multi-step reasoning asked of Haiku. A task that needs two steps is two calls.
+
+  Cost controls
+
+        Redundancy before escalation: three Haiku passes with field-level voting cost less
+        than one frontier pass and produce a disagreement signal a single pass cannot.
+        Prompt caching on every system prompt; contexts kept small so the cached share
+        dominates.
+        Code does everything code can do: text layers, OCR, contact sheets, drawing tiles on a
+        fixed grid, link checks, arithmetic.
+        Per-jurisdiction and per-manufacturer caches with the freshness policy above: the
+        search is skipped, the fetch is not.
+        Cost per bid is a ledger field (tokens by agent, by model, in dollars), so Chris sees what
+        a bid cost to produce against what it is worth.
+
+  For scale: producing the two test bids interactively with a frontier model cost about 8.5
+  million weighted tokens, a third of it in the code lookups. A pipeline of stateless Haiku
+  calls on the same packets should land at a small fraction of that; the golden-test runs in
+  Phase 1 will give the real number.
+
+
+
+                                                                                                  Page 14 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+  What the two test jobs taught
+  Both bids were produced by hand the way the pipeline would, and each surfaced a case
+  the agents must handle on purpose rather than by luck.
+
+
+     Case                                Where it showed up              What the pipeline must do
+
+     Dimensioned vs scaled               S-1 gives the bracket run and   Drawing Reader emits two
+                                         spacing as dimensions but       confidence classes; Scope
+                                         the angle leg lengths only as   Writer prints "scaled" and a
+                                         a drawing at 3/4" scale         verify note; Materials orders
+                                                                         stock lengths, not cut lengths
+
+     "TYP." without a count              S-1 shows 3 anchors and 3       Takeoff counts the symbols,
+                                         bolts per bracket, labeled      records method = counted,
+                                         typical                         and files an open question to
+                                                                         the engineer
+
+     Duplicate files                     72 photos arrived twice         Intake hashes every file and
+                                         ( IMG_ and 0_IMG_ , identical   collapses duplicates before
+                                         hashes)                         anyone reads them
+
+     Spec silent on a scoped             SW spec lists walkways as       Spec Reader pairs scope items
+     item                                surfaces to paint but names     with product systems; an
+                                         no deck coating product         unmatched pair becomes an
+                                                                         Open Question, never a
+                                                                         guessed product
+
+     Spec contradicts itself             3,000 psi minimum (p.2–7) vs    Spec Reader flags the pair; the
+                                         2,500–3,000 psi (p.11)          spec's own precedence clause
+                                                                         (p.8 D.1, "higher standard")
+                                                                         resolves it and the resolution
+                                                                         is cited
+
+     Customer list narrower              Chris's six-item base bid       Customer Requirements layer:
+     than spec                           omits garage doors, which       item included with a note, or
+                                         the spec covers                 moved to an alternate, and the
+                                                                         choice surfaced
+
+     Photos imply quantities             72 photos show cracks,          Photo Reader records
+                                         spalls, loose posts             conditions and locations only;
+                                                                         every quantity is FIELD
+
+
+
+
+                                                                                                     Page 15 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+     Case                                Where it showed up             What the pipeline must do
+
+     No drawings at all                  Ocean Beach has a spec and     Takeoff emits a takeoff
+                                         photos but no plans            checklist instead of
+                                                                        allowances; the proposal
+                                                                        prints FIELD placeholders in
+                                                                        the allowance parentheticals
+
+     Product data needed for             Spread rates, bag yields,      Materials fetches the data
+     quantities                          cartridge counts               sheet and cites it; the spec's
+                                                                        own stated rates (SW p.17)
+                                                                        take precedence over the data
+                                                                        sheet
+
+     Codes and inspections               S-1 general notes assign       Codes agent resolves the AHJ
+     implied, not stated                 permits and testing to the     requirement and the bid either
+                                         contractor; adhesive anchors   carries it as an allowance or
+                                         trigger IBC Ch. 17 special     lists it as an exclusion, with the
+                                         inspection                     clause cited
+
+
+
+
+  Build plan
+  Build the ledger and the auditor first; they are what make the system trustworthy, and
+  every other agent is replaceable once they exist.
+
+   1. Ledger + Intake + Auditor (foundation). Define the ledger schema as a SQLite store
+      per job, written only through a broker that enforces the access matrix (append-only,
+      method scoped by role, versions stamped on every row). Check the two test packets in
+      as golden fixtures. Intake builds the Source Register with hashes and page images.
+      Auditor opens a cited page and confirms a value. Test: feed it the two hand-written
+      bids above and have it find every orphan.
+   2. Drawing, Spec, Photo and Correspondence readers. Each is a Claude Agent SDK
+      subagent with a narrow system prompt, read-only file tools, and one output: ledger
+      rows. Re-run on the Nantucket and Ocean Beach packets; the rows must reproduce
+      the figures in the two bids.
+   3. Takeoff and Customer Requirements. Takeoff carries the derivation rule; Customer
+      Requirements carries the base-vs-alternate split. Scope Writer renders the Mersco
+      template from rows.
+
+
+
+
+                                                                                                     Page 16 of 17
+Bid Pipeline — Agent Team Architecture
+
+
+
+
+   4. Codes & Regulations and Materials. Web-fetching agents with URL-and-date storage.
+      Start with the three jurisdictions Mersco is licensed in (FL CGC, MD MHIC, DE) and
+      the manufacturers in the current spec pool (Sherwin-Williams, Sika, Hilti, Euclid).
+   5. Pricing. Only after the above are audited clean on five real jobs. Mersco's rate book
+      becomes a Source Register entry like any other.
+
+  Stack
+
+        Orchestration: Claude Agent SDK with subagents per role; the orchestrator holds the
+        plan, subagents hold narrow context.
+        Skills: one skill per reader type and one for the Mersco proposal template, so a new
+        document type or a template change is a skill edit, not a code change.
+        Storage: job folder with sources/ (originals, never edited), register.csv ,
+         ledger.csv , proposal.md , audit.log .
+        Intake path: a watched mailbox or shared folder; a packet is a folder, a bid is a run.
+
+  What Chris has to supply
+
+        The Mersco proposal template as a file (the Format Example PDF looks like a Word
+        export plus a pricing system export; the Word side is what the Scope Writer needs).
+        Mersco's rate book and labor factors, when pricing is added.
+        Three to five past bids with their packets, to use as regression tests.
+        A ruling on scaled dimensions: never order from them, or order with a stated tolerance.
+        License numbers and the jurisdictions he actually bids in, for the Codes agent's lookup
+        table.
+
+
+
+
+                                                                                                 Page 17 of 17
+

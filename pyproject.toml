@@ -6,7 +6,7 @@
 # tests. A mutant the tests do not catch is a line nothing really checks.
 source_paths = ["pipeline/"]
 pytest_add_cli_args_test_selection = ["tests/"]
-also_copy = ["fixtures/", "tools/", "docs/"]
+also_copy = ["fixtures/", "tools/", "docs/", ".github/"]
 do_not_mutate = ["pipeline/cli.py", "pipeline/__main__.py"]
 
 [tool.pytest.ini_options]

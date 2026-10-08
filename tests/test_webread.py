@@ -80,7 +80,7 @@ class TableCase(unittest.TestCase):
         first = t.pages[0]
         self.assertEqual((first.title, first.when), ("Ocean City online permitting",
                                                      (("ocean city",), ("maryland", "md"))))
-        self.assertEqual(first.asks[1], webread.Ask("a2", "Permit turnaround # weeks on average", "NAN-C-002"))
+        self.assertEqual(first.asks[1], webread.Ask("a2", "How long permit review takes: # weeks", "NAN-C-002"))
         self.assertEqual(sum(1 for p in t.pages for a in p.asks if a.fixture), 50)
         esr = next(p for p in t.pages if p.url.endswith("ESR-4143.pdf"))
         self.assertEqual(esr.ids, ("ESR-4143", "HIT-HY 270", "HY 270"))
@@ -88,6 +88,9 @@ class TableCase(unittest.TestCase):
         for p in t.pages:
             self.assertEqual(web.allowed(p.url, t.named), "", p.url)
             self.assertEqual(len({a.id for a in p.asks}), len(p.asks))
+        # the table is the cache for every job: an ask says what to look for, never a test bid's job-specific notes
+        for a in (a for p in t.pages for a in p.asks):
+            self.assertNotRegex(a.ask, r"NAN-|OBV-|FIELD|owner flag|spec p\.|unverified|only the title", a.ask)
 
     def test_a_page_for_an_unknown_agent_is_refused(self):
         with tempfile.TemporaryDirectory() as d:

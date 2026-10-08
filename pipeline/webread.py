@@ -308,6 +308,9 @@ class WebResult:
 
 
 def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
+    # Both agents write role "code" for now: "material" may not be fetched (p.6),
+    # since it would feed a quantity. Data-sheet rates get their own role when
+    # order quantities from spread rates are built.
     return Claim(claim_id=f"{job}-WEB-{n:03d}", source_id=SOURCE_ID, method="fetched", role="code",
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
 

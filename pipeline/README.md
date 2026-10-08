@@ -196,9 +196,11 @@ A two-letter state code counts only as an address writes it (", MD" or "MD 21842
 so "10.1 fl oz" in a spec does not pull in Florida's pages.
 For example, the Ocean City pages are read for a job in Ocean City, Maryland, and
 the Loxon data sheets for a job whose spec names Loxon. The table was seeded from
-the 57 pages the two hand-made test bids cite. Each ask is the test bid's
-statement with its figures masked (`Permit turnaround # weeks on average`), so
-the model has to read the figure from the page. A jurisdiction the table does not
+the 57 pages the two hand-made test bids cite. Each ask is a neutral question
+about what to find, with a `#` for each figure the model must read from the
+page (`How long permit review takes: # weeks`). It never carries the test bid's
+conclusion, since the table is the cache for every later job (p.7: evidence,
+never conclusions). A jurisdiction the table does not
 know gets no rows yet: the cold-cache search plan (p.13) is not built.
 
 Every bid re-fetches its pages: a cached row is evidence, never a conclusion

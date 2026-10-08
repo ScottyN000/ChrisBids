@@ -13,11 +13,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Install poppler and PyYAML
+      - name: Install poppler and the Python requirements
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils
-          python -m pip install --quiet pyyaml
+          python -m pip install --quiet -r requirements.txt
       - name: Golden fixtures are not stale
         run: |
           python tools/build_fixture.py fixtures/nantucket --check

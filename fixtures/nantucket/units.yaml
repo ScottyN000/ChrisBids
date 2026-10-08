@@ -1,0 +1,27 @@
+# What a live run shows each reader: one view per Drawing Reader call.
+# Files come from register.csv; paths there are relative to the packet root.
+# A box is [left, top, right, bottom] as fractions of the page as displayed
+# (rotation applied), drawn once by eye from the 40 dpi render of S-1 and
+# checked against the 300 dpi crop. A sheet with no boxes is tiled on a grid.
+drawing:
+  - unit_id: S-1#Fnd
+    source_id: S-1
+    locator: Partial Foundation Plan
+    tag: S-1 Fnd
+    scale: 1/4"=1'-0"
+    page: 1
+    box: [0.09, 0.01, 0.32, 0.51]
+  - unit_id: S-1#Frm
+    source_id: S-1
+    locator: Partial First Floor Framing Plan
+    tag: S-1 Frm
+    scale: 1/4"=1'-0"
+    page: 1
+    box: [0.31, 0.01, 0.53, 0.51]
+  - unit_id: S-1#Det1
+    source_id: S-1
+    locator: Support Detail 1/S-1
+    tag: S-1 Det 1
+    scale: 3/4"=1'-0"
+    page: 1
+    box: [0.11, 0.60, 0.32, 0.94]

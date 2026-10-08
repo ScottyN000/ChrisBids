@@ -6,8 +6,8 @@ stateless (architecture p.14: "no accumulated conversation").
 
 `ReplayClient` answers from recorded responses on disk. It is how the golden
 tests run without a network or an API key, and how a live run is re-checked
-later: record once, replay forever. The live client that calls Haiku is added
-when the project has an API key; it implements the same `complete` method.
+later: record once, replay forever. `live.LiveClient` calls Haiku and implements
+the same `complete` method, recording in the format this class reads.
 """
 from __future__ import annotations
 

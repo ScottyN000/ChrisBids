@@ -120,12 +120,33 @@ class SecretCase(unittest.TestCase):
             self.assertEqual([(r["subject"], r["detail"]) for r in denied],
                              [("read the rate book", "principal drawing_reader")])
             with self.assertRaisesRegex(LedgerError, r"^HOME is not a broker secret; known: \['CHRISBIDS_RATE_BOOK', "
-                                                     r"'CHRISBIDS_API_KEY'\]$"):
+                                                     r"'CHRISBIDS_API_KEY', 'ANTHROPIC_API_KEY'\]$"):
                 b.secret("HOME")
             b.close()
         with mock.patch.dict(os.environ, {}, clear=True):
             b = self.as_("chris")
             self.assertEqual(b.secret("CHRISBIDS_API_KEY"), "")
+            self.assertEqual(b.secret("ANTHROPIC_API_KEY"), "")
+            b.close()
+
+    def test_the_anthropic_key_falls_back_to_its_mersco_name_only_when_unset(self):
+        with mock.patch.dict(os.environ, {"MERSCO_ANTHROPIC_API_KEY": "m"}, clear=True):
+            b = self.as_("intake")
+            self.assertEqual(b.secret("ANTHROPIC_API_KEY"), "m")
+            b.close()
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "a", "MERSCO_ANTHROPIC_API_KEY": "m"}, clear=True):
+            b = self.as_("intake")
+            self.assertEqual(b.secret("ANTHROPIC_API_KEY"), "a")
+            b.close()
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "", "MERSCO_ANTHROPIC_API_KEY": "m"}, clear=True):
+            b = self.as_("intake")
+            self.assertEqual(b.secret("ANTHROPIC_API_KEY"), "m")
+            b.close()
+        with mock.patch.dict(os.environ, {"MERSCO_ANTHROPIC_API_KEY": "m"}, clear=True):
+            b = self.as_("intake")
+            self.assertEqual(b.secret("CHRISBIDS_API_KEY"), "")   # no fallback for other secrets
+            with self.assertRaisesRegex(LedgerError, "^MERSCO_ANTHROPIC_API_KEY is not a broker secret"):
+                b.secret("MERSCO_ANTHROPIC_API_KEY")               # only reachable through its alias
             b.close()
 
 

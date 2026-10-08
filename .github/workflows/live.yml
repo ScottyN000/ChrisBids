@@ -1,0 +1,77 @@
+name: live
+
+# The live golden gate: the readers run on Haiku against both golden jobs and
+# their dimensioned and counted rows must reproduce the fixtures exactly
+# (architecture p.10). It spends API credit, so it runs only when someone
+# starts it by hand (Actions > live > Run workflow); no push or pull request,
+# and so no fork, can trigger it.
+#
+# It needs the repository secret ANTHROPIC_API_KEY. The source files the two
+# jobs read are committed under fixtures/packet/ (Scott, 2026-10-08), and every
+# one is checked against its register hash before any call.
+
+on:
+  workflow_dispatch:
+    inputs:
+      effort:
+        description: "Effort for the reader calls"
+        type: choice
+        options: [low, medium, high]
+        default: low
+      repeats:
+        description: "Runs per unit"
+        type: choice
+        options: ["3", "1"]
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [nantucket, ocean-beach]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install poppler and the Python requirements
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          python -m pip install --quiet -r requirements.txt
+      - name: Run the readers live and compare with the fixture
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          JOB: ${{ matrix.job }}
+          EFFORT: ${{ inputs.effort }}
+          REPEATS: ${{ inputs.repeats }}
+        run: >
+          python -m pipeline live "fixtures/$JOB"
+          --packet fixtures/packet
+          --out "runs/$JOB-live"
+          --effort "$EFFORT"
+          --repeats "$REPEATS"
+      - name: Upload the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-${{ matrix.job }}
+          path: |
+            runs/${{ matrix.job }}-live/comparison.txt
+            runs/${{ matrix.job }}-live/ledger.csv
+            runs/${{ matrix.job }}-live/recordings/
+            runs/${{ matrix.job }}-live/units/
+          if-no-files-found: warn
+          retention-days: 30

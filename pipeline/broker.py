@@ -29,7 +29,12 @@ DEFAULT_MODEL_ID = "none (code only)"
 # Secrets live in the broker's environment, never in a prompt or a tool result
 # (architecture p.12). Phase 1 needs none; the names are fixed here so a later
 # phase does not invent its own.
-SECRET_ENV = ("CHRISBIDS_RATE_BOOK", "CHRISBIDS_API_KEY")
+SECRET_ENV = ("CHRISBIDS_RATE_BOOK", "CHRISBIDS_API_KEY", "ANTHROPIC_API_KEY")
+# A secret may also arrive under another name, read only when its own is unset.
+# The cloud environment does not pass ANTHROPIC_API_KEY through to sessions (it
+# is the name Claude Code itself authenticates with), so the pipeline's key is
+# stored as MERSCO_ANTHROPIC_API_KEY there.
+SECRET_FALLBACK = {"ANTHROPIC_API_KEY": ("MERSCO_ANTHROPIC_API_KEY",)}
 
 
 def utcnow() -> str:
@@ -230,7 +235,10 @@ class Broker:
             raise LedgerError(f"{name} is not a broker secret; known: {list(SECRET_ENV)}")
         if not self.principal.reads_prices and name == "CHRISBIDS_RATE_BOOK":
             self._deny("read the rate book")
-        return os.environ.get(name, "")
+        for env in (name,) + SECRET_FALLBACK.get(name, ()):
+            if os.environ.get(env):
+                return os.environ[env]
+        return ""
 
     def close(self) -> None:
         self.ledger.close()

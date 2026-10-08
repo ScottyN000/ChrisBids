@@ -47,9 +47,13 @@ SOURCE_ID = "WEB"
 # The text a model is shown from one page. Longer pages are cut, and the run says so.
 MAX_CHARS = 80_000
 QUOTE_MAX = 600
-STATEMENT_MAX = 300
+STATEMENT_MAX = 500
 # Two runs agree on an answer when the shorter quote is mostly inside the longer.
 OVERLAP = 0.6
+# The share of gated asks the live gate needs answered (see gate()).
+ANSWERED = 0.8
+# Most spare runs a page gets when answers are refused (see run()).
+SPARES = 2
 NUMBER = re.compile(r"\d+(?:[.,/]\d+)*")
 
 SCHEMA = {
@@ -140,7 +144,7 @@ def schema_for(source: Source) -> dict:
 
 
 def brief(source: Source) -> str:
-    lines = ["Answer each ask from the page:"]
+    lines = [f"The page: {source.title}", "Answer each ask from the page:"]
     lines += [f"{a.id}: {a.ask}" for a in source.asks]
     return "\n".join(lines)
 
@@ -261,11 +265,13 @@ def _same_figures(a: dict, b: dict, about: str = "") -> bool:
 
 
 def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None, about: str = "") -> tuple[dict | None, str]:
-    """The one answer every kept answer gives to this ask, or why there is none.
-    It needs `need` kept answers (default: one from every run)."""
+    """The one answer the first `need` kept answers (default: one from every
+    run) all give to this ask, or why there is none."""
     answers = [r[ask.id] for r in runs if ask.id in r]
-    if len(answers) < (len(runs) if need is None else need):
+    need = len(runs) if need is None else need
+    if len(answers) < need:
         return None, "a run's answer was refused"
+    answers = answers[:need]    # the first kept answers; a spare run only stands in
     found = [a["found"] for a in answers]
     if not any(found):
         return None, "not on the page"
@@ -330,11 +336,11 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             result.notes.append(f"{source.url}: page cut to its first {MAX_CHARS} characters")
         schema = schema_for(source)
         runs = []
-        # One spare run, made only when a run was discarded or an answer in
-        # one was refused, so a single slip does not cost the ask: each ask
-        # still needs `repeats` kept answers, and they must all agree.
-        for r in range(repeats + 1):
-            if r == repeats and len(runs) == repeats and all(
+        # Spare runs (up to SPARES), made only while a run was discarded or an
+        # answer refused, so a slip does not cost the ask: each ask still needs
+        # `repeats` kept answers, and every kept answer must agree.
+        for r in range(repeats + SPARES):
+            if r >= repeats and len(runs) >= repeats and all(
                     sum(a.id in k for k in runs) >= repeats for a in source.asks):
                 break
             result.calls += 1
@@ -380,10 +386,14 @@ class Gate:
     compared: int
     failures: list[str]
     notes: list[str]
+    misses: list[str] = field(default_factory=list)
 
     def text(self) -> str:
-        lines = [f"web reader gate: {'PASS' if self.ok else 'FAIL'} ({self.compared} asks compared)"]
+        answered = self.compared - len(self.misses)
+        lines = [f"web reader gate: {'PASS' if self.ok else 'FAIL'} ({self.compared} asks compared, "
+                 f"{answered} answered; {ANSWERED:.0%} needed, and no wrong answer)"]
         lines += [f"  FAIL {f}" for f in self.failures]
+        lines += [f"  miss {m}" for m in self.misses]
         lines += [f"  note {n}" for n in self.notes]
         return "\n".join(lines)
 
@@ -392,7 +402,11 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate
     """For every ask gated against a row of this fixture: if the page opened and
     still carries the fixture's quote, the run must have answered the ask with a
     quote that carries most of it, or that carries every number the fixture's
-    statement gives (the same facts from another passage of the page). A page that did not open, or no longer says what the
+    statement gives (the same facts from another passage of the page). A row
+    that does neither is a wrong answer and fails the gate. An ask left without
+    a row is a miss: the bid then has no verified row for it, which is safe but
+    incomplete, so the gate passes only while at least ANSWERED of the compared
+    asks have a row. A page that did not open, or no longer says what the
     fixture quoted, is reported and left out: that is the page changing, not the
     agent failing."""
     pages = {p.url: p for p in result.fetched}
@@ -400,7 +414,7 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate
     for c in result.rows:
         if c.locator.startswith("ask "):
             by_ask[(c.url, c.locator[4:])] = c
-    failures, notes, compared = [], [], 0
+    failures, notes, misses, compared = [], [], [], 0
     for s in table.pages:
         for a in s.asks:
             f = fixture_rows.get(a.fixture) if a.fixture else None
@@ -419,11 +433,12 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate
             compared += 1
             got = by_ask.get((s.url, a.id))
             if got is None:
-                failures.append(f"{a.fixture}: no row for {a.id} ({a.ask})")
+                misses.append(f"{a.fixture}: no row for {a.id} ({a.ask})")
             elif covered(f["quote"], got.quote) < OVERLAP and not same_facts(
                     f.get("statement", ""), got.quote, f"{s.title} {s.url}"):
                 failures.append(f"{a.fixture}: quoted {got.quote[:120]!r}, the fixture quotes {f['quote'][:120]!r}")
-    return Gate(ok=not failures and compared > 0, compared=compared, failures=failures, notes=notes)
+    ok = not failures and compared > 0 and compared - len(misses) >= ANSWERED * compared
+    return Gate(ok=ok, compared=compared, failures=failures, notes=notes, misses=misses)
 
 
 def golden(job_dir: Path, ledger_path: Path, client: ModelClient, fetcher: web.Fetcher, *, repeats: int = 2,

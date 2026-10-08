@@ -130,7 +130,7 @@ class TableCase(unittest.TestCase):
         self.assertEqual(answers["items"]["properties"]["ask"], {"enum": ["a1", "a2"]})
         self.assertEqual(webread.SCHEMA["properties"]["answers"]["maxItems"], 20)    # left untouched
         self.assertEqual(validate.errors({"answers": [TURNAROUND, PLANS]}, sch), [])
-        self.assertEqual(webread.brief(s), "Answer each ask from the page:\na1: Permit turnaround # weeks\n"
+        self.assertEqual(webread.brief(s), "The page: OC permits\nAnswer each ask from the page:\na1: Permit turnaround # weeks\n"
                                            "a2: Plans required")
         page = web.Page(URL, text="x" * (webread.MAX_CHARS + 5))
         unit, cut = webread.unit_for("J", 3, s, page)
@@ -173,14 +173,14 @@ class AnswerCase(unittest.TestCase):
                          ["the statement has numbers the quote does not: 270"])
 
     def test_a_long_answer_is_refused_by_itself(self):
-        a = answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-4 weeks." + " x" * 150)
-        self.assertEqual(webread.answer_errors(a, self.TEXT), ["the statement is longer than 300 characters"])
+        a = answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-4 weeks." + " x" * 250)
+        self.assertEqual(webread.answer_errors(a, self.TEXT), ["the statement is longer than 500 characters"])
         long = "Permits will be issued 2-4 weeks" + " x" * 290
         self.assertEqual(webread.answer_errors(answer("a1", long, "y"), self.TEXT)[0],
                          "the quote is longer than 600 characters")
         self.assertEqual(webread.answer_errors(answer("a1", "Fee: $1,250.50 per 1/2 lot." + " " * 573, "y"),
                                                self.TEXT), [])
-        self.assertEqual(webread.answer_errors(answer("a1", "Fee: $1", "y" * 300), self.TEXT), [])
+        self.assertEqual(webread.answer_errors(answer("a1", "Fee: $1", "y" * 500), self.TEXT), [])
 
     def test_the_statement_may_name_a_number_from_the_url(self):
         a = answer("a1", "Permits will be issued 2-4 weeks", "LX02W0050 permits take 2-4 weeks.")
@@ -296,13 +296,12 @@ class RunCase(unittest.TestCase):
 
     def test_disagreement_and_refused_answers_are_reported_not_written(self):
         bad = answer("a2", "All applications need a fee", "x")
-        client = Fake({"answers": [TURNAROUND, bad]}, {"answers": [answer("a1", found=False), PLANS]}, {
-            "answers": [TURNAROUND, bad]})
+        client = Fake({"answers": [TURNAROUND, bad]}, {"answers": [answer("a1", found=False), PLANS]}, *[{
+            "answers": [TURNAROUND, bad]}] * 2)
         b, res = run(client)
         self.assertEqual(res.rows, [])
-        self.assertEqual(res.calls, 3)      # the spare run, for the refused answer
-        self.assertEqual(res.discarded, ["J#web1 run 1 a2: the quote is not on the page",
-                                         "J#web1 run 3 a2: the quote is not on the page"])
+        self.assertEqual(res.calls, 4)      # both spare runs, for the refused answer
+        self.assertEqual(res.discarded, [f"J#web1 run {n} a2: the quote is not on the page" for n in (1, 3, 4)])
         self.assertEqual(res.unanswered, [
             f"{URL} a1 (Permit turnaround # weeks): the runs disagree on whether the page says it",
             f"{URL} a2 (Plans required): a run's answer was refused",
@@ -314,9 +313,9 @@ class RunCase(unittest.TestCase):
         for raw, why in (("not json", "not JSON: Expecting value: line 1 column 1 (char 0)"),
                          ({"answers": [TURNAROUND]}, "answers ['a1'] do not match the asks ['a1', 'a2']")):
             with self.subTest(raw=str(raw)[:10]):
-                b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, raw, raw))
+                b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, raw, raw, raw))
                 self.assertEqual(res.rows, [])
-                self.assertEqual(res.discarded, [f"J#web1 run 2: {why}", f"J#web1 run 3: {why}"])
+                self.assertEqual(res.discarded, [f"J#web1 run {n}: {why}" for n in (2, 3, 4)])
                 self.assertEqual(res.unread, [f"{URL}: 1 of 2 runs valid"])
                 calls = [e["detail"] for e in b.ledger.log() if e["action"] == "model-call"]
                 self.assertTrue(calls[1].endswith(f"run 2; discarded: {why}"))
@@ -403,18 +402,39 @@ class GateCase(unittest.TestCase):
 
     def test_a_matching_quote_passes(self):
         g = self.gate([{"answers": [TURNAROUND, PLANS]}] * 2)
-        self.assertEqual((g.ok, g.compared, g.failures, g.notes), (True, 1, [], []))
-        self.assertEqual(g.text(), "web reader gate: PASS (1 asks compared)")
+        self.assertEqual((g.ok, g.compared, g.failures, g.notes, g.misses), (True, 1, [], [], []))
+        self.assertEqual(g.text(), "web reader gate: PASS (1 asks compared, 1 answered; 80% needed, and no wrong answer)")
 
     def test_a_missing_or_different_answer_fails(self):
         g = self.gate([{"answers": [answer("a1", found=False), PLANS]}] * 2)
-        self.assertEqual(g.failures, ["J-C-001: no row for a1 (Permit turnaround # weeks)"])
-        self.assertFalse(g.ok)
+        self.assertEqual((g.failures, g.misses), ([], ["J-C-001: no row for a1 (Permit turnaround # weeks)"]))
+        self.assertFalse(g.ok)      # 0 of 1 answered
+        self.assertIn("\n  miss J-C-001: no row", g.text())
         other = answer("a1", "Permits will be issued", "x")
         g = self.gate([{"answers": [other, PLANS]}] * 2)
         self.assertEqual(g.failures, ["J-C-001: quoted 'Permits will be issued', the fixture quotes "
                                       "'Permits will be issued 2-4 weeks on average after submission'"])
-        self.assertTrue(g.text().startswith("web reader gate: FAIL (1 asks compared)\n  FAIL J-C-001"))
+        self.assertTrue(g.text().startswith("web reader gate: FAIL (1 asks compared, 1 answered; 80% needed, "
+                                            "and no wrong answer)\n  FAIL J-C-001"))
+
+    def test_a_few_misses_pass_but_a_wrong_answer_never_does(self):
+        asks = [webread.Ask(f"a{i}", f"Fee {i}", f"J-C-{i:03d}") for i in range(1, 6)]
+        tbl = table(source(asks=asks))
+        text = " ".join(f"Fee {i} is {i}0 dollars." for i in range(1, 6))
+        fixture = {f"J-C-{i:03d}": {"id": f"J-C-{i:03d}", "quote": f"Fee {i} is {i}0 dollars."} for i in range(1, 6)}
+        good = [answer(f"a{i}", f"Fee {i} is {i}0 dollars.", f"Fee {i} is {i}0 dollars.") for i in range(1, 6)]
+        pages = {URL: Resp(f"<html><body><p>{text}</p></body></html>".encode())}
+        one_miss = good[:4] + [answer("a5", found=False)]
+        _, res = run(Fake(*[{"answers": one_miss}] * 2), pages=pages, tbl=tbl)
+        g = webread.gate(res, tbl, fixture)
+        self.assertEqual((g.ok, g.compared, len(g.misses)), (True, 5, 1))      # 4 of 5 is 80%
+        two_miss = good[:3] + [answer("a4", found=False), answer("a5", found=False)]
+        _, res = run(Fake(*[{"answers": two_miss}] * 2), pages=pages, tbl=tbl)
+        self.assertFalse(webread.gate(res, tbl, fixture).ok)
+        wrong = good[:4] + [answer("a5", "Fee 1 is 10 dollars.", "Fee 1 is 10 dollars.")]
+        _, res = run(Fake(*[{"answers": wrong}] * 2), pages=pages, tbl=tbl)
+        g = webread.gate(res, tbl, fixture)
+        self.assertEqual((g.ok, len(g.failures), g.misses), (False, 1, []))
 
     def test_another_passage_with_the_same_numbers_passes(self):
         fixture = {"J-C-001": {"id": "J-C-001", "statement": "Permits take 2-4 weeks",

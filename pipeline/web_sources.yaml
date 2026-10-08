@@ -156,7 +156,7 @@ pages:
       Jan #, #)'
     fixture: NAN-C-014
 - url: https://icc-es.org/wp-content/uploads/report-directory/ESR-4143.pdf
-  title: ICC-ES ESR-4143
+  title: ICC-ES ESR-4143 (Hilti HIT-HY 270)
   agent: codes
   when:
   - - hit-hy
@@ -171,7 +171,7 @@ pages:
     ask: 'Screen tube required for HY # in ungrouted CMU'
     fixture: NAN-C-018
 - url: https://icc-es.org/report-listing/esr-2682/
-  title: ICC-ES ESR-2682
+  title: ICC-ES ESR-2682 (Hilti HY 70 in CMU)
   agent: codes
   when:
   - - hit-hy
@@ -182,7 +182,7 @@ pages:
   - id: a1
     ask: 'ESR-# (HY # in CMU): listing returned HTTP #; status not stated anywhere'
 - url: https://icc-es.org/report-listing/esr-3342/
-  title: ICC-ES ESR-3342
+  title: ICC-ES ESR-3342 (Hilti HY 70 in URM)
   agent: codes
   when:
   - - hit-hy

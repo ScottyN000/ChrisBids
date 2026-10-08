@@ -213,8 +213,13 @@ A model (Haiku) answers each ask with a quote and one sentence. Code keeps an
 answer only if all three hold:
 
 - the quote is on the page, compared after folding case, spacing, quotes and dashes;
-- every number in the sentence is also in the quote;
-- every run gives the answer, with quotes that overlap.
+- every number in the sentence is also in the quote, or in the page's name in
+  the table (a product or report number such as HIT-HY 270);
+- two runs give the answer, with quotes that overlap or sentences that give
+  the same figures.
+
+A run that is discarded, or an answer that is refused, gets up to two spare
+runs for that page, so one slip does not cost the ask.
 
 A page that does not open is written as one row flagged unverified, saying why.
 The test bids record a dead link the same way. Each fetch is logged with its
@@ -222,8 +227,11 @@ date and content hash.
 
 Golden gate, live only: `python -m pipeline web fixtures/<job> --out runs/x`.
 For every ask gated against one of the fixture's own fetched rows, the run's
-quote must carry most of the fixture's quote. Two cases are reported and left
-out, because the page changed rather than the agent failing:
+quote must carry most of the fixture's quote, or every figure of the fixture's
+statement. A row that does neither is a wrong answer and fails the gate. An ask
+with no row is a miss: safe, since the bid then has no verified row for it, but
+incomplete, so at least 80% of the compared asks must have a row. Two cases are
+reported and left out, because the page changed rather than the agent failing:
 
 - a page that no longer opens;
 - a page that no longer carries the fixture's quote.

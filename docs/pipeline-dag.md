@@ -17,8 +17,8 @@ flowchart TD
     photo["<b>Photo Reader</b><br/>conditions, no numbers<br/><i>built</i>"]
     correspondence["<b>Correspondence</b><br/>emails, PM notes<br/><i>replay-only</i>"]
     takeoff["<b>Takeoff</b><br/>derivation or FIELD<br/><i>built</i>"]
-    codes["<b>Codes & Regs</b><br/>fetched, URL + section<br/><i>replay-only</i>"]
-    materials["<b>Materials</b><br/>data sheet rates, cited<br/><i>replay-only</i>"]
+    codes["<b>Codes & Regs</b><br/>fetched, URL + section<br/><i>built</i>"]
+    materials["<b>Materials</b><br/>data sheet rates, cited<br/><i>built</i>"]
     customer["<b>Customer Reqs</b><br/>base vs alternates<br/><i>planned</i>"]
     ledger[("<b>Claim ledger</b><br/>value, source, locator, method, derivation, audit result")]
     scope_writer["<b>Scope Writer</b><br/>reads the ledger only<br/><i>built</i>"]
@@ -56,8 +56,8 @@ flowchart TD
     classDef planned fill:#f2f2f2,stroke:#9e9e9e,stroke-dasharray: 4 3
     classDef human fill:#e3edf9,stroke:#1f5fa8
     classDef data fill:#ffffff,stroke:#555
-    class intake,orchestrator,drawing,spec,photo,takeoff,scope_writer,auditor built
-    class correspondence,codes,materials replay
+    class intake,orchestrator,drawing,spec,photo,takeoff,codes,materials,scope_writer,auditor built
+    class correspondence replay
     class customer planned
     class ships human
     class packet,register,ledger,draft data
@@ -74,8 +74,8 @@ flowchart TD
 | Photo Reader | built | 2 | photo_reader | [`pipeline/readers/prompts/photo.md`](../pipeline/readers/prompts/photo.md) |
 | Correspondence | replay-only | 2 | correspondence_reader | [`pipeline/readers/prompts/correspondence.md`](../pipeline/readers/prompts/correspondence.md) |
 | Takeoff | built | 3 | takeoff | [`pipeline/takeoff.py`](../pipeline/takeoff.py) |
-| Codes & Regs | replay-only | 4 | codes | [`pipeline/webread.py`](../pipeline/webread.py) |
-| Materials | replay-only | 4 | materials | [`pipeline/webread.py`](../pipeline/webread.py) |
+| Codes & Regs | built | 4 | codes | [`pipeline/webread.py`](../pipeline/webread.py) |
+| Materials | built | 4 | materials | [`pipeline/webread.py`](../pipeline/webread.py) |
 | Customer Reqs | planned | 3 | customer_requirements | — |
 | Claim ledger | data | — | — | [`pipeline/broker.py`](../pipeline/broker.py) |
 | Scope Writer | built | 3 | scope_writer | [`pipeline/scope_writer.py`](../pipeline/scope_writer.py) |

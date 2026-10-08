@@ -20,11 +20,11 @@ produces is treated as data: it can fill a schema field, never steer the code.
 | A PR's text or diff steers the advisor | The model is given only Read, Glob and Grep (`--tools`, with the rest also disallowed), so no shell or network; its job holds a read-only token; its reply must match `docs/advisor-schema.json`; code settles severity, and a blocking finding must name a real architecture page, a standing rule or a failing input; a separate job with no model posts the comment | `.github/workflows/advisor.yml`, `tools/advisor.py` |
 | The API key leaks | Read only from the environment, named in `broker.SECRET_ENV`; `.env` is git-ignored; gitleaks scans every push | `pipeline/broker.py`, CI |
 
-## What CI checks on every push
+## What CI checks
 
-- **bandit**: Python static analysis; medium or high severity fails the build.
-- **pip-audit**: known vulnerabilities in `requirements.txt`.
-- **gitleaks**: secrets in the code or its git history.
+- **bandit**: Python static analysis; medium or high severity fails the build. Runs on every PR push, on main and weekly; a branch push with no PR is not scanned until its PR opens.
+- **pip-audit**: known vulnerabilities in `requirements.txt`. Same triggers as bandit.
+- **gitleaks**: secrets in the code or its git history, on every push to any branch.
 - **Dependabot**: weekly update PRs for pip packages, GitHub Actions and the Docker base image.
 
 ## Known gaps
@@ -36,6 +36,13 @@ produces is treated as data: it can fill a schema field, never steer the code.
   bugs and model output, not against code that constructs its own `Broker`.
   The hosting plan (per-role containers, broker as the only process holding the
   ledger and the key) closes this.
+- The repository is public (Scott, 2026-10-08). The job documents under
+  `fixtures/packet/` and the fixtures' ledgers (contact names, phone numbers,
+  emails) are readable by anyone, in history too, and so are Actions logs and
+  the live run's artifact (its gate results and the model's answers; the
+  readers' page text, `units/`, is no longer uploaded). Neither workflow that
+  holds `ANTHROPIC_API_KEY` runs for a fork: the advisor skips fork PRs and
+  live runs only when started by hand by someone with write access.
 - The Auditor's link check (`auditor.link_live`) follows redirects through `guard.public_url` only, not the domain allowlist; it sends a HEAD request and reads no body.
 - The per-domain allowlist for fetched pages is enforced in code
   (`pipeline/web.py`), in the same process as everything else; the network

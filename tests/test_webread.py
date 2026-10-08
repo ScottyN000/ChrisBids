@@ -422,6 +422,13 @@ class RunCase(unittest.TestCase):
         yes = answer("a2", "All applications REQUIRE PLANS OR DRAWINGS.", "Plans are required.", choice="yes")
         _, res = run(Fake({"answers": [yes]}, {"answers": [yes]}), tbl=tbl)
         self.assertEqual([(c.value, c.confidence, c.flag) for c in res.rows], [("yes", "exact", "")])
+        # a closed ask with no marks: the shared option is one reading, whichever sentence each run quoted
+        other = answer("a2", TURNAROUND["quote"], "Plans are required.", choice="yes")
+        _, res = run(Fake({"answers": [yes]}, {"answers": [other]}), tbl=tbl)
+        self.assertEqual([(c.value, c.confidence, c.flag) for c in res.rows], [("yes", "exact", "")])
+        no = dict(other, choice="no")
+        _, res = run(Fake({"answers": [yes]}, {"answers": [no]}), tbl=tbl)
+        self.assertEqual({(c.confidence, c.flag) for c in res.rows}, {("inferred", "unverified")})
         bad = dict(yes, choice="")
         _, res = run(Fake({"answers": [bad]}, {"answers": [bad]}, {"answers": [bad]}, {"answers": [bad]}), tbl=tbl)
         self.assertIn("J#web1 run 1 a2: the choice '' is not one of yes, no, other", res.discarded)
@@ -521,8 +528,15 @@ class RunCase(unittest.TestCase):
 
     def test_the_broker_refuses_a_fetch_to_a_private_address(self):
         b, res = run(Fake(), tbl=table(source(url="http://127.0.0.1/x")))
-        self.assertEqual(res.unread, ["http://127.0.0.1/x: the broker refused the fetch"])
-        self.assertEqual((res.fetched, res.rows), ([], []))
+        self.assertEqual((res.blocked, res.fetched, res.unread), (["http://127.0.0.1/x"], [], []))
+        # the refusal is a row, as a page that did not open is, so the gap reaches the bid
+        self.assertEqual([(c.url, c.retrieved, c.flag, c.confidence, c.statement) for c in res.rows], [
+            ("http://127.0.0.1/x", "2026-10-08", "unverified", "missing",
+             "OC permits: the broker refused the fetch; nothing on it is verified")])
+        self.assertIn("  blocked http://127.0.0.1/x", res.text())
+        tbl = table(source(url="http://127.0.0.1/x"))
+        g = webread.gate(res, tbl, GateCase.FIXTURE)
+        self.assertEqual((g.ok, g.failures), (False, ["J-C-001: the broker refused to fetch http://127.0.0.1/x"]))
 
     def test_no_matching_page_means_no_call(self):
         client = Fake()

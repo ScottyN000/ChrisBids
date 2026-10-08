@@ -335,6 +335,7 @@ class WebResult:
     readings: list[str] = field(default_factory=list)    # what each kept unverified reading read
     unopened: list[str] = field(default_factory=list)    # pages that did not open: each is an unverified row
     unread: list[str] = field(default_factory=list)      # pages that opened but gave no valid run
+    blocked: list[str] = field(default_factory=list)     # URLs the broker refused to fetch: each is an unverified row
     refused: list[str] = field(default_factory=list)     # rows the broker refused
     notes: list[str] = field(default_factory=list)
 
@@ -342,7 +343,8 @@ class WebResult:
         opened = sum(1 for p in self.fetched if p.ok)
         lines = [f"{NAME}: {self.pages} pages ({opened} opened), {self.calls} calls, {len(self.rows)} rows, "
                  f"{len(self.unanswered)} asks unanswered, {len(self.discarded)} answers or runs discarded"]
-        for name, items in (("note", self.notes), ("unopened", self.unopened), ("unread", self.unread),
+        for name, items in (("note", self.notes), ("unopened", self.unopened), ("blocked", self.blocked),
+                            ("unread", self.unread),
                             ("unanswered", self.unanswered), ("reading", self.readings),
                             ("discarded", self.discarded), ("refused", self.refused)):
             lines += [f"  {name} {x}" for x in items]
@@ -369,7 +371,8 @@ def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
     then decide: each run fills the ask's # marks, and the two must fill them
     exactly alike, from whichever passage (a data sheet gives its spread rate
     in a table and again in the text). What a passage says beyond its figures
-    is never read from free text: an ask whose answer is a word has options.
+    is never read from free text: an ask whose answer is a word has options,
+    and a shared option with no marks to fill is one reading from any passage.
     Answers with no figure and no options must quote mostly the same passage
     and give the same figures in their statements."""
     if a.get("choice", "") != b.get("choice", "") or a.get("choice") == OTHER:
@@ -377,6 +380,8 @@ def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
     x, y = slots(a, ids), slots(b, ids)
     if any(x) or any(y):
         return x == y
+    if a.get("choice"):
+        return True         # a closed ask with no marks: the shared option is the reading, from any passage
     return (_same_passage(a["quote"], b["quote"])
             and figures(a["statement"], ids) == figures(b["statement"], ids))
 
@@ -454,7 +459,13 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
     for i, source in enumerate(sources, 1):
         writer = writers[source.agent]
         if not writer.may_fetch(source.url):
-            result.unread.append(f"{source.url}: the broker refused the fetch")
+            # Like a page that did not open, the refusal is a row, so the gap reaches the bid.
+            result.blocked.append(source.url)
+            page = web.Page(url=source.url, retrieved=getattr(fetcher, "clock", web._today)(),
+                            error="the broker refused the fetch")
+            write(_row(job, next_id(), source, page, flag="unverified", confidence="missing", quote="",
+                       statement=f"{source.title}: the broker refused the fetch; nothing on it is verified"),
+                  source.agent)
             continue
         page = fetcher.fetch(source.url)
         result.fetched.append(page)
@@ -583,6 +594,9 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict],
             if f is None:
                 continue
             page = pages.get(s.url)
+            if s.url in result.blocked:
+                failures.append(f"{a.fixture}: the broker refused to fetch {s.url}")
+                continue
             if page is None:
                 failures.append(f"{a.fixture}: {s.url} was not read (the table did not match the job)")
                 continue

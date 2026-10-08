@@ -9,7 +9,8 @@ name: mutation
 # 1,260 of some 1,500 wall-clock minutes by 2026-10-08, mostly on draft pushes
 # later superseded). So it runs on a PR once it is ready for review and on each
 # push after, not on drafts, and not again on main after the merge: the PR run
-# already gated the same code. Run it by hand (workflow_dispatch) when needed.
+# already gated that PR's code. A weekly run on main catches two PRs that each
+# passed but together fall below the floor; it can also be run by hand.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -19,6 +20,8 @@ on:
       - "pyproject.toml"
       - "tools/mutation_gate.py"
       - ".github/workflows/mutation.yml"
+  schedule:
+    - cron: "41 7 * * 1"   # weekly, on main
   workflow_dispatch:
 
 # A full run took about 45 minutes before Phase 3 and grows with the code; the

@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 
-# Minutes are billed on a private repo. gitleaks is cheap and runs on every push,
+# Actions minutes are billed while the repo is private. gitleaks is cheap and runs on every push,
 # so a secret is caught before a PR is opened; bandit and pip-audit run on a
 # branch through its PR only (and on main, and weekly). A newer push cancels the
 # older run, except on main.

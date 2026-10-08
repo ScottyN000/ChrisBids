@@ -85,6 +85,26 @@ class TextCase(unittest.TestCase):
 
 
 class FetchCase(unittest.TestCase):
+    def test_a_body_that_fails_mid_read_or_names_an_unknown_charset_is_an_unopened_page(self):
+        import http.client
+
+        class Stalls(Resp):
+            def __init__(self, exc):
+                super().__init__(b"")
+                self.exc = exc
+
+            def read(self, n=-1):
+                raise self.exc
+
+        for exc in (TimeoutError("timed out"), ConnectionResetError(), http.client.IncompleteRead(b"x")):
+            f, _ = fetcher({"https://osha.gov/a": Stalls(exc)})
+            page = f.fetch("https://osha.gov/a")
+            self.assertFalse(page.ok)
+            self.assertTrue(page.error.startswith("did not open: "), page.error)
+        f, _ = fetcher({"https://osha.gov/a": Resp(b"<html><p>Hi</p></html>", ctype="text/html; charset=x-bogus")})
+        page = f.fetch("https://osha.gov/a")
+        self.assertEqual((page.ok, page.error[:24]), (False, "could not extract text: "))
+
     def test_an_html_page(self):
         body = b"<html><body><p>Permits will be issued.</p></body></html>"
         f, sites = fetcher({"https://osha.gov/a": Resp(body)})

@@ -15,6 +15,7 @@ joins two passages with "..." must have both, in order.
 from __future__ import annotations
 
 import hashlib
+import http.client
 import html.parser
 import re
 # pdftotext runs on a fetched PDF, called with an argument list and no shell.
@@ -211,7 +212,11 @@ class Fetcher:
     def _read(self, page: Page, final: str, status: int, resp) -> Page:
         page.final_url, page.status = final, status
         page.content_type = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
-        data = resp.read(MAX_BYTES + 1)
+        try:
+            data = resp.read(MAX_BYTES + 1)
+        except (OSError, http.client.HTTPException) as e:     # a stalled, reset or cut-short body
+            page.error = f"did not open: {e or type(e).__name__}"
+            return page
         if status != 200:
             page.error = f"HTTP {status}"
             return page
@@ -228,7 +233,7 @@ class Fetcher:
                 page.text = data.decode(resp.headers.get_content_charset() or "utf-8", "replace")
             else:
                 page.error = f"cannot read {page.content_type or 'unknown content'}"
-        except (subprocess.SubprocessError, OSError) as e:
+        except (subprocess.SubprocessError, OSError, LookupError) as e:     # LookupError: an unknown charset
             page.error = f"could not extract text: {e}"
         if not page.error and not page.text.strip():
             page.error = "no text on the page (a scan or a script-only page)"

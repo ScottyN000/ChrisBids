@@ -1,5 +1,6 @@
 import copy
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -95,6 +96,13 @@ class TableCase(unittest.TestCase):
         # a # mark stands for a figure the answer's quote must carry, never a section or table locator
         for a in (a for p in t.pages for a in p.asks):
             self.assertNotRegex(a.ask, r"§ #|Table #|\(#\)\(", a.ask)
+        # a product or report code in an ask is written out, and is one of its page's identifiers, so a
+        # run's sentence may name it: the model is never asked to fill in what the table already knows
+        for p in t.pages:
+            for a in p.asks:
+                for code in re.findall(r"[A-Z][\w.-]*\d[\w.-]*(?: \d+)?", a.ask):
+                    self.assertTrue(any(code.lower() in i.lower() or i.lower() in code.lower() for i in p.ids),
+                                    (a.ask, code, p.ids))
         # a title is the row's citation in the proposal: it names the page, never an edition, date,
         # sub-paragraph or status the test bid found there (p.7), which today's page may not carry
         for p in t.pages:

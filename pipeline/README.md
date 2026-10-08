@@ -237,6 +237,9 @@ answer only if all three hold:
   for an ask with neither, they quote mostly the same passage and their
   sentences give the same figures.
 
+A product or report code the page table already knows (LX02, ESR-4143) is written
+into the ask, never left as a mark for the model to fill.
+
 An ask whose answer is a word rather than a figure (yes/no, proposed/adopted/effective)
 lists its `options` in the table. Each run picks one (or "other"), code checks it
 is one of them, and the runs must pick the same one, so a status is never read

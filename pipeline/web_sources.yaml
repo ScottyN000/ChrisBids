@@ -181,7 +181,7 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'The status the letter gives HIT-HY #, which product it names in its place in masonry (HIT-HY #), and its
+    ask: 'The status the letter gives HIT-HY 70, which product it names in its place in masonry (HIT-HY #), and its
       date: #'
     fixture: NAN-C-014
     options:
@@ -202,10 +202,10 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'What ESR-# covers for HIT-HY # (which masonry), and when it was reissued: #'
+    ask: 'What ESR-4143 covers for HIT-HY 270 (which masonry), and when it was reissued: #'
     fixture: NAN-C-015
   - id: a2
-    ask: 'Whether a screen tube is required for HY # in ungrouted CMU'
+    ask: 'Whether a screen tube is required for HY 270 in ungrouted CMU'
     fixture: NAN-C-018
     options:
     - 'yes'
@@ -265,7 +265,7 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'Which cartridge sizes HIT-HY # is listed in (fl oz): #'
+    ask: 'Which cartridge sizes HIT-HY 270 is listed in (fl oz): #'
     fixture: NAN-C-020
 - url: https://usa.sika.com/en/construction/concrete-repair/mortars/vertical-overhead/sikaquick-voh.html
   title: SikaQuick VOH product page
@@ -304,7 +304,7 @@ pages:
     - aws
   asks:
   - id: a1
-    ask: Which edition of AWS D#/D#M (:#) the page announces
+    ask: Which edition of AWS D1.1/D1.1M (:#) the page announces
     fixture: NAN-C-024
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-M/section-1926.501
   title: 29 CFR 1926.501
@@ -474,7 +474,7 @@ pages:
     - fl
   asks:
   - id: a1
-    ask: 'Rule #B-# exemptions and the date the rule was last amended'
+    ask: 'Rule 62B-33.004 exemptions and the date the rule was last amended'
 - url: https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-62B-33-004
   title: Rule 62B-33.004 (Cornell LII copy)
   ids:
@@ -606,7 +606,7 @@ pages:
     - loxon
   asks:
   - id: a1
-    ask: Loxon Concrete & Masonry Primer/Sealer A#W# spread rate (# sq ft/gal) and the sheet date (#)
+    ask: Loxon Concrete & Masonry Primer/Sealer A24W8300 spread rate (# sq ft/gal) and the sheet date (#)
     fixture: OBV-C-023
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX02W0050
   title: SW LX02 data sheet
@@ -619,7 +619,7 @@ pages:
     - loxon
   asks:
   - id: a1
-    ask: 'Loxon Concrete & Masonry Primer-Sealer LX# spread rate: # sq ft/gal'
+    ask: 'Loxon Concrete & Masonry Primer-Sealer LX02 spread rate: # sq ft/gal'
     fixture: OBV-C-024
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX03W0100
   title: SW LX03 data sheet
@@ -632,7 +632,7 @@ pages:
     - conditioner
   asks:
   - id: a1
-    ask: 'Loxon Acrylic Conditioner LX# spread rate: # sq ft/gal'
+    ask: 'Loxon Acrylic Conditioner LX03 spread rate: # sq ft/gal'
     fixture: OBV-C-025
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=A89W03151
   title: SW A89 data sheet
@@ -645,7 +645,7 @@ pages:
     - superpaint
   asks:
   - id: a1
-    ask: 'SuperPaint Exterior Satin A# spread rate: # sq ft/gal'
+    ask: 'SuperPaint Exterior Satin A89 spread rate: # sq ft/gal'
     fixture: OBV-C-026
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=K62W00651
   title: SW K62 data sheet
@@ -658,7 +658,7 @@ pages:
     - latitude
   asks:
   - id: a1
-    ask: 'Latitude Exterior Satin K# spread rate: # sq ft/gal'
+    ask: 'Latitude Exterior Satin K62 spread rate: # sq ft/gal'
     fixture: OBV-C-027
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B66W00310
   title: SW B66 data sheet
@@ -671,7 +671,7 @@ pages:
     - pro-cryl
   asks:
   - id: a1
-    ask: Pro-Cryl Universal Primer B# spread rate (# sq ft/gal) and the sheet date (#)
+    ask: Pro-Cryl Universal Primer B66 spread rate (# sq ft/gal) and the sheet date (#)
     fixture: OBV-C-028
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B53W02151
   title: SW B53 data sheet
@@ -684,7 +684,7 @@ pages:
     - alkyd urethane
   asks:
   - id: a1
-    ask: 'WB Alkyd Urethane Enamel B# semi-gloss spread rate: # sq ft/gal'
+    ask: 'WB Alkyd Urethane Enamel B53 semi-gloss spread rate: # sq ft/gal'
     fixture: OBV-C-029
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B50WZ0001
   title: SW B50 data sheet
@@ -697,7 +697,7 @@ pages:
     - kem kromik
   asks:
   - id: a1
-    ask: 'Kem Kromik B# spread rate: # sq ft/gal'
+    ask: 'Kem Kromik B50 spread rate: # sq ft/gal'
     fixture: OBV-C-030
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX21S5043
   title: SW Loxon S1 data sheet
@@ -710,7 +710,7 @@ pages:
     - loxon s1
   asks:
   - id: a1
-    ask: 'Loxon S# joint size limits (#" wide, #" deep) and any yield per linear foot'
+    ask: 'Loxon S1 joint size limits (#" wide, #" deep) and any yield per linear foot'
     fixture: OBV-C-031
 - url: https://www.sherwin-williams.com/painting-contractors/the-loxon-family/equipment-supplies/patching-repair
   title: SW patching and repair

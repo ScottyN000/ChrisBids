@@ -3,7 +3,9 @@ name: live
 # The live golden gate: the readers run on Haiku against both golden jobs,
 # Takeoff runs on Sonnet over the rows they wrote, and the dimensioned,
 # counted and derived rows must reproduce the fixtures exactly
-# (architecture p.10). It spends API credit, so it runs only when someone
+# (architecture p.10). The Scope Writer then lays out each job's proposal on
+# Haiku from the fixture's own ledger and is gated against the fixture's
+# layout. It spends API credit, so it runs only when someone
 # starts it by hand (Actions > live > Run workflow); no push or pull request,
 # and so no fork, can trigger it.
 #
@@ -19,6 +21,11 @@ on:
         type: choice
         options: [low, medium, high]
         default: high
+      part:
+        description: "Which gate to run"
+        type: choice
+        options: [all, readers, scope]
+        default: all
       repeats:
         description: "Runs per unit"
         type: choice
@@ -53,6 +60,7 @@ jobs:
           sudo apt-get install -y -qq poppler-utils
           python -m pip install --quiet -r requirements.txt
       - name: Run the readers live and compare with the fixture
+        if: inputs.part != 'scope'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           JOB: ${{ matrix.job }}
@@ -62,6 +70,19 @@ jobs:
           python -m pipeline live "fixtures/$JOB"
           --packet fixtures/packet
           --out "runs/$JOB-live"
+          --effort "$EFFORT"
+          --repeats "$REPEATS"
+      - name: Lay out the proposal live and gate it against the fixture
+        if: (success() || failure()) && inputs.part != 'readers'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          JOB: ${{ matrix.job }}
+          EFFORT: ${{ inputs.effort }}
+          REPEATS: ${{ inputs.repeats }}
+        run: >
+          python -m pipeline scope "fixtures/$JOB"
+          --live
+          --out "runs/$JOB-scope"
           --effort "$EFFORT"
           --repeats "$REPEATS"
       - name: Upload the run
@@ -74,5 +95,9 @@ jobs:
             runs/${{ matrix.job }}-live/ledger.csv
             runs/${{ matrix.job }}-live/recordings/
             runs/${{ matrix.job }}-live/units/
+            runs/${{ matrix.job }}-scope/gate.txt
+            runs/${{ matrix.job }}-scope/proposal.md
+            runs/${{ matrix.job }}-scope/xref.csv
+            runs/${{ matrix.job }}-scope/recordings/
           if-no-files-found: warn
           retention-days: 30

@@ -20,8 +20,9 @@ on:
       - "tests/**"
   workflow_dispatch:
 
-# A full run takes about 20 minutes; a newer push to the same branch makes the
-# older run moot, so it is cancelled rather than left holding a runner.
+# A full run took about 45 minutes before Phase 3 and grows with the code; the
+# first Phase 3 run hit the old 90-minute limit. A newer push to the same branch
+# makes the older run moot, so it is cancelled rather than left holding a runner.
 concurrency:
   group: mutation-${{ github.ref }}
   cancel-in-progress: true
@@ -29,7 +30,7 @@ concurrency:
 jobs:
   mutmut:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

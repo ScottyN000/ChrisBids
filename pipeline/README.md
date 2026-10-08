@@ -87,6 +87,96 @@ is the one place the audit could be made to pass by looking away.
 ## After Phase 1
 
 The readers are in [`readers/`](readers/README.md) and write through this broker
-unchanged, and so does Takeoff ([`takeoff.py`](takeoff.py), Phase 3). Customer
-Requirements, the Scope Writer, Codes & Regulations, Materials and Pricing are
-still to come; `roles.py` already carries their principals and write scopes.
+unchanged, and so does Takeoff ([`takeoff.py`](takeoff.py), Phase 3). The Scope
+Writer and the Orchestrator are below. Customer Requirements, Codes & Regulations, Materials and
+Pricing are still to come; `roles.py` already carries their principals and write
+scopes.
+
+## Scope Writer (Phase 3)
+
+[`scope_writer.py`](scope_writer.py) lays out the proposal; [`proposal.py`](proposal.py)
+renders it. The renderer is the one `tools/build_fixture.py` already used for the
+fixtures, moved here, so a fixture's layout rendered from its ledger file is
+byte-identical to its committed `proposal.md` (a test checks both jobs).
+
+The model (Haiku, architecture p.13) is shown the ledger rows (ID, role, division,
+part, method, statement; never a figure or a price) and the selectable phrases of
+the phrase library. It returns a layout: sections by division plus Alternates,
+tasks of rows and phrases, each task's allowance rows and concealed-conditions
+close, the exclusions and the terms. It writes no sentence. Task titles are its
+only words, and the schema refuses one with a digit; code numbers the tasks.
+
+Code then refuses a layout that:
+
+- names a row or phrase that does not exist, or a header slot that is not a header row;
+- puts a row outside its own division, alternate work outside Alternates, or base-bid work under it;
+- lists an exclusion, question, material or allowance row as a task item (code prints those itself);
+- uses an exclusion, terms or concealed-conditions phrase in the wrong place, or lists anything twice.
+
+Both reads must be valid; the live schema lists only the job's own row IDs and
+phrase keys, so a read cannot name one that does not exist. Only what both place, in the same section, is kept
+(order and titles come from the first); everything else is reported as dropped,
+a header slot the reads fill differently prints FIELD, and if they share no
+placement nothing is rendered. Scope and allowance rows left out, by a read or
+by the agreement, are reported as unplaced, and the
+Auditor's orphan check runs on the rendered text. `proposal.md` and `xref.csv`
+are written to the run folder; the Scope Writer writes no ledger row.
+
+```
+python3 -m pipeline scope fixtures/nantucket --out runs/nan-scope           # replay
+python3 -m pipeline scope fixtures/nantucket --out runs/nan-scope --live    # Haiku, needs the API key
+```
+
+The golden gate runs on each fixture's own ledger and compares with its
+hand-made layout. It fails on a different header, a scope or allowance row
+missing, or one placed in a section the fixture does not use (a base row may
+also sit in its own division), and on any orphan figure. Which phrases,
+exclusions, closes, quantity rows and code rows the model adds is reported but
+not gated: the fixture's choice there is one reasonable layout among several.
+
+Section titles come from the Proposal Format Example and the two test bids
+(divisions 01, 02, 03, 05, 07 and 09). A row in any other division is reported
+unplaced until Chris's template names that division (architecture p.17 asks him
+for the template file).
+
+## Orchestrator (Phase 3)
+
+[`orchestrator.py`](orchestrator.py) plans a bid from the Source Register alone
+and then runs it. It never opens a document and writes no ledger row
+(architecture p.12).
+
+The plan is a lookup by document kind:
+
+- every page of a spec is a unit;
+- every photo and every message is a unit;
+- each drawing sheet is read in a 3 x 2 grid of tiles (`readers/tiles.py`), since a new packet has no hand-drawn view boxes.
+
+A source that is missing, a duplicate, or of a kind no reader opens yet
+(template, past bid, spreadsheet, unknown) is listed with the reason, so the plan
+accounts for every register row. Customer Requirements, Codes and Materials are
+listed as not built.
+
+The architecture puts the Orchestrator on Sonnet (p.13). With only the register to
+go on, the plan has no choices a model would add, so it is code: the same plan
+every time, at no cost. A model earns its place once Intake tags divisions and
+the plan has to decide which per-division passes to run (p.7).
+
+```
+python3 -m pipeline bid <packet-dir> --job J --out runs/j --plan-only   # the plan, no model call
+python3 -m pipeline bid <packet-dir> --job J --out runs/j               # live: needs the API key
+```
+
+A bid run does the following, in order:
+
+1. Intake.
+2. The plan (`plan.json`).
+3. Each reader on its units, prepared and hash-checked by `readers/live.prepare_units`.
+4. Takeoff.
+5. The Scope Writer (`proposal.md`, `xref.csv`).
+6. The Auditor, with the packet and the proposal.
+
+It also writes `ledger.csv` and a summary, `bid.txt`. A test runs a small
+synthetic packet through every step with fake model clients.
+
+A new packet's readers write no header rows (project name, address, client),
+so the Scope Writer may leave those slots empty and the proposal says FIELD there.

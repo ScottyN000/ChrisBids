@@ -11,7 +11,7 @@ flowchart TD
     packet[("<b>Bid packet</b><br/>email, PDFs, photos")]
     intake["<b>Intake & Classifier</b><br/>hash, dedupe, tag divisions<br/><i>built</i>"]
     register[("<b>Source Register</b><br/>one ID per page and photo")]
-    orchestrator["<b>Orchestrator</b><br/>spawns only the specialists the detected divisions need<br/><i>planned</i>"]
+    orchestrator["<b>Orchestrator</b><br/>spawns only the specialists the detected divisions need<br/><i>built</i>"]
     drawing["<b>Drawing Reader</b><br/>dimensioned vs scaled<br/><i>built</i>"]
     spec["<b>Spec Reader</b><br/>clause + page cite<br/><i>built</i>"]
     photo["<b>Photo Reader</b><br/>conditions, no numbers<br/><i>built</i>"]
@@ -21,7 +21,7 @@ flowchart TD
     materials["<b>Materials</b><br/>data sheet rates, cited<br/><i>planned</i>"]
     customer["<b>Customer Reqs</b><br/>base vs alternates<br/><i>planned</i>"]
     ledger[("<b>Claim ledger</b><br/>value, source, locator, method, derivation, audit result")]
-    scope_writer["<b>Scope Writer</b><br/>reads the ledger only<br/><i>planned</i>"]
+    scope_writer["<b>Scope Writer</b><br/>reads the ledger only<br/><i>built</i>"]
     draft[("<b>Proposal draft</b><br/>Mersco division format")]
     auditor["<b>Auditor</b><br/>opens every cited source<br/><i>built</i>"]
     ships(["<b>Bid ships</b><br/>with ledger and audit log; Chris releases by hand<br/><i>human</i>"])
@@ -56,9 +56,9 @@ flowchart TD
     classDef planned fill:#f2f2f2,stroke:#9e9e9e,stroke-dasharray: 4 3
     classDef human fill:#e3edf9,stroke:#1f5fa8
     classDef data fill:#ffffff,stroke:#555
-    class intake,drawing,spec,photo,takeoff,auditor built
+    class intake,orchestrator,drawing,spec,photo,takeoff,scope_writer,auditor built
     class correspondence replay
-    class orchestrator,codes,materials,customer,scope_writer planned
+    class codes,materials,customer planned
     class ships human
     class packet,register,ledger,draft data
 ```
@@ -68,7 +68,7 @@ flowchart TD
 | Bid packet | data | — | — | — |
 | Intake & Classifier | built | 1 | intake | [`pipeline/intake.py`](../pipeline/intake.py) |
 | Source Register | data | — | — | [`pipeline/ledger.py`](../pipeline/ledger.py) |
-| Orchestrator | planned | 3 | orchestrator | — |
+| Orchestrator | built | 3 | orchestrator | [`pipeline/orchestrator.py`](../pipeline/orchestrator.py) |
 | Drawing Reader | built | 2 | drawing_reader | [`pipeline/readers/prompts/drawing.md`](../pipeline/readers/prompts/drawing.md) |
 | Spec Reader | built | 2 | spec_reader | [`pipeline/readers/prompts/spec.md`](../pipeline/readers/prompts/spec.md) |
 | Photo Reader | built | 2 | photo_reader | [`pipeline/readers/prompts/photo.md`](../pipeline/readers/prompts/photo.md) |
@@ -78,7 +78,7 @@ flowchart TD
 | Materials | planned | 4 | materials | — |
 | Customer Reqs | planned | 3 | customer_requirements | — |
 | Claim ledger | data | — | — | [`pipeline/broker.py`](../pipeline/broker.py) |
-| Scope Writer | planned | 3 | scope_writer | — |
+| Scope Writer | built | 3 | scope_writer | [`pipeline/scope_writer.py`](../pipeline/scope_writer.py) |
 | Proposal draft | data | — | — | — |
 | Auditor | built | 1 | auditor | [`pipeline/auditor.py`](../pipeline/auditor.py) |
 | Bid ships | human | — | chris | — |

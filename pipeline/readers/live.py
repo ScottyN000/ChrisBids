@@ -39,6 +39,11 @@ MODEL = "claude-haiku-5-5"
 # cloud sessions set to their own endpoint; a different URL has to be passed to
 # LiveClient explicitly.
 API_URL = "https://api.anthropic.com"
+# An explicit request timeout, in seconds. The SDK refuses a non-streaming call
+# whose max_tokens it expects to run past its default 10 minutes unless the
+# client sets its own timeout (anthropic 1.12 _base_client
+# _calculate_nonstreaming_timeout); the Scope Writer asks for more than that.
+API_TIMEOUT = 900.0
 MEDIA = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 
@@ -55,10 +60,18 @@ def _refused(e: Exception) -> LiveRunError:
 
 def units_for(job_dir: Path, packet: Path, work: Path) -> dict[str, list[Unit]]:
     """The units a live run reads, by reader, with each input file prepared under `work`."""
-    job_dir, packet, work = Path(job_dir), Path(packet), Path(work)
+    job_dir = Path(job_dir)
     spec = yaml.safe_load((job_dir / "units.yaml").read_text()) or {}
     from .. import fixtures
     _, register = fixtures.read_fixture(job_dir)
+    return prepare_units(job_dir.name, spec, register, packet, work)
+
+
+def prepare_units(label: str, spec: dict[str, list[dict]], register: list[dict], packet: Path,
+                  work: Path) -> dict[str, list[Unit]]:
+    """Units from a spec in the units.yaml shape (a fixture's, or the Orchestrator's plan),
+    each input file checked against its register hash and prepared under `work`."""
+    packet, work = Path(packet), Path(work)
     files = {r["source_id"]: r["file"] for r in register if r["status"] == "present" and r["file"]}
     hashes = {r["source_id"]: r["sha256"] for r in register}
 
@@ -66,7 +79,7 @@ def units_for(job_dir: Path, packet: Path, work: Path) -> dict[str, list[Unit]]:
     for reader, entries in spec.items():
         for e in entries:
             if e["source_id"] not in files:
-                raise LiveRunError(f"{job_dir.name} {e['unit_id']}: {e['source_id']} is not a present source in register.csv")
+                raise LiveRunError(f"{label} {e['unit_id']}: {e['source_id']} is not a present source in register.csv")
             src = packet / files[e["source_id"]]
             if not src.exists():
                 raise LiveRunError(f"{e['unit_id']}: {src} not found under the packet root {packet}")
@@ -213,12 +226,12 @@ class LiveClient:
         self.recorder = Recorder(record, model_id=model, note=(
             "Live responses, recorded as returned. Replay with ReplayClient to re-check this run offline."
         )) if record else None
-        self._schemas: dict[int, dict] = {}
+        self._schemas: dict[str, dict] = {}
 
     def request(self, reader: str, unit: Unit, system: str, schema: dict) -> dict:
         """The request body for one call. Identical for every run of a unit, so the
         three runs differ only by sampling, and the system prompt prefix is cached."""
-        key = id(schema)
+        key = json.dumps(schema, sort_keys=True)   # a per-job schema is a new object each run
         if key not in self._schemas:
             self._schemas[key] = api_schema(schema)
         output_config = {"format": {"type": "json_schema", "schema": self._schemas[key]}}
@@ -242,7 +255,7 @@ class LiveClient:
             raise LiveRunError("neither ANTHROPIC_API_KEY nor MERSCO_ANTHROPIC_API_KEY is set; "
                                "add the key to the cloud environment and start a new session")
         import anthropic
-        self.api = anthropic.Anthropic(api_key=key, base_url=self.base_url)
+        self.api = anthropic.Anthropic(api_key=key, base_url=self.base_url, timeout=API_TIMEOUT)
         self.check()
 
     def _create(self, **body):

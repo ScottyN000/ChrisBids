@@ -13,7 +13,7 @@ strict schema. Everything else is code, and it is all here.
 | `rows.not_in_source` | On a text unit, every field the reader must copy verbatim (spec requirement and product, correspondence instruction, drawing note text) has to appear in the text it was shown, whitespace aside. An item that does not is dropped in code and reported as discarded, so made-up or injected text never becomes a row |
 | [`units.py`](units.py) | Feet-and-inch strings to inches. The reader copies `15'-2"`; code writes `182 in` and the derivation the Auditor replays |
 | [`vote.py`](vote.py) | Each unit is read more than once (live default two, the recordings three) and the runs are compared field by field. Disagreement keeps every reading in the order seen and picks none, not even a majority |
-| [`rows.py`](rows.py) | Voted items become Claims. The method is fixed by rule from the item kind, never chosen by the model |
+| [`rows.py`](rows.py) | Voted items become Claims. The method is fixed by rule from the item kind, never chosen by the model. When scaled readings disagree, code lists each one in inches and the range between them in the derivation, and gives no centre value, so nothing reads as a chosen length |
 | [`run.py`](run.py) | One reader over a list of units, writing through the broker as that reader's own principal, logging every call |
 | [`clients.py`](clients.py) | The model boundary, plus `ReplayClient`, which answers from recorded responses |
 | [`compare.py`](compare.py) | A produced ledger against a golden fixture: dimensioned and counted rows must match exactly |

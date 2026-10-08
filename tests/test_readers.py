@@ -155,6 +155,18 @@ class RowsCase(unittest.TestCase):
         (c,) = rows.to_claims("drawing", "NAN", self.unit, vote("drawing", [[a], [b], [a]]))
         self.assertEqual(c.value, "1'-8\" (reading A) / 1'-10\" (reading B)")
         self.assertEqual(c.flag, "conflict")
+        self.assertEqual(c.derivation, "scaled readings 1'-8\" = 20 in, 1'-10\" = 22 in; range 2 in; "
+                                       "runs disagree on text; every reading kept, none chosen")
+        self.assertIsNone(c.value_num)
+
+    def test_the_spread_gives_no_centre_value_and_needs_readable_lengths(self):
+        self.assertEqual(rows._spread(["2'-1\"", "1'-9 1/2\""]),
+                         "scaled readings 2'-1\" = 25 in, 1'-9 1/2\" = 21.5 in; range 3.5 in")
+        self.assertEqual(rows._spread(["1'-8\""]), "")
+        self.assertEqual(rows._spread(["1'-8\"", "about two feet"]), "")
+        (one,) = rows.to_claims("drawing", "NAN", self.unit, vote("drawing", [[
+            {"kind": "scaled", "label": "leg", "text": "1'-8\"", "count": None, "unit": None}]]))
+        self.assertEqual(one.derivation, "")
 
     def test_claim_ids_are_deterministic(self):
         voted = vote("drawing", [[cnt("brackets", 6)]])

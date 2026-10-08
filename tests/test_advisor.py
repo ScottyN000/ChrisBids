@@ -26,7 +26,7 @@ class CheckCase(unittest.TestCase):
 
     def test_a_blocking_finding_without_one_is_demoted(self):
         for basis in (None, "", "seems off", "architecture", "rule:", "arch p.", "rule: I just think so",
-                      "arch p.0", "arch p.18", "arch p.99"):
+                      "arch p.0", "arch p.18", "arch p.99", "input the diff gives concern"):
             with self.subTest(basis=basis):
                 [f] = advisor.check({"summary": "", "findings": [finding(severity="blocking", basis=basis)]})
                 self.assertEqual(f["severity"], "advice")

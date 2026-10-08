@@ -39,7 +39,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-      issues: read         # as in the documented review workflow
     outputs:
       code: ${{ steps.gate.outputs.code }}
       comment: ${{ steps.gate.outputs.comment }}

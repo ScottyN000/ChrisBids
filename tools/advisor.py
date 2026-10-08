@@ -31,7 +31,7 @@ RULES = ("Traceability", "Determinism", "Permissioning", "Frugality", "Customer 
 PAGES = int(re.search(r"Page \d+ of (\d+)", (ROOT / "docs" / "architecture.txt").read_text()).group(1))
 _PAGE = re.compile(r"^arch p\.(\d+)\b", re.IGNORECASE)
 _RULE = re.compile(r"^rule: (" + "|".join(RULES) + r")\b", re.IGNORECASE)
-_INPUT = re.compile(r"^input \S.* gives \S", re.IGNORECASE)
+_INPUT = re.compile(r"^input \S.* gives \S.* should be \S", re.IGNORECASE)
 
 
 def has_basis(basis: str | None) -> bool:

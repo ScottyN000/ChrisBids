@@ -300,6 +300,8 @@ class LiveClientCase(unittest.TestCase):
                 broker.close()
         self.assertEqual(str(clients[0].api.base_url).rstrip("/"), "https://api.anthropic.com")
         self.assertEqual(str(clients[1].api.base_url).rstrip("/"), "https://gateway.example")
+        self.assertEqual(clients[0].api.timeout, live.API_TIMEOUT)
+        self.assertEqual(live.API_TIMEOUT, 900.0)
 
 
 @unittest.skipUnless(PACKET.exists() and HAVE_POPPLER, "needs poppler-utils")

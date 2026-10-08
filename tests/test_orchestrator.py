@@ -243,7 +243,7 @@ class BidCase(unittest.TestCase):
             def complete(self, reader, unit, system, schema, run):
                 out = super().complete(reader, unit, system, schema, run)
                 if reader == "scope_writer" and run == 1:
-                    out["terms"] = []
+                    out["sections"] = []
                 return out
 
         with tempfile.TemporaryDirectory() as d:
@@ -252,8 +252,7 @@ class BidCase(unittest.TestCase):
             res = orch.bid(packet, "J", out, reader_client=Split(), takeoff_client=Split(), scope_client=Split(),
                            repeats=2)
             self.assertFalse(res.ok)
-            self.assertEqual(res.problems, ["no proposal was rendered: J#scope: the runs place rows differently; "
-                                            "terms: only in the first ['warranty']; only in the second nothing"])
+            self.assertEqual(res.problems, ["no proposal was rendered: J#scope: the runs agree on no placement"])
             self.assertFalse((out / "proposal.md").exists())
             self.assertIn("PROBLEM no proposal was rendered", res.text())
             self.assertTrue(res.text().endswith("bid: NOT OK"))

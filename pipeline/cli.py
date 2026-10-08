@@ -168,7 +168,8 @@ def cmd_scope(a) -> int:
     client = None
     if a.live:
         from .readers import live
-        client = live.LiveClient(model=a.model, effort=a.effort or None, record=out / "recordings")
+        client = live.LiveClient(model=a.model, effort=a.effort or None, record=out / "recordings",
+                                 max_tokens=scope_writer.MAX_TOKENS)
     try:
         broker, result, gate = scope_writer.golden(Path(a.fixture), out / "ledger.db", client, repeats=a.repeats)
     except Exception as e:
@@ -203,7 +204,8 @@ def cmd_bid(a) -> int:
             Path(a.packet), a.job, out,
             reader_client=live.LiveClient(model=a.model, effort=a.effort or None, record=rec),
             takeoff_client=live.LiveClient(model=a.takeoff_model, effort=a.effort or None, record=rec),
-            scope_client=live.LiveClient(model=a.model, effort=a.effort or None, record=rec),
+            scope_client=live.LiveClient(model=a.model, effort=a.effort or None, record=rec,
+                                         max_tokens=orchestrator.scope_writer.MAX_TOKENS),
             repeats=a.repeats,
         )
     except live.LiveRunError as e:

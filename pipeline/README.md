@@ -113,8 +113,11 @@ Code then refuses a layout that:
 - lists an exclusion, question, material or allowance row as a task item (code prints those itself);
 - uses an exclusion, terms or concealed-conditions phrase in the wrong place, or lists anything twice.
 
-Two reads must agree on what goes where (order and titles aside), or nothing is
-rendered. Scope and allowance rows left out are reported as unplaced, and the
+Both reads must be valid. Only what both place, in the same section, is kept
+(order and titles come from the first); everything else is reported as dropped,
+a header slot the reads fill differently prints FIELD, and if they share no
+placement nothing is rendered. Scope and allowance rows left out, by a read or
+by the agreement, are reported as unplaced, and the
 Auditor's orphan check runs on the rendered text. `proposal.md` and `xref.csv`
 are written to the run folder; the Scope Writer writes no ledger row.
 

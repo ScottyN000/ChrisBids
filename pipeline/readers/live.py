@@ -39,6 +39,11 @@ MODEL = "claude-haiku-5-5"
 # cloud sessions set to their own endpoint; a different URL has to be passed to
 # LiveClient explicitly.
 API_URL = "https://api.anthropic.com"
+# An explicit request timeout, in seconds. The SDK refuses a non-streaming call
+# whose max_tokens it expects to run past its default 10 minutes unless the
+# client sets its own timeout (anthropic 1.12 _base_client
+# _calculate_nonstreaming_timeout); the Scope Writer asks for more than that.
+API_TIMEOUT = 900.0
 MEDIA = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 
@@ -250,7 +255,7 @@ class LiveClient:
             raise LiveRunError("neither ANTHROPIC_API_KEY nor MERSCO_ANTHROPIC_API_KEY is set; "
                                "add the key to the cloud environment and start a new session")
         import anthropic
-        self.api = anthropic.Anthropic(api_key=key, base_url=self.base_url)
+        self.api = anthropic.Anthropic(api_key=key, base_url=self.base_url, timeout=API_TIMEOUT)
         self.check()
 
     def _create(self, **body):

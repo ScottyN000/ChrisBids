@@ -65,6 +65,11 @@ TERMS_PHRASES = ("change_orders", "costs", "warranty", "allowance_definition")
 EXCLUSION_PREFIX = "excl_"
 CLOSE_PREFIX = "concealed_"
 
+# Output tokens for one layout call. Thinking counts against it: at high effort
+# a layout run used about 16,000 tokens (live run 37814672323), and the default
+# 16,000 cut one off mid-JSON. Haiku 5.5 allows 128K output (models overview,
+# platform.claude.com/docs/en/about-claude/models/overview); a cap is not a cost.
+MAX_TOKENS = 32000
 TITLE_PATTERN = r"^[A-Za-z ,&/'()-]*$"
 ID_PATTERN = r"^[A-Za-z0-9_-]+$"
 
@@ -124,6 +129,7 @@ class ScopeResult:
     text: str = ""                      # the rendered proposal
     xref: list[dict] = field(default_factory=list)
     unplaced: list[str] = field(default_factory=list)
+    dropped: list[str] = field(default_factory=list)    # placements the runs did not all make
     orphans: list[Orphan] = field(default_factory=list)
 
     @property
@@ -133,9 +139,11 @@ class ScopeResult:
     def report(self) -> str:
         lines = [f"{self.reader}: {self.units} units, {self.calls} calls, "
                  f"{'layout agreed' if self.layout else 'no layout'}, {len(self.discarded)} runs discarded, "
-                 f"{len(self.unplaced)} rows unplaced, {len(self.orphans)} orphan figures"]
+                 f"{len(self.dropped)} placements dropped, {len(self.unplaced)} rows unplaced, "
+                 f"{len(self.orphans)} orphan figures"]
         lines += [f"  discarded {d}" for d in self.discarded]
         lines += [f"  unread {u}" for u in self.unread]
+        lines += [f"  dropped {d}" for d in self.dropped]
         lines += [f"  unplaced {u}" for u in self.unplaced]
         lines += [f"  orphan {o.figure} (line {o.line}): {o.context}" for o in self.orphans]
         return "\n".join(lines)
@@ -260,19 +268,52 @@ def canonical(layout: dict) -> tuple:
             frozenset(closes), frozenset(layout["exclusion_phrases"]), frozenset(layout["terms"]))
 
 
-def differences(a: dict, b: dict) -> list[str]:
-    """What two layouts place differently, in words."""
-    names = ("header", "items", "allowances", "concealed-conditions closes", "exclusions", "terms")
-    out = []
-    for name, x, y in zip(names, canonical(a), canonical(b)):
-        if x == y:
-            continue
-        if isinstance(x, tuple):
-            out.append(f"{name}: {x} vs {y}")
-            continue
-        only_a, only_b = sorted(x - y), sorted(y - x)
-        out.append(f"{name}: only in the first {only_a or 'nothing'}; only in the second {only_b or 'nothing'}")
-    return out
+def agree(layouts: list[dict]) -> tuple[dict, list[str]]:
+    """The layout every run agrees on, and what was dropped because a run left it out.
+
+    The redundancy rule applied to a layout: a placement counts only if
+    every run made it, in the same section. The first run gives the order and
+    the titles; a header slot the runs fill differently is left empty, so the
+    proposal prints FIELD there; a task left with nothing in it is dropped.
+    """
+    first, rest = layouts[0], [canonical(v) for v in layouts[1:]]
+    headers, placed, allowances, closes, exclusions, terms = (
+        [c[i] for c in rest] for i in range(6))
+    dropped = []
+
+    def kept(key, pool: list, what: str) -> bool:
+        if all(key in p for p in pool):
+            return True
+        dropped.append(f"{what} (not in every run)")
+        return False
+
+    header = {}
+    for i, slot in enumerate(("project", "address", "client")):
+        value = first["header"][slot]
+        if all(h[i] == value for h in headers):
+            header[slot] = value
+        else:
+            header[slot] = ""
+            dropped.append(f"header {slot} (the runs name {sorted({value, *(h[i] for h in headers)})})")
+    sections = []
+    for sec in first["sections"]:
+        div, tasks = sec["division"], []
+        for task in sec["tasks"]:
+            items = [it for it in task["items"]
+                     if kept((div, it["kind"], it["ref"]), placed, f"{div} {it['kind']} {it['ref']}")]
+            allowance = [a for a in task["allowance"] if kept((div, a), allowances, f"{div} allowance {a}")]
+            close = task["close"] if task["close"] and kept((div, task["close"]), closes,
+                                                            f"{div} close {task['close']}") else ""
+            if items or allowance:
+                tasks.append({"title": task["title"], "items": items, "allowance": allowance, "close": close})
+        if tasks:
+            sections.append({"division": div, "tasks": tasks})
+    return {
+        "header": header,
+        "sections": sections,
+        "exclusion_phrases": [k for k in first["exclusion_phrases"] if kept(k, exclusions, f"exclusion {k}")],
+        "terms": [k for k in first["terms"] if kept(k, terms, f"terms {k}")],
+    }, dropped
 
 
 def to_fixture_layout(layout: dict) -> dict:
@@ -365,17 +406,17 @@ def run(broker: Broker, job: str, client: ModelClient, phrase_library: Path, *, 
             result.discarded.append(f"{unit.unit_id} run {r + 1}: {'; '.join(errs[:3])}")
         else:
             valid.append(data)
-    # The redundancy rule: every run asked for must be valid and say the same thing.
+    # The redundancy rule: every run asked for must be valid; only what they all place is kept.
     if len(valid) < repeats:
         result.unread.append(f"{unit.unit_id}: {len(valid)} of {repeats} runs valid")
         return result
-    split = next((differences(valid[0], v) for v in valid[1:] if canonical(v) != canonical(valid[0])), None)
-    if split:
-        result.unread.append(f"{unit.unit_id}: the runs place rows differently; " + "; ".join(split[:4]))
+    agreed, result.dropped = agree(valid)
+    if not agreed["sections"]:
+        result.unread.append(f"{unit.unit_id}: the runs agree on no placement")
         return result
-    result.layout = to_fixture_layout(valid[0])
-    result.text, result.xref = render(valid[0], claims, phrases, broker)
-    result.unplaced = unplaced(valid[0], claims)
+    result.layout = to_fixture_layout(agreed)
+    result.text, result.xref = render(agreed, claims, phrases, broker)
+    result.unplaced = unplaced(agreed, claims)
     result.orphans = audit_proposal(result.text, claims, Path(phrase_library).read_text())
     return result
 

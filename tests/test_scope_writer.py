@@ -361,7 +361,7 @@ class ShapeCase(unittest.TestCase):
         b["sections"][2]["tasks"][0]["items"].reverse()
         b["exclusion_phrases"].reverse()
         self.assertEqual(sw.canonical(a), sw.canonical(b))
-        self.assertEqual(sw.differences(a, b), [])
+        self.assertEqual(sw.agree([a, b]), (a, []))
 
     def test_canonical_holds_every_placement(self):
         self.assertEqual(sw.canonical(layout()), (
@@ -375,18 +375,40 @@ class ShapeCase(unittest.TestCase):
             frozenset(sw.TERMS_PHRASES),
         ))
 
-    def test_differences_name_what_moved(self):
-        a, b = layout(), layout(exclusions=("excl_mold", "excl_mep"))
-        b["header"] = {"project": "J-H-002", "address": "J-H-002", "client": "J-F-001"}
+    def test_agree_keeps_only_what_every_run_places(self):
+        a, b = layout(), layout(exclusions=("excl_mold", "excl_mep"), terms=("warranty", "costs"))
+        b["header"] = {"project": "J-H-002", "address": "J-H-002", "client": ""}
         b["sections"][1]["tasks"][0]["items"].pop()
         b["sections"][0]["tasks"][0]["close"] = ""
-        self.assertEqual(sw.differences(a, b), [
-            "header: ('J-H-001', 'J-H-002', 'J-F-001') vs ('J-H-002', 'J-H-002', 'J-F-001')",
-            "items: only in the first [('09', 'row', 'J-Q-001')]; only in the second nothing",
-            "concealed-conditions closes: only in the first [('07', 'concealed_preparation')]; "
-            "only in the second nothing",
-            "exclusions: only in the first nothing; only in the second ['excl_mep']",
-        ])
+        b["sections"][0]["tasks"][0]["allowance"] = []
+        b["sections"][2]["tasks"][0]["items"] = [item("J-S-005")]
+        want = layout(terms=("costs", "warranty"), header={"project": "", "address": "J-H-002", "client": ""})
+        want["sections"][1]["tasks"][0]["items"].pop()
+        want["sections"][0]["tasks"][0]["close"] = ""
+        want["sections"][0]["tasks"][0]["allowance"] = []
+        want["sections"][2]["tasks"][0]["items"] = []
+        self.assertEqual(sw.agree([a, b]), (want, [
+            "header project (the runs name ['J-H-001', 'J-H-002'])",
+            "header client (the runs name ['', 'J-F-001'])",
+            "07 allowance J-A-001 (not in every run)",
+            "07 close concealed_preparation (not in every run)",
+            "09 row J-Q-001 (not in every run)",
+            "ALT row J-S-003 (not in every run)",
+            "terms change_orders (not in every run)",
+            "terms allowance_definition (not in every run)",
+        ]))
+
+    def test_agree_drops_empty_tasks_and_sections_and_checks_every_run(self):
+        a = layout()
+        b, c = copy.deepcopy(a), copy.deepcopy(a)
+        c["sections"] = c["sections"][:2]
+        c["exclusion_phrases"] = []
+        agreed, dropped = sw.agree([a, b, c])
+        self.assertEqual([s["division"] for s in agreed["sections"]], ["07", "09"])
+        self.assertEqual(agreed["exclusion_phrases"], [])
+        self.assertEqual(dropped, ["ALT row J-S-003 (not in every run)", "ALT allowance J-A-002 (not in every run)",
+                                   "exclusion excl_mold (not in every run)"])
+        self.assertEqual(sw.agree([a]), (a, []))
 
     def test_unplaced_lists_scope_and_allowance_rows_left_out(self):
         lay = layout()
@@ -449,8 +471,8 @@ class RunCase(RunBase):
         self.assertEqual(self.calls(), [("J#scope", f"fake-model; {prompt_version('scope_writer')}; run 1; valid"),
                                         ("J#scope", f"fake-model; {prompt_version('scope_writer')}; run 2; valid")])
         self.assertEqual(res.report(),
-                         "scope_writer: 1 units, 2 calls, layout agreed, 0 runs discarded, 0 rows unplaced, "
-                         "0 orphan figures")
+                         "scope_writer: 1 units, 2 calls, layout agreed, 0 runs discarded, 0 placements dropped, "
+                         "0 rows unplaced, 0 orphan figures")
 
     def test_the_scope_writer_writes_no_row(self):
         before = len(self.broker.ledger.claims())
@@ -476,15 +498,30 @@ class RunCase(RunBase):
                 self.assertFalse(res.ok)
                 self.assertEqual(self.calls()[-1][1].split("; ", 2)[2], "run 2; discarded: " + why.split(": ", 1)[1].split("; ")[0])
 
-    def test_runs_that_disagree_leave_nothing_rendered(self):
+    def test_runs_that_disagree_render_what_they_agree_on(self):
         other = layout(exclusions=("excl_mep",))
+        other["sections"][1]["tasks"][0]["items"].pop(0)
         _, res = self.run_with([layout(), other])
+        want = layout(exclusions=())
+        want["sections"][1]["tasks"][0]["items"].pop(0)
+        self.assertEqual(res.layout, sw.to_fixture_layout(want))
+        self.assertEqual(res.unread, [])
+        self.assertEqual(res.dropped, ["09 row J-S-004 (not in every run)", "exclusion excl_mold (not in every run)"])
+        self.assertEqual(res.unplaced, ["J-S-004 (scope, division 09)"])
+        self.assertEqual(res.report().splitlines()[:3], [
+            "scope_writer: 1 units, 2 calls, layout agreed, 0 runs discarded, 2 placements dropped, "
+            "1 rows unplaced, 0 orphan figures",
+            "  dropped 09 row J-S-004 (not in every run)",
+            "  dropped exclusion excl_mold (not in every run)"])
+
+    def test_runs_that_share_no_placement_leave_nothing_rendered(self):
+        one = layout(sections=[{"division": "07", "tasks": [task([item("J-S-001")])]}])
+        two = layout(sections=[{"division": "07", "tasks": [task([item("J-S-002")])]}])
+        _, res = self.run_with([one, two])
         self.assertIsNone(res.layout)
-        self.assertEqual(res.unread, ["J#scope: the runs place rows differently; exclusions: only in the first "
-                                      "['excl_mold']; only in the second ['excl_mep']"])
-        self.assertEqual(res.report().splitlines()[0],
-                         "scope_writer: 1 units, 1 calls, no layout, 0 runs discarded, 0 rows unplaced, "
-                         "0 orphan figures".replace("1 calls", "2 calls"))
+        self.assertEqual(res.text, "")
+        self.assertEqual(res.unread, ["J#scope: the runs agree on no placement"])
+        self.assertFalse(res.ok)
 
     def test_one_run_is_enough_when_one_is_asked_for(self):
         client, res = self.run_with([layout()], repeats=1)
@@ -493,9 +530,8 @@ class RunCase(RunBase):
 
     def test_a_third_run_must_agree_too(self):
         _, res = self.run_with([layout(), layout(), layout(exclusions=())], repeats=3)
-        self.assertIsNone(res.layout)
-        self.assertEqual(res.unread, ["J#scope: the runs place rows differently; exclusions: only in the first "
-                                      "['excl_mold']; only in the second nothing"])
+        self.assertEqual(res.layout["exclusion_phrases"], [])
+        self.assertEqual(res.dropped, ["exclusion excl_mold (not in every run)"])
 
     def test_left_out_rows_are_reported(self):
         lay = layout()
@@ -513,9 +549,9 @@ class RunCase(RunBase):
         self.assertEqual(res.report().splitlines()[-1], "  orphan 47 (line 1): …Seal [47] joints…")
 
     def test_report_lists_discards_and_unread(self):
-        res = sw.ScopeResult(units=1, calls=2, discarded=["d"], unread=["u"])
+        res = sw.ScopeResult(units=1, calls=2, discarded=["d"], unread=["u"], dropped=["x"])
         self.assertEqual(res.report(), "scope_writer: 1 units, 2 calls, no layout, 1 runs discarded, "
-                                       "0 rows unplaced, 0 orphan figures\n  discarded d\n  unread u")
+                                       "1 placements dropped, 0 rows unplaced, 0 orphan figures\n  discarded d\n  unread u\n  dropped x")
 
     def test_write_saves_the_proposal_and_xref_only_when_rendered(self):
         _, res = self.run_with([layout(), layout()])
@@ -790,26 +826,6 @@ class MoreRunCase(RunBase):
         self.run_with([layout(), layout()])
         principals = {e["principal"] for e in self.broker.ledger.log() if e["action"] == "model-call"}
         self.assertEqual(principals, {"scope_writer"})
-
-    def test_a_split_names_at_most_four_differences(self):
-        other = layout(exclusions=("excl_mep",), terms=("warranty",),
-                       header={"project": "J-H-002", "address": "J-H-002", "client": "J-F-001"})
-        other["sections"][0]["tasks"][0]["allowance"] = []
-        other["sections"][0]["tasks"][0]["close"] = ""
-        other["sections"][1]["tasks"][0]["items"].pop()
-        _, res = self.run_with([layout(), other])
-        self.assertEqual(res.unread, ["J#scope: the runs place rows differently; " + "; ".join(
-            sw.differences(layout(), other)[:4])])
-        self.assertEqual(len(sw.differences(layout(), other)), 6)
-        self.assertEqual(res.unread[0].count("; only in the"), 3)
-
-    def test_differences_cover_allowances_and_terms(self):
-        a, b = layout(), layout(terms=("warranty",))
-        b["sections"][0]["tasks"][0]["allowance"] = []
-        self.assertEqual(sw.differences(a, b), [
-            "allowances: only in the first [('07', 'J-A-001')]; only in the second nothing",
-            "terms: only in the first ['allowance_definition', 'change_orders', 'costs']; only in the second nothing",
-        ])
 
     def test_write_makes_missing_folders_and_overwrites(self):
         _, res = self.run_with([layout(), layout()])

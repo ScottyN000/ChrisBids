@@ -61,16 +61,24 @@ def render(data, by_id, phrases, register):
         return phrases[key]["text"].format(**slots)
 
     h = p["header"]
-    emit(f"# {by_id[h['project']]['statement']}\n")
+    # A header slot left empty means the ledger has no row for it: the proposal
+    # says FIELD there rather than leaving a gap or inventing a name.
+    emit(f"# {by_id[h['project']]['statement'] if h['project'] else 'FIELD: project name not in the ledger'}\n")
     emit(f"_{data['status_line']}_\n")
     emit(ph("license_line") + "\n", phr=["license_line"], section="header")
-    emit(f"Job Address:  \n{by_id[h['address']]['statement']} ({tag(by_id[h['address']])})\n",
-         claims=[h["address"]], section="header")
+    if h["address"]:
+        emit(f"Job Address:  \n{by_id[h['address']]['statement']} ({tag(by_id[h['address']])})\n",
+             claims=[h["address"]], section="header")
+    else:
+        emit("Job Address:  \nFIELD: job address not in the ledger\n")
     emit("  \n".join(ph("contractor_block").split("\n")) + "\n", phr=["contractor_block"], section="header")
-    client = by_id[h["client"]]
-    who = "FIELD" if client["method"] == "FIELD" else client["statement"]
-    emit(ph("greeting", client=who) + f" [client: see {client['id']}]" * (client["method"] == "FIELD") + "\n",
-         claims=[h["client"]], phr=["greeting"], section="header")
+    if h["client"]:
+        client = by_id[h["client"]]
+        who = "FIELD" if client["method"] == "FIELD" else client["statement"]
+        emit(ph("greeting", client=who) + f" [client: see {client['id']}]" * (client["method"] == "FIELD") + "\n",
+             claims=[h["client"]], phr=["greeting"], section="header")
+    else:
+        emit(ph("greeting", client="FIELD") + " [client: not in the ledger]\n", phr=["greeting"], section="header")
     emit("**Scope of Work:**\n")
 
     for sec in p["sections"]:

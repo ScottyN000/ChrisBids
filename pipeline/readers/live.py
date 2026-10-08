@@ -55,10 +55,18 @@ def _refused(e: Exception) -> LiveRunError:
 
 def units_for(job_dir: Path, packet: Path, work: Path) -> dict[str, list[Unit]]:
     """The units a live run reads, by reader, with each input file prepared under `work`."""
-    job_dir, packet, work = Path(job_dir), Path(packet), Path(work)
+    job_dir = Path(job_dir)
     spec = yaml.safe_load((job_dir / "units.yaml").read_text()) or {}
     from .. import fixtures
     _, register = fixtures.read_fixture(job_dir)
+    return prepare_units(job_dir.name, spec, register, packet, work)
+
+
+def prepare_units(label: str, spec: dict[str, list[dict]], register: list[dict], packet: Path,
+                  work: Path) -> dict[str, list[Unit]]:
+    """Units from a spec in the units.yaml shape (a fixture's, or the Orchestrator's plan),
+    each input file checked against its register hash and prepared under `work`."""
+    packet, work = Path(packet), Path(work)
     files = {r["source_id"]: r["file"] for r in register if r["status"] == "present" and r["file"]}
     hashes = {r["source_id"]: r["sha256"] for r in register}
 
@@ -66,7 +74,7 @@ def units_for(job_dir: Path, packet: Path, work: Path) -> dict[str, list[Unit]]:
     for reader, entries in spec.items():
         for e in entries:
             if e["source_id"] not in files:
-                raise LiveRunError(f"{job_dir.name} {e['unit_id']}: {e['source_id']} is not a present source in register.csv")
+                raise LiveRunError(f"{label} {e['unit_id']}: {e['source_id']} is not a present source in register.csv")
             src = packet / files[e["source_id"]]
             if not src.exists():
                 raise LiveRunError(f"{e['unit_id']}: {src} not found under the packet root {packet}")

@@ -1,7 +1,7 @@
 {
  "reader": "scope_writer",
  "model": "replay (fixture layout)",
- "prompt_version": "scope_writer@05c28a7075b5",
+ "prompt_version": "scope_writer@6d56329bf77b",
  "note": "Expected output: the fixture's hand-made proposal layout in the Scope Writer's schema. Both runs agree.",
  "units": [
   {

@@ -12,6 +12,8 @@
                                 [--takeoff-model claude-sonnet-5-5] [--takeoff-effort high]   (needs ANTHROPIC_API_KEY)
     python3 -m pipeline scope   fixtures/nantucket --out runs/nan-scope [--repeats 2]
                                 [--live [--model claude-haiku-5-5] [--effort high]]           (--live needs ANTHROPIC_API_KEY)
+    python3 -m pipeline bid     <packet-dir> --job J --out runs/j [--plan-only] [--repeats 2]
+                                [--model claude-haiku-5-5] [--takeoff-model claude-sonnet-5-5]   (needs ANTHROPIC_API_KEY)
 """
 from __future__ import annotations
 
@@ -185,6 +187,34 @@ def cmd_scope(a) -> int:
     return 0 if gate.ok else 1
 
 
+def cmd_bid(a) -> int:
+    """Run a bid end to end on a packet folder: plan, read, take off, lay out, audit."""
+    from . import orchestrator
+    from .readers import live
+    out = Path(a.out)
+    if a.plan_only:
+        sources = intake.scan(Path(a.packet))
+        plan = orchestrator.plan(a.job, [s.as_register_row() for s in sources])
+        print(plan.text())
+        return 0
+    rec = out / "recordings"
+    try:
+        result = orchestrator.bid(
+            Path(a.packet), a.job, out,
+            reader_client=live.LiveClient(model=a.model, effort=a.effort or None, record=rec),
+            takeoff_client=live.LiveClient(model=a.takeoff_model, effort=a.effort or None, record=rec),
+            scope_client=live.LiveClient(model=a.model, effort=a.effort or None, record=rec),
+            repeats=a.repeats,
+        )
+    except live.LiveRunError as e:
+        print(f"NOT RUN: {e}", file=sys.stderr)
+        return 3
+    print(result.text())
+    if (rec / "calls.jsonl").exists():
+        print(live.usage_totals(rec / "calls.jsonl"))
+    return 0 if result.ok else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="pipeline", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -249,6 +279,18 @@ def main(argv=None) -> int:
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
     p.set_defaults(func=cmd_scope)
+
+    p = sub.add_parser("bid", help="run a bid end to end on a packet folder (live; needs the API key)")
+    p.add_argument("packet")
+    p.add_argument("--job", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--plan-only", action="store_true", help="print the work plan and stop; no model call")
+    p.add_argument("--repeats", type=int, default=2)
+    p.add_argument("--model", default="claude-haiku-5-5", help="readers and the Scope Writer")
+    p.add_argument("--takeoff-model", default="claude-sonnet-5-5")
+    p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
+                   help="empty for the model default")
+    p.set_defaults(func=cmd_bid)
 
     a = ap.parse_args(argv)
     try:

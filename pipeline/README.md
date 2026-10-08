@@ -88,7 +88,7 @@ is the one place the audit could be made to pass by looking away.
 
 The readers are in [`readers/`](readers/README.md) and write through this broker
 unchanged, and so does Takeoff ([`takeoff.py`](takeoff.py), Phase 3). The Scope
-Writer is below. Customer Requirements, Codes & Regulations, Materials and
+Writer and the Orchestrator are below. Customer Requirements, Codes & Regulations, Materials and
 Pricing are still to come; `roles.py` already carries their principals and write
 scopes.
 
@@ -134,3 +134,45 @@ Section titles come from the Proposal Format Example and the two test bids
 (divisions 01, 02, 03, 05, 07 and 09). A row in any other division is reported
 unplaced until Chris's template names that division (architecture p.17 asks him
 for the template file).
+
+## Orchestrator (Phase 3)
+
+[`orchestrator.py`](orchestrator.py) plans a bid from the Source Register alone
+and then runs it. It never opens a document and writes no ledger row
+(architecture p.12).
+
+The plan is a lookup by document kind:
+
+- every page of a spec is a unit;
+- every photo and every message is a unit;
+- each drawing sheet is read in a 3 x 2 grid of tiles (`readers/tiles.py`), since a new packet has no hand-drawn view boxes.
+
+A source that is missing, a duplicate, or of a kind no reader opens yet
+(template, past bid, spreadsheet, unknown) is listed with the reason, so the plan
+accounts for every register row. Customer Requirements, Codes and Materials are
+listed as not built.
+
+The architecture puts the Orchestrator on Sonnet (p.13). With only the register to
+go on, the plan has no choices a model would add, so it is code: the same plan
+every time, at no cost. A model earns its place once Intake tags divisions and
+the plan has to decide which per-division passes to run (p.7).
+
+```
+python3 -m pipeline bid <packet-dir> --job J --out runs/j --plan-only   # the plan, no model call
+python3 -m pipeline bid <packet-dir> --job J --out runs/j               # live: needs the API key
+```
+
+A bid run does the following, in order:
+
+1. Intake.
+2. The plan (`plan.json`).
+3. Each reader on its units, prepared and hash-checked by `readers/live.prepare_units`.
+4. Takeoff.
+5. The Scope Writer (`proposal.md`, `xref.csv`).
+6. The Auditor, with the packet and the proposal.
+
+It also writes `ledger.csv` and a summary, `bid.txt`. A test runs a small
+synthetic packet through every step with fake model clients.
+
+A new packet's readers write no header rows (project name, address, client),
+so the Scope Writer may leave those slots empty and the proposal says FIELD there.

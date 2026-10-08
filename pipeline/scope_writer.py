@@ -57,7 +57,8 @@ SECTION_INTRO = {ALTERNATES: "alternates_intro"}
 
 # Rows a task may list. Header, exclusion, question and material rows have
 # sections of their own that code fills; an allowance goes in a task's allowance.
-ITEM_ROLES = ("scope", "quantity", "code")
+# A reader writes drawing notes as `note` rows, so a note may describe a task.
+ITEM_ROLES = ("scope", "quantity", "code", "note")
 # Library phrases code places itself, so the model never lists them.
 RESERVED_PHRASES = ("greeting", "contractor_block", "license_line", "allowance", "alternates_intro")
 TERMS_PHRASES = ("change_orders", "costs", "warranty", "allowance_definition")
@@ -75,7 +76,8 @@ SCHEMA = {
         "header": {
             "type": "object", "additionalProperties": False,
             "required": ["project", "address", "client"],
-            "properties": {k: {"type": "string", "maxLength": 40, "pattern": ID_PATTERN}
+            # "" when the ledger has no row for the slot; the proposal then says FIELD.
+            "properties": {k: {"type": "string", "maxLength": 40, "pattern": r"^[A-Za-z0-9_-]*$"}
                            for k in ("project", "address", "client")},
         },
         "sections": {"type": "array", "maxItems": 12, "items": {
@@ -190,6 +192,8 @@ def layout_errors(layout: dict, by_id: dict[str, Claim], phrases: dict[str, dict
     errs = []
     h = layout["header"]
     for slot in ("project", "address", "client"):
+        if not h[slot]:
+            continue
         c = by_id.get(h[slot])
         if c is None or c.role != "header":
             errs.append(f"header {slot} {h[slot]!r} is not a header row")

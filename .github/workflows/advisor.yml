@@ -8,7 +8,8 @@ name: advisor
 # model, decides the outcome: the check fails when any finding is blocking.
 #
 # It uses the repository secret ANTHROPIC_API_KEY, the same one the live gate
-# uses. Dependabot PRs get no secrets, so they are skipped.
+# uses. Dependabot PRs get no secrets, so they are skipped. Each review's token
+# use and cost go in the run log and at the foot of the PR comment.
 
 on:
   pull_request:
@@ -27,7 +28,10 @@ concurrency:
 
 jobs:
   review:
-    if: github.actor != 'dependabot[bot]'
+    # Drafts are skipped: a build thread opens its PR as a draft and marks it
+    # ready when it would ask for a merge, so the review runs on finished work
+    # and on each fix after that, not on every work-in-progress push.
+    if: github.event.pull_request.draft == false && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -63,7 +67,7 @@ jobs:
             Read docs/advisor.md and follow it exactly. The change is in .advisor/.
           claude_args: |
             --model claude-opus-5-5
-            --max-turns 60
+            --max-turns 40
             --allowedTools "Read,Glob,Grep"
             --json-schema '${{ steps.inputs.outputs.schema }}'
 
@@ -71,10 +75,11 @@ jobs:
         id: gate
         env:
           REVIEW: ${{ steps.review.outputs.structured_output }}
+          EXECUTION: ${{ steps.review.outputs.execution_file }}
         run: |
           printf '%s' "$REVIEW" > .advisor/review.json
           set +e
-          python tools/advisor.py .advisor/review.json --out .advisor/comment.md
+          python tools/advisor.py .advisor/review.json --usage "${EXECUTION:-.advisor/none}" --out .advisor/comment.md
           echo "code=$?" >> "$GITHUB_OUTPUT"
           cat .advisor/comment.md >> "$GITHUB_STEP_SUMMARY" || true
 

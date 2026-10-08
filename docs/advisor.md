@@ -6,6 +6,9 @@ reads it with fresh context and says what must change before Scott is asked to
 merge. It has read-only file tools and no network. It runs in CI on every PR
 ([`.github/workflows/advisor.yml`](../.github/workflows/advisor.yml)) and can be
 run locally before a push ([`.claude/agents/advisor.md`](../.claude/agents/advisor.md)).
+CI skips draft PRs, so a building thread opens its PR as a draft and marks it
+ready when it would ask for a merge; every push after that is reviewed again.
+Each review's token use and cost are logged at the foot of its PR comment.
 
 Everything below is the advisor's instructions.
 

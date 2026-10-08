@@ -6,6 +6,7 @@ A blocking finding stands only when its basis names an architecture page, a
 standing rule or a concrete failing input; otherwise it is demoted to advice.
 
     python3 tools/advisor.py review.json --out comment.md
+    python3 tools/advisor.py review.json --usage execution.json   # adds what the review used
 
 Exit 0 when nothing blocks, 1 when something does, 2 when the reply is unusable.
 """
@@ -48,7 +49,32 @@ def _where(f: dict) -> str:
     return f"`{f['file']}:{f['line']}`" if f["line"] else f"`{f['file']}`"
 
 
-def render(summary: str, findings: list[dict]) -> str:
+USAGE_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+
+
+def usage_line(execution: str) -> str:
+    """What the review used, from the result message in Claude Code's execution output.
+
+    The output is a JSON array of messages or one message per line; the last
+    `result` message carries the totals. The cost is Claude Code's own figure.
+    """
+    text = execution.strip()
+    try:
+        messages = json.loads(text) if text.startswith("[") else [json.loads(x) for x in text.splitlines() if x.strip()]
+    except ValueError:
+        return "usage: not reported (execution output unreadable)"
+    results = [m for m in messages if isinstance(m, dict) and m.get("type") == "result"]
+    if not results:
+        return "usage: not reported (no result message)"
+    r = results[-1]
+    u = r.get("usage") or {}
+    tokens = ", ".join(f"{u.get(k) or 0} {k}" for k in USAGE_KEYS)
+    cost = r.get("total_cost_usd")
+    cost = f", ${cost:.2f} as Claude Code reports it" if isinstance(cost, (int, float)) else ""
+    return f"usage: {r.get('num_turns', '?')} turns, {tokens}{cost}"
+
+
+def render(summary: str, findings: list[dict], usage: str | None = None) -> str:
     blocking = [f for f in findings if f["severity"] == "blocking"]
     advice = [f for f in findings if f["severity"] == "advice"]
     head = f"{len(blocking)} blocking, {len(advice)} advice" if blocking else f"nothing blocking, {len(advice)} advice"
@@ -59,6 +85,9 @@ def render(summary: str, findings: list[dict]) -> str:
         if f["demoted"]:
             out.append("_Demoted from blocking: the basis names no architecture page, rule or failing input._")
         out += ["", f["finding"].strip(), "", f"Fix: {f['fix'].strip()}", ""]
+    if usage:
+        out.append(f"<sub>{usage}</sub>")
+        out.append("")
     out.append("Brief: `docs/advisor.md`. A blocking finding fails the `advisor` check.")
     return "\n".join(out) + "\n"
 
@@ -67,6 +96,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("review", type=Path, help="the advisor's JSON reply")
     ap.add_argument("--out", type=Path, help="write the PR comment here (default: stdout)")
+    ap.add_argument("--usage", type=Path, help="Claude Code's execution output, to report what the review used")
     a = ap.parse_args(argv)
     try:
         review = json.loads(a.review.read_text())
@@ -74,7 +104,11 @@ def main(argv=None) -> int:
     except ValueError as e:  # json.JSONDecodeError is a ValueError
         print(f"advisor reply unusable: {e}", file=sys.stderr)
         return 2
-    text = render(review["summary"], findings)
+    usage = None
+    if a.usage:
+        usage = usage_line(a.usage.read_text()) if a.usage.exists() else "usage: not reported (no execution output)"
+        print(usage)
+    text = render(review["summary"], findings, usage)
     if a.out:
         a.out.write_text(text)
     else:

@@ -101,3 +101,35 @@ class BriefCase(unittest.TestCase):
             self.assertIn(f".advisor/{name}", workflow)
         self.assertIn("(architecture.txt)", brief)
         self.assertTrue((root / "docs" / "architecture.txt").read_text().startswith("Bid Pipeline"))
+
+
+class UsageCase(unittest.TestCase):
+    RESULT = {"type": "result", "num_turns": 9, "total_cost_usd": 1.234,
+              "usage": {"input_tokens": 10, "output_tokens": 20, "cache_creation_input_tokens": 30,
+                        "cache_read_input_tokens": None}}
+
+    def test_the_last_result_message_gives_the_totals(self):
+        early = dict(self.RESULT, num_turns=1)
+        for text in (json.dumps([{"type": "system"}, early, self.RESULT]),
+                     "\n".join(json.dumps(m) for m in ({"type": "system"}, early, self.RESULT))):
+            with self.subTest(text=text[:20]):
+                self.assertEqual(advisor.usage_line(text),
+                                 "usage: 9 turns, 10 input_tokens, 20 output_tokens, 30 cache_creation_input_tokens, "
+                                 "0 cache_read_input_tokens, $1.23 as Claude Code reports it")
+
+    def test_missing_figures_are_said_to_be_missing(self):
+        self.assertEqual(advisor.usage_line("[]"), "usage: not reported (no result message)")
+        self.assertEqual(advisor.usage_line("{broken"), "usage: not reported (execution output unreadable)")
+        self.assertEqual(advisor.usage_line(json.dumps([{"type": "result"}])),
+                         "usage: ? turns, 0 input_tokens, 0 output_tokens, 0 cache_creation_input_tokens, "
+                         "0 cache_read_input_tokens")
+
+    def test_main_puts_the_usage_at_the_foot_of_the_comment(self):
+        with tempfile.TemporaryDirectory() as d:
+            src, ex, out = Path(d) / "r.json", Path(d) / "ex.json", Path(d) / "c.md"
+            src.write_text(json.dumps({"summary": "Sound.", "findings": []}))
+            ex.write_text(json.dumps([self.RESULT]))
+            self.assertEqual(advisor.main([str(src), "--usage", str(ex), "--out", str(out)]), 0)
+            self.assertIn("<sub>usage: 9 turns,", out.read_text())
+            self.assertEqual(advisor.main([str(src), "--usage", str(Path(d) / "none"), "--out", str(out)]), 0)
+            self.assertIn("<sub>usage: not reported (no execution output)</sub>", out.read_text())

@@ -216,12 +216,14 @@ A model (Haiku) answers each ask with a quote and one sentence. Code keeps an
 answer only if all three hold:
 
 - the quote is on the page, compared after folding case, spacing, quotes and dashes;
-- every figure in the sentence is also in the quote, a range counting as one
-  figure (so "4 weeks" does not match "2-4 weeks"). The only exception is the
-  page's own identifiers, which the table lists whole (`ids`: ESR-4143,
-  A24W8300), so "24 hours" on the A24W8300 sheet is still a figure;
-- two runs give the same reading: their sentences give exactly the same
-  figures, or, when neither gives a figure, their quotes overlap.
+- the model fills the ask's `#` marks with figures (`figures`), and each is in
+  the quote, a range counting as one figure (so "4" does not match "2-4"), or is
+  part of the page's own identifiers, which the table lists whole (`ids`:
+  ESR-4143, A24W8300);
+- the sentence gives no figure but those. The identifiers are taken out whole
+  first, so "24 hours" on the A24W8300 sheet is still a figure;
+- two runs fill the marks with exactly the same figures, or, for an ask with
+  no marks, quote mostly the same passage.
 
 When the runs find differing readings on the page (different passages and
 figures, or one run finds it and one does not), code does not pick one. Each

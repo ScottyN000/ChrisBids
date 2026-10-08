@@ -173,7 +173,7 @@ class Fake:
         if reader == "web_reader":
             first = next(line.strip() for line in unit.text.splitlines() if line.strip())
             asks = re.findall(r"^(a\d+): ", unit.brief, re.M)
-            return {"answers": [{"ask": a, "found": True, "quote": first, "statement": "The page says so."}
+            return {"answers": [{"ask": a, "found": True, "quote": first, "figures": [], "statement": "The page says so."}
                                 for a in asks]}
         if reader == "scope_writer":
             rows = re.findall(r"^(\S+) \| scope \| (\S+) \|", unit.text, re.M)

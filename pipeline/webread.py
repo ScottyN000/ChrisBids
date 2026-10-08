@@ -12,12 +12,13 @@ p.13) is shown the text and the page's asks, and answers each ask with a
 verbatim quote and one sentence. Code keeps an answer only if:
 
 * the quote is on the page (`web.quote_in`);
-* every figure in the sentence is also in the quote, a range counting as one
-  figure; the page's own identifiers (`ids` in the table, taken out whole) are
-  not figures;
-* two runs give the same reading: their sentences give exactly the same
-  figures, or, when neither gives a figure, their quotes overlap. A run that is discarded, or an answer that is refused, gets up
-  to SPARES spare runs for the page.
+* the figures it fills the ask's # marks with (`figures`) are in the quote, a
+  range counting as one figure, or part of the page's own identifiers (`ids`
+  in the table: ESR-4143);
+* the sentence gives no figure but those, the identifiers taken out whole;
+* two runs fill the marks with exactly the same figures, or, when the ask has
+  none, quote mostly the same passage. A run that is discarded, or an answer
+  that is refused, gets up to SPARES spare runs for the page.
 
 Each kept answer is one `fetched` row with the URL, the retrieval date and the
 quote. When the runs find differing readings on the page, code does not pick
@@ -73,10 +74,13 @@ SCHEMA = {
     "properties": {
         "answers": {"type": "array", "maxItems": 20, "items": {
             "type": "object", "additionalProperties": False,
-            "required": ["ask", "found", "quote", "statement"],
+            "required": ["ask", "found", "quote", "figures", "statement"],
             "properties": {
                 "ask": {"type": "string", "maxLength": 20, "pattern": r"^[a-z0-9]+$"},
                 "found": {"type": "boolean"},
+                # The figures the ask's # marks stand for, in order, as the
+                # quote writes them. The runs are compared on these.
+                "figures": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 40}},
                 # Lengths are checked per answer (answer_errors), so one long
                 # answer does not cost the run its other answers.
                 "quote": {"type": "string"},
@@ -185,10 +189,17 @@ def figures(text: str, ids: tuple[str, ...] = ()) -> set[str]:
     return {re.sub(r"\s*[-–]\s*", "-", n) for n in NUMBER.findall(text or "")}
 
 
+def slots(answer: dict) -> tuple[tuple[str, ...], ...]:
+    """The answer's `figures`, each as the figures it holds (a range is one)."""
+    return tuple(tuple(sorted(figures(f))) for f in answer.get("figures", ()))
+
+
 def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> list[str]:
     """Why code will not keep this answer. Empty means it may become a row.
-    Every figure in the statement must be in the quote; the page's own
-    identifiers (`ids`, from the page table) do not count as figures."""
+    Each entry of `figures` must be in the quote, or be part of one of the
+    page's own identifiers (`ids`, from the page table: "ESR-#" is 4143). The
+    statement may give only those figures; the identifiers, taken out whole,
+    do not count."""
     if not answer["found"]:
         return []
     errs = []
@@ -202,12 +213,18 @@ def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> li
         errs.append("the quote is not on the page")
     if not answer["statement"].strip():
         errs.append("found, but no statement")
-    extra = sorted(figures(answer["statement"], ids) - figures(answer["quote"]))
+    quoted = figures(answer["quote"])
+    named = {n for i in ids for n in figures(i)}
+    slot_figures = {f for slot in slots(answer) for f in slot}
+    loose = sorted(slot_figures - quoted - named)
+    if loose:
+        errs.append(f"figures the quote does not carry: {', '.join(loose)}")
+    extra = sorted(figures(answer["statement"], ids) - (quoted & slot_figures))
     # a figure written in words counts too ("one" is left out: it is mostly not a figure)
     extra += sorted(set(NUMBER_WORD.findall(answer["statement"].lower()))
                     - set(NUMBER_WORD.findall(answer["quote"].lower())))
     if extra:
-        errs.append(f"the statement has numbers the quote does not: {', '.join(extra)}")
+        errs.append(f"the statement has figures not among its quoted figures: {', '.join(extra)}")
     return errs
 
 
@@ -283,20 +300,19 @@ def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
 
 
-def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
-    """Do two answers give the same reading? The statement is where a fetched
-    row states its figure, so the figures decide: two statements with figures
-    must give exactly the same ones, whatever passage each quotes (fewer
-    figures is a different reading). Two statements with no figure must quote
-    mostly the same passage."""
-    x, y = figures(a["statement"], ids), figures(b["statement"], ids)
-    if x or y:
+def _same_reading(a: dict, b: dict) -> bool:
+    """Do two answers give the same reading? The figures decide: each run fills
+    the ask's # marks, and the two must fill them exactly alike, whatever
+    passage each quotes. (A statement gives only figures from its own `figures`,
+    so the kept statement states only agreed figures.) Answers with no figure
+    must quote mostly the same passage."""
+    x, y = slots(a), slots(b)
+    if any(x) or any(y):
         return x == y
     return overlap(a["quote"], b["quote"]) >= OVERLAP
 
 
-def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
-           ids: tuple[str, ...] = ()) -> tuple[dict | None, str, list[dict]]:
+def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None) -> tuple[dict | None, str, list[dict]]:
     """The one answer the first `need` kept answers (default: one from every
     run) all give to this ask, or why there is none. When there is none but runs
     found differing readings on the page, those readings come back too: code
@@ -313,7 +329,7 @@ def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
     if len(found) < len(answers):
         return None, "the runs disagree on whether the page says it", _distinct(found)
     first = answers[0]
-    if not all(_same_reading(first, a, ids) for a in answers[1:]):
+    if not all(_same_reading(first, a) for a in answers[1:]):
         return None, "the runs give different readings", _distinct(found)
     return first, "", []
 
@@ -410,7 +426,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             result.unread.append(f"{source.url}: {len(runs)} of {repeats} runs valid")
             continue
         for ask in source.asks:
-            agreed, why, readings = _agree(runs, ask, repeats, source.ids)
+            agreed, why, readings = _agree(runs, ask, repeats)
             if agreed is None:
                 kept = f"; {len(readings)} readings kept, flagged unverified" if readings else ""
                 result.unanswered.append(f"{source.url} {ask.id} ({ask.ask}): {why}{kept}")

@@ -25,8 +25,12 @@ def table(*pages):
     return webread.Table(named=frozenset({"example.com"}), pages=list(pages) or [source()])
 
 
-def answer(ask, quote="", statement="", found=None):
-    return {"ask": ask, "found": bool(quote) if found is None else found, "quote": quote, "statement": statement}
+def answer(ask, quote="", statement="", found=None, figures=None):
+    """An answer; its `figures` default to the figures its statement gives, in order."""
+    if figures is None:
+        figures = [n for n in webread.NUMBER.findall(statement)]
+    return {"ask": ask, "found": bool(quote) if found is None else found, "quote": quote, "figures": figures,
+            "statement": statement}
 
 
 TURNAROUND = answer("a1", "Permits will be issued 2-4 weeks on average", "Permits take 2-4 weeks.")
@@ -158,36 +162,49 @@ class AnswerCase(unittest.TestCase):
 
     def test_what_code_refuses(self):
         for a, why in (
-            (answer("a1", "", "Permits take 2-4 weeks.", found=True),
-             ["found, but no quote", "the statement has numbers the quote does not: 2-4"]),
+            (answer("a1", "", "Permits take 2-4 weeks.", found=True, figures=[]),
+             ["found, but no quote", "the statement has figures not among its quoted figures: 2-4"]),
             (answer("a1", "   ", "x", found=True), ["found, but no quote"]),
             (answer("a1", "Permits will be issued 3 weeks", "Permits take 3 weeks."),
              ["the quote is not on the page"]),
             (answer("a1", "Permits will be issued", " "), ["found, but no statement"]),
-            (answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-6 weeks, 12 at most."),
-             ["the statement has numbers the quote does not: 12, 2-6"]),
+            (answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-6 weeks, 12 at most.", figures=["2-4"]),
+             ["the statement has figures not among its quoted figures: 12, 2-6"]),
+            (answer("a1", "Permits will be issued 2-4 weeks", "Permits take 3 weeks.", figures=["3"]),
+             ["figures the quote does not carry: 3", "the statement has figures not among its quoted figures: 3"]),
+            # a figure in the quote that the answer did not put in `figures` may not be stated
+            (answer("a1", "Fee: $1,250.50 per 1/2 lot.", "It costs 1,250.50 for each 1/2 lot.", figures=["1/2"]),
+             ["the statement has figures not among its quoted figures: 1,250.50"]),
         ):
             with self.subTest(a=a):
                 self.assertEqual(webread.answer_errors(a, self.TEXT), why)
 
     def test_the_statement_may_name_the_page_s_own_identifiers(self):
-        a = answer("a1", "Permits will be issued 2-4 weeks", "HIT-HY 270 permits take 2-4 weeks.")
+        a = answer("a1", "Permits will be issued 2-4 weeks", "HIT-HY 270 permits take 2-4 weeks.", figures=["2-4"])
         self.assertEqual(webread.answer_errors(a, self.TEXT, ("HIT-HY 270",)), [])
         self.assertEqual(webread.answer_errors(a, self.TEXT, ("HIT-HY 200",)),
-                         ["the statement has numbers the quote does not: 270"])
+                         ["the statement has figures not among its quoted figures: 270"])
         # only the whole identifier comes out: its digits are still figures elsewhere
         text = "Recoat: 4 hours."
-        ok = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 4 hours.")
+        ok = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 4 hours.", figures=["4"])
         self.assertEqual(webread.answer_errors(ok, text, ("A24W08300", "A24W8300")), [])
-        bad = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 24 hours.")
+        bad = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 24 hours.", figures=["4"])
         self.assertEqual(webread.answer_errors(bad, text, ("A24W08300", "A24W8300")),
-                         ["the statement has numbers the quote does not: 24"])
+                         ["the statement has figures not among its quoted figures: 24"])
+
+    def test_a_figure_may_come_from_the_page_s_identifier(self):
+        a = answer("a1", "Permits will be issued 2-4 weeks", "ESR-4143: 2-4 weeks.", figures=["4143", "2-4"])
+        self.assertEqual(webread.answer_errors(a, self.TEXT, ("ESR-4143",)), [])
+        self.assertEqual(webread.answer_errors(a, self.TEXT)[0], "figures the quote does not carry: 4143")
+        self.assertEqual(webread.slots(a), (("4143",), ("2-4",)))
+        self.assertEqual(webread.slots({"figures": ["", "Jan 15, 2018"]}), ((), ("15", "2018")))
+        self.assertEqual(webread.slots({}), ())
 
     def test_a_range_is_one_figure(self):
         self.assertEqual(webread.figures("issued 2-4 weeks, 350 – 400 sq ft, 1/2 in, 1,250.50"),
                          {"2-4", "350-400", "1/2", "1,250.50"})
-        narrowed = answer("a1", "Permits will be issued 2-4 weeks", "Permits are issued in 4 weeks.")
-        self.assertEqual(webread.answer_errors(narrowed, self.TEXT), ["the statement has numbers the quote does not: 4"])
+        narrowed = answer("a1", "Permits will be issued 2-4 weeks", "Permits are issued in 4 weeks.", figures=["2-4"])
+        self.assertEqual(webread.answer_errors(narrowed, self.TEXT), ["the statement has figures not among its quoted figures: 4"])
         self.assertEqual(webread.figures("ESR-4143 and esr-4143x", ("ESR-4143",)), {"4143"})
 
     def test_a_long_answer_is_refused_by_itself(self):
@@ -202,7 +219,7 @@ class AnswerCase(unittest.TestCase):
 
     def test_a_figure_in_words_must_be_in_the_quote(self):
         self.assertEqual(webread.answer_errors(answer("a1", "Permits will be issued", "Permits take three weeks."),
-                                               self.TEXT), ["the statement has numbers the quote does not: three"])
+                                               self.TEXT), ["the statement has figures not among its quoted figures: three"])
         text = "Allow three weeks. One coat."
         self.assertEqual(webread.answer_errors(answer("a1", "Allow three weeks.", "Three weeks."), text), [])
         self.assertEqual(webread.answer_errors(answer("a1", "One coat.", "Apply one coat."), text), [])
@@ -269,9 +286,13 @@ class AnswerCase(unittest.TestCase):
         self.assertEqual(webread._agree([good, fewer], a)[:2], differ)
         self.assertEqual(webread._agree([fewer, good], a)[2], [fewer["a1"], TURNAROUND])
         self.assertEqual(webread._agree([good, good, close], a)[2], [TURNAROUND, close["a1"]])   # once each
-        model = {"a1": answer("a1", "after submission. Fee", "Form 5 permits take 2-4 weeks.")}
-        self.assertEqual(webread._agree([good, model], a)[0], None)                     # 5 is a figure here
-        self.assertEqual(webread._agree([good, model], a, ids=("Form 5",))[0], TURNAROUND)  # not here
+        # the runs are compared on the figures they fill the # marks with, not on their wording
+        model = {"a1": answer("a1", "after submission. Fee", "Form 5 permits take 2-4 weeks.", figures=["2-4"])}
+        self.assertEqual(webread._agree([good, model], a)[0], TURNAROUND)
+        spaced = {"a1": answer("a1", "after submission. Fee", "x", figures=["2 – 4"])}
+        self.assertEqual(webread._agree([good, spaced], a)[0], TURNAROUND)          # the same range
+        swapped = {"a1": answer("a1", "after submission. Fee", "x", figures=["4", "2"])}
+        self.assertEqual(webread._agree([good, swapped], a)[0], None)
         # no figures on either side: the quotes must overlap
         plans = {"a1": PLANS}
         also = {"a1": answer("a1", "All applications REQUIRE PLANS", "Plans are needed.")}

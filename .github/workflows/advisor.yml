@@ -19,7 +19,6 @@ permissions:
   contents: read
   pull-requests: write   # the review comment, posted by the last step, not by the model
   issues: read           # as in the documented review workflow
-  id-token: write        # the action's own GitHub App sign-in
 
 # A newer push makes the older review moot.
 concurrency:
@@ -62,6 +61,12 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # The workflow's own token, held to the permissions above, rather
+          # than the Claude GitHub App's. The app sign-in refuses to run a
+          # workflow file that differs from main's, so a PR that changes this
+          # file could never be reviewed, this one included. The model has no
+          # GitHub tools either way.
+          github_token: ${{ github.token }}
           prompt: |
             You are the advisor for pull request #${{ github.event.pull_request.number }}.
             Read docs/advisor.md and follow it exactly. The change is in .advisor/.

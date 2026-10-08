@@ -21,7 +21,7 @@ flowchart TD
     materials["<b>Materials</b><br/>data sheet rates, cited<br/><i>planned</i>"]
     customer["<b>Customer Reqs</b><br/>base vs alternates<br/><i>planned</i>"]
     ledger[("<b>Claim ledger</b><br/>value, source, locator, method, derivation, audit result")]
-    scope_writer["<b>Scope Writer</b><br/>reads the ledger only<br/><i>replay-only</i>"]
+    scope_writer["<b>Scope Writer</b><br/>reads the ledger only<br/><i>built</i>"]
     draft[("<b>Proposal draft</b><br/>Mersco division format")]
     auditor["<b>Auditor</b><br/>opens every cited source<br/><i>built</i>"]
     ships(["<b>Bid ships</b><br/>with ledger and audit log; Chris releases by hand<br/><i>human</i>"])
@@ -56,8 +56,8 @@ flowchart TD
     classDef planned fill:#f2f2f2,stroke:#9e9e9e,stroke-dasharray: 4 3
     classDef human fill:#e3edf9,stroke:#1f5fa8
     classDef data fill:#ffffff,stroke:#555
-    class intake,orchestrator,drawing,spec,photo,takeoff,auditor built
-    class correspondence,scope_writer replay
+    class intake,orchestrator,drawing,spec,photo,takeoff,scope_writer,auditor built
+    class correspondence replay
     class codes,materials,customer planned
     class ships human
     class packet,register,ledger,draft data
@@ -78,7 +78,7 @@ flowchart TD
 | Materials | planned | 4 | materials | — |
 | Customer Reqs | planned | 3 | customer_requirements | — |
 | Claim ledger | data | — | — | [`pipeline/broker.py`](../pipeline/broker.py) |
-| Scope Writer | replay-only | 3 | scope_writer | [`pipeline/scope_writer.py`](../pipeline/scope_writer.py) |
+| Scope Writer | built | 3 | scope_writer | [`pipeline/scope_writer.py`](../pipeline/scope_writer.py) |
 | Proposal draft | data | — | — | — |
 | Auditor | built | 1 | auditor | [`pipeline/auditor.py`](../pipeline/auditor.py) |
 | Bid ships | human | — | chris | — |

@@ -60,7 +60,7 @@ NODES: tuple[Node, ...] = (
     Node("customer", "Customer Reqs", "base vs alternates", PLANNED, principal="customer_requirements", phase=3),
     Node("ledger", "Claim ledger", "value, source, locator, method, derivation, audit result", DATA,
          module="pipeline/broker.py"),
-    Node("scope_writer", "Scope Writer", "reads the ledger only", REPLAY, principal="scope_writer",
+    Node("scope_writer", "Scope Writer", "reads the ledger only", BUILT, principal="scope_writer",
          module="pipeline/scope_writer.py", phase=3),
     Node("draft", "Proposal draft", "Mersco division format", DATA),
     Node("auditor", "Auditor", "opens every cited source", BUILT,

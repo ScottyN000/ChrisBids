@@ -138,6 +138,11 @@ def cmd_live(a) -> int:
     for res in results.values():
         print(res.text())
     print(comparison.text())
+    # Every figure the run produced, so a failing gate can be read from the log alone.
+    for c in broker.ledger.claims():
+        if c.method in ("dimensioned", "counted", "scaled"):
+            print(f"  row: {c.method} | {c.locator} | {c.value} {c.unit} | {c.flag or 'agreed'} | "
+                  f"{c.statement} | {c.derivation}")
     if (out / "recordings" / "calls.jsonl").exists():
         print(live.usage_totals(out / "recordings" / "calls.jsonl"))
     (out / "ledger.csv").write_text(broker.ledger.ledger_csv())

@@ -128,7 +128,7 @@ class StoreCase(unittest.TestCase):
             broker.close()
             with Ledger(Path(tmp) / "ledger.db") as led:
                 self.assertEqual(led.meta("job"), "NAN")
-                self.assertEqual(len(led.claims()), 108)
+                self.assertEqual(len(led.claims()), 110)
                 self.assertTrue(led.register_csv().startswith("source_id,"))
 
 

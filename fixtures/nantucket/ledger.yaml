@@ -60,6 +60,13 @@ rows:
      value: 18, unit: each, calc: '{NAN-D-007} * {NAN-Q-002}', statement: 'A325 bolts, 3 per bracket x 6 brackets'}
   - {id: NAN-D-008, role: quantity, method: counted, confidence: exact, source: S-1, locator: Partial First Floor Framing Plan, tag: S-1 Frm,
      value: 1, unit: plank, statement: 'One hatched plank beside the stairwell, noted EXISTING CONCRETE PLANK TO BE REMEDIATED. SEE SUPPORT DETAIL 1/S-1'}
+  # Printed on the view but used for no quantity: kept so the gate also fails a reader that adds a figure (live run 1, 2026-10-08).
+  - {id: NAN-D-016, role: note, method: dimensioned, confidence: exact, source: S-1, locator: Partial Foundation Plan, tag: S-1 Fnd,
+     value: 12, unit: in, derivation: '12" dimension string = 12 in',
+     statement: '12" dimension printed across the top and bottom walls'}
+  - {id: NAN-D-017, role: note, method: dimensioned, confidence: exact, source: S-1, locator: Partial Foundation Plan, tag: S-1 Fnd,
+     value: 8, unit: in, derivation: '8" dimension string = 8 in',
+     statement: '8" dimension printed across the east wall (EX. 8" CMU WALL) and the two cross walls'}
 
   # ---------- Drawing notes (clause) ----------
   - {id: NAN-D-009, role: scope, method: clause, confidence: exact, source: S-1, locator: Support Detail 1/S-1, tag: S-1 Det 1, division: '05',

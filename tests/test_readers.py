@@ -222,7 +222,7 @@ class GoldenReplayCase(unittest.TestCase):
         self.assertEqual(comparison.missing, [])
         self.assertEqual(comparison.extra, [])
         exact = [k for k in comparison.matched if k[0] in compare.EXACT]
-        self.assertEqual(len(exact), 8)  # NAN-D-001 to NAN-D-008
+        self.assertEqual(len(exact), 10)  # NAN-D-001 to NAN-D-008, D-016, D-017
         scaled = [c for c in broker.ledger.claims() if c.method == "scaled"]
         self.assertEqual({c.flag for c in scaled}, {"conflict"})
 

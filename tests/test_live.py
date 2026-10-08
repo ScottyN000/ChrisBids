@@ -191,6 +191,26 @@ class LiveClientCase(unittest.TestCase):
         # Runs of one unit send the same bytes: they differ only by sampling.
         self.assertEqual(json.dumps(api.requests[0]), json.dumps(api.requests[1]))
 
+    def test_the_live_command_logs_every_figure_and_the_usage(self):
+        import contextlib
+        import io
+        from pipeline import cli
+        out = self.tmp / "cli"
+        api = FakeAPI(ROOT / "fixtures" / "nantucket" / "recordings")
+        real = live.LiveClient
+        with mock.patch.object(live, "LiveClient", lambda **kw: real(api=api, record=kw["record"])), \
+                mock.patch.object(live, "units_for", lambda *a: self.units_with_files("nantucket")), \
+                contextlib.redirect_stdout(io.StringIO()) as log:
+            rc = cli.main(["live", str(ROOT / "fixtures" / "nantucket"), "--out", str(out)])
+        self.assertEqual(rc, 0)
+        lines = log.getvalue().splitlines()
+        self.assertIn("  row: dimensioned | Partial Foundation Plan | 182 in | agreed | "
+                      "Bracket run between wall faces: 15'-2\" | 15'-2\" dimension string = 182 in", lines)
+        self.assertEqual(sum(l.startswith("  row: ") for l in lines), 13)
+        self.assertEqual(lines[-1], "usage: 9 calls, 90 input_tokens, 180 output_tokens, "
+                                    "0 cache_creation_input_tokens, 5400 cache_read_input_tokens")
+        self.assertTrue((out / "comparison.txt").read_text().endswith("reproduce exactly\n"))
+
     def test_the_recording_replays_to_the_same_comparison(self):
         _, _, first = self.run_live("ocean-beach")
         rec = self.tmp / "ocean-beach" / "recordings"

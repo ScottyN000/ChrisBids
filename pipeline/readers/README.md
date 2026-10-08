@@ -33,7 +33,7 @@ model (schemas, vote, method rules, broker scope, comparison), not the model.
 
 What the replay shows today:
 
-- Nantucket, sheet S-1, three views: all 8 dimensioned and counted rows (NAN-D-001 to D-008) reproduce exactly. The three angle legs come back as two scalings that disagree, printed `1'-8" (reading A) / 1'-10" (reading B)` and flagged conflict, which is what the fixture carries.
+- Nantucket, sheet S-1, three views: all 10 dimensioned and counted rows (NAN-D-001 to D-008, D-016, D-017) reproduce exactly. The three angle legs come back as two scalings that disagree, printed `1'-8" (reading A) / 1'-10" (reading B)` and flagged conflict, which is what the fixture carries.
 - Ocean Beach: all 5 photos come back as observed rows with no figure. The second run words each description differently and that does not count as a disagreement. SW p.17 comes back as 4 verbatim clause rows, and the Auditor finds every one of them on the page.
 - Change one recorded count and the comparison fails. That case is in the tests.
 
@@ -74,11 +74,11 @@ must reproduce the fixture's dimensioned and counted rows. `tests/test_live.py`
 runs the whole live path with the model replaced by the expected answers; the
 real gate there runs only with `CHRISBIDS_LIVE=1`, since it spends money.
 
-A live read may list figures that are printed on a view but that the fixture
-leaves out (the Partial Foundation Plan also prints 12" and 8" wall
-dimensions). The comparison counts those as extra dimensioned rows and fails.
-Whether the fixture should carry them or the gate should only fail on missing
-rows is not decided here.
+The fixture carries every figure printed on a view, including ones no
+quantity uses (the 12" and 8" wall dimensions on the Partial Foundation Plan,
+NAN-D-016 and D-017), so the gate fails a reader that adds a figure as well as
+one that misses one (Scott's ruling, 2026-10-08). Each live run prints every
+figure it produced and its token totals at the end of the log.
 
 ## The ruling still open
 

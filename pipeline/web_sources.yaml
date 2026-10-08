@@ -29,7 +29,7 @@ pages:
     ask: 'How long permit review takes: # weeks'
     fixture: NAN-C-002
 - url: https://oceancitymd.gov/oc/wp-content/uploads/Updated-Permit-Application-6-12-2024-1.pdf
-  title: OC permit application 6/12/2024
+  title: OC permit application
   agent: codes
   when:
   - - ocean city
@@ -137,14 +137,20 @@ pages:
     - md
   asks:
   - id: a1
-    ask: Which IBC (#) and IEBC (#) editions Ocean City lists, and their status
+    ask: Which IBC edition (#) Ocean City lists, and its status
     fixture: NAN-C-011
     options:
     - proposed
     - adopted
     - effective
+  - id: a2
+    ask: Which IEBC edition (#) Ocean City lists, and its status
+    options:
+    - proposed
+    - adopted
+    - effective
 - url: https://codes.iccsafe.org/content/IBC2021P2/chapter-17-special-inspections-and-tests
-  title: ICC IBC 2021 Ch. 17
+  title: ICC IBC Ch. 17
   agent: codes
   when:
   - - anchor
@@ -163,7 +169,7 @@ pages:
     ask: What the matrix lists for post-installed anchors (in concrete and in masonry), and which permits it applies
       to
 - url: https://files-ask.hilti.com/original/un/unhmbciryf.pdf
-  title: Hilti HY 70 transition letter
+  title: Hilti HY 70 product letter
   ids:
   - HIT-HY 70
   - HY 70
@@ -205,7 +211,7 @@ pages:
     - 'yes'
     - 'no'
 - url: https://icc-es.org/report-listing/esr-2682/
-  title: ICC-ES ESR-2682 (Hilti HY 70 in CMU)
+  title: ICC-ES ESR-2682
   ids:
   - ESR-2682
   - HY 70
@@ -219,7 +225,7 @@ pages:
   - id: a1
     ask: 'The report''s product, and when it expires: #'
 - url: https://icc-es.org/report-listing/esr-3342/
-  title: ICC-ES ESR-3342 (Hilti HY 70 in URM)
+  title: ICC-ES ESR-3342
   ids:
   - ESR-3342
   - HY 70
@@ -401,7 +407,7 @@ pages:
     ask: 'Which FBC edition (#th Edition, #) is in effect, and from when: #'
     fixture: OBV-C-005
 - url: https://www.floridabuilding.org/fbc/commission/FBC_0626/Commission/2026_FBC_Workplan_June_2026.pdf
-  title: FBC 2026 workplan
+  title: FBC workplan
   agent: codes
   when:
   - - florida
@@ -444,7 +450,7 @@ pages:
     ask: When a DEP permit is required for construction near the CCCL, and the exemptions
     fixture: OBV-C-010
 - url: http://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0100-0199/0161/Sections/0161.053.html
-  title: F.S. 161.053(11)(a)
+  title: F.S. 161.053
   ids:
   - '161.053'
   agent: codes
@@ -470,7 +476,7 @@ pages:
   - id: a1
     ask: 'Rule #B-# exemptions and the date the rule was last amended'
 - url: https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-62B-33-004
-  title: Rule 62B-33.004 (2018 copy)
+  title: Rule 62B-33.004 (Cornell LII copy)
   ids:
   - 62B-33.004
   agent: codes
@@ -542,7 +548,7 @@ pages:
     ask: What fall protection the rule requires in aerial lifts
     fixture: OBV-C-018
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.451
-  title: 29 CFR 1926.451(g)(1)(ii)
+  title: 29 CFR 1926.451
   ids:
   - 29 CFR 1926.451
   - '1926.451'
@@ -590,7 +596,7 @@ pages:
     ask: 'What work requires EPA RRP certification, and for homes built before what year: #'
     fixture: OBV-C-022
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=A24W08300
-  title: SW A24W8300 data sheet (2014)
+  title: SW A24W8300 data sheet
   ids:
   - A24W08300
   - A24W8300
@@ -655,7 +661,7 @@ pages:
     ask: 'Latitude Exterior Satin K# spread rate: # sq ft/gal'
     fixture: OBV-C-027
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B66W00310
-  title: SW B66 data sheet (2015)
+  title: SW B66 data sheet
   ids:
   - B66W00310
   - B66
@@ -675,7 +681,7 @@ pages:
   agent: materials
   when:
   - - b53
-    - b53
+    - alkyd urethane
   asks:
   - id: a1
     ask: 'WB Alkyd Urethane Enamel B# semi-gloss spread rate: # sq ft/gal'

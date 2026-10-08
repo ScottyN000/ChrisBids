@@ -461,7 +461,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
         if not writer.may_fetch(source.url):
             # Like a page that did not open, the refusal is a row, so the gap reaches the bid.
             result.blocked.append(source.url)
-            page = web.Page(url=source.url, retrieved=getattr(fetcher, "clock", web._today)(),
+            page = web.Page(url=source.url, retrieved=fetcher.clock(),
                             error="the broker refused the fetch")
             write(_row(job, next_id(), source, page, flag="unverified", confidence="missing", quote="",
                        statement=f"{source.title}: the broker refused the fetch; nothing on it is verified"),

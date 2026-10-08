@@ -15,6 +15,7 @@ the rest trustworthy.
 | [fixtures/](fixtures/) | The two hand-made test bids as claim ledgers: the answer key every change must reproduce |
 | [docs/pipeline-dag.md](docs/pipeline-dag.md) | The pipeline DAG from the architecture doc, with what is built, replay-only and planned. Generated from [`pipeline/dag.py`](pipeline/dag.py); CI fails if it falls behind the code |
 | [tools/build_fixture.py](tools/build_fixture.py) | Validates a fixture ledger against the method rules and renders its proposal |
+| [docs/advisor.md](docs/advisor.md) | The advisor: an independent design and code review of every PR against the architecture doc ([text](docs/architecture.txt)) and the standing rules. CI runs it on each push to a PR that is ready for review, not a draft ([`advisor.yml`](.github/workflows/advisor.yml)); a blocking finding fails the check. Run it locally first with the `advisor` subagent ([`.claude/agents/advisor.md`](.claude/agents/advisor.md)) |
 | [SECURITY.md](SECURITY.md) | What keeps document content from steering the pipeline, and what CI scans for |
 | [tests/](tests/) | The access matrix, the method rules, intake, the auditor and the golden tests |
 

@@ -16,6 +16,7 @@ produces is treated as data: it can fill a schema field, never steer the code.
 | A crafted file name or register path reads outside the job | Symlinks skipped at intake; every register path is resolved inside the packet | `pipeline/guard.py` `inside` |
 | A crafted link reaches the host's own network | http(s) only, no credentials, no loopback, private or cloud-metadata address, redirects re-checked | `pipeline/guard.py` `public_url` |
 | A malformed PDF exploits poppler | Absolute paths (no option injection), timeouts, page caps, non-root container user | `pipeline/intake.py`, `Dockerfile` |
+| A PR's text or diff steers the advisor | The model is given only Read, Glob and Grep (`--tools`, with the rest also disallowed), so no shell or network; its job holds a read-only token; its reply must match `docs/advisor-schema.json`; code settles severity, and a blocking finding must name a real architecture page, a standing rule or a failing input; a separate job with no model posts the comment | `.github/workflows/advisor.yml`, `tools/advisor.py` |
 | The API key leaks | Read only from the environment, named in `broker.SECRET_ENV`; `.env` is git-ignored; gitleaks scans every push | `pipeline/broker.py`, CI |
 
 ## What CI checks on every push
@@ -27,6 +28,9 @@ produces is treated as data: it can fill a schema field, never steer the code.
 
 ## Known gaps
 
+- `anthropics/claude-code-action`, the one third-party action, holds
+  `ANTHROPIC_API_KEY` in the advisor's review job and is pinned by its `v1`
+  tag, which its owner can move. Pinning it to a commit SHA would close this.
 - The broker is a library in one process, so the access matrix holds against
   bugs and model output, not against code that constructs its own `Broker`.
   The hosting plan (per-role containers, broker as the only process holding the

@@ -213,10 +213,12 @@ def covered(fixture_quote: str, got: str) -> float:
     return found / total
 
 
-def same_facts(fixture_statement: str, got: str) -> bool:
-    """Does the run's quote carry every number the fixture's statement gives?
-    A statement with no number is never the same facts by this test."""
-    want = set(NUMBER.findall(fixture_statement or ""))
+def same_facts(fixture_statement: str, got: str, about: str = "") -> bool:
+    """Does the run's quote carry every figure the fixture's statement gives?
+    A product or section number the page table gives for the page (`about`)
+    is not a figure read from the page, so it is left out. A statement with no
+    figure is never the same facts by this test."""
+    want = set(NUMBER.findall(fixture_statement or "")) - set(NUMBER.findall(about))
     return bool(want) and want <= set(NUMBER.findall(got or ""))
 
 
@@ -249,15 +251,20 @@ def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
 
 
-def _same_figures(a: dict, b: dict) -> bool:
-    x = set(NUMBER.findall(a["statement"]))
-    return bool(x) and x == set(NUMBER.findall(b["statement"]))
+def _same_figures(a: dict, b: dict, about: str = "") -> bool:
+    """Do two statements give the same figures, one perhaps fewer than the
+    other (a date or a second rate)? Numbers the page table gives for the page
+    do not count."""
+    skip = set(NUMBER.findall(about))
+    x, y = (set(NUMBER.findall(v["statement"])) - skip for v in (a, b))
+    return bool(x) and bool(y) and (x <= y or y <= x)
 
 
-def _agree(runs: list[dict[str, dict]], ask: Ask) -> tuple[dict | None, str]:
-    """The one answer every run gives to this ask, or why there is none."""
-    answers = [r.get(ask.id) for r in runs]
-    if any(a is None for a in answers):
+def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None, about: str = "") -> tuple[dict | None, str]:
+    """The one answer every kept answer gives to this ask, or why there is none.
+    It needs `need` kept answers (default: one from every run)."""
+    answers = [r[ask.id] for r in runs if ask.id in r]
+    if len(answers) < (len(runs) if need is None else need):
         return None, "a run's answer was refused"
     found = [a["found"] for a in answers]
     if not any(found):
@@ -268,7 +275,7 @@ def _agree(runs: list[dict[str, dict]], ask: Ask) -> tuple[dict | None, str]:
     # Two runs agree when they quote mostly the same passage, or when each
     # quotes a passage on the page (answer_errors checked) and their statements
     # give the same figures.
-    if any(overlap(first["quote"], a["quote"]) < OVERLAP and not _same_figures(first, a) for a in answers[1:]):
+    if any(overlap(first["quote"], a["quote"]) < OVERLAP and not _same_figures(first, a, about) for a in answers[1:]):
         return None, "the runs quote different passages"
     return first, ""
 
@@ -323,7 +330,13 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             result.notes.append(f"{source.url}: page cut to its first {MAX_CHARS} characters")
         schema = schema_for(source)
         runs = []
-        for r in range(repeats):
+        # One spare run, made only when a run was discarded or an answer in
+        # one was refused, so a single slip does not cost the ask: each ask
+        # still needs `repeats` kept answers, and they must all agree.
+        for r in range(repeats + 1):
+            if r == repeats and len(runs) == repeats and all(
+                    sum(a.id in k for k in runs) >= repeats for a in source.asks):
+                break
             result.calls += 1
             raw = client.complete(NAME, unit, system, schema, r)
             try:
@@ -348,7 +361,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             result.unread.append(f"{source.url}: {len(runs)} of {repeats} runs valid")
             continue
         for ask in source.asks:
-            agreed, why = _agree(runs, ask)
+            agreed, why = _agree(runs, ask, repeats, f"{source.title} {source.url}")
             if agreed is None:
                 result.unanswered.append(f"{source.url} {ask.id} ({ask.ask}): {why}")
                 continue
@@ -407,7 +420,8 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate
             got = by_ask.get((s.url, a.id))
             if got is None:
                 failures.append(f"{a.fixture}: no row for {a.id} ({a.ask})")
-            elif covered(f["quote"], got.quote) < OVERLAP and not same_facts(f.get("statement", ""), got.quote):
+            elif covered(f["quote"], got.quote) < OVERLAP and not same_facts(
+                    f.get("statement", ""), got.quote, f"{s.title} {s.url}"):
                 failures.append(f"{a.fixture}: quoted {got.quote[:120]!r}, the fixture quotes {f['quote'][:120]!r}")
     return Gate(ok=not failures and compared > 0, compared=compared, failures=failures, notes=notes)
 

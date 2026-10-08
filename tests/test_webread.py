@@ -192,6 +192,10 @@ class AnswerCase(unittest.TestCase):
         self.assertFalse(webread.same_facts("Plans are required", "Plans are required"))
         self.assertFalse(webread.same_facts("", "1"))
         self.assertFalse(webread.same_facts("1", None))
+        self.assertTrue(webread.same_facts("Satin A89: 350-400 sq ft/gal", "350-400 sq. ft. per gallon",
+                                           "SW A89 data sheet ?prodno=A89W03151"))
+        self.assertFalse(webread.same_facts("Satin A89: 350-400 sq ft/gal", "350-400 sq. ft. per gallon"))
+        self.assertFalse(webread.same_facts("Satin A89", "A89", "A89"))
 
     def test_response_errors(self):
         s = source()
@@ -224,6 +228,8 @@ class AnswerCase(unittest.TestCase):
         good = {"a1": TURNAROUND}
         self.assertEqual(webread._agree([good, good], a), (TURNAROUND, ""))
         self.assertEqual(webread._agree([good, {}], a), (None, "a run's answer was refused"))
+        self.assertEqual(webread._agree([good, {}, good], a, 2), (TURNAROUND, ""))
+        self.assertEqual(webread._agree([good, {}, {}], a, 2), (None, "a run's answer was refused"))
         no = {"a1": answer("a1", found=False)}
         self.assertEqual(webread._agree([no, no], a), (None, "not on the page"))
         self.assertEqual(webread._agree([good, no], a), (None, "the runs disagree on whether the page says it"))
@@ -235,8 +241,15 @@ class AnswerCase(unittest.TestCase):
         self.assertEqual(webread._agree([good, good, other], a)[0], None)
         same = {"a1": answer("a1", "after submission. Fee", "Permits take 2-4 weeks after you apply.")}
         self.assertEqual(webread._agree([good, same], a), (TURNAROUND, ""))
-        fewer = {"a1": answer("a1", "after submission. Fee", "Permits take 2 weeks.")}
-        self.assertEqual(webread._agree([good, fewer], a)[0], None)
+        fewer = {"a1": answer("a1", "after submission. Fee", "Permits take at least 2 weeks.")}
+        self.assertEqual(webread._agree([good, fewer], a), (TURNAROUND, ""))   # one gives fewer figures
+        self.assertEqual(webread._agree([fewer, good], a)[1], "")
+        differ = {"a1": answer("a1", "after submission. Fee", "Permits take 2-6 weeks.")}
+        self.assertEqual(webread._agree([good, differ], a)[0], None)
+        model = {"a1": answer("a1", "after submission. Fee", "Form 4 permits take 4 weeks.")}
+        self.assertEqual(webread._agree([good, model], a)[0], TURNAROUND)
+        self.assertEqual(webread._agree([good, model], a, about="Form 4")[0], None)   # only "4": not a figure
+        self.assertEqual(webread._agree([model, good], a, about="Form 4")[0], None)
         bare = {"a1": answer("a1", "Permits will be", "x")}
         self.assertEqual(webread._agree([other, bare], a)[0], None)   # no figures: quotes must overlap
 
@@ -283,10 +296,13 @@ class RunCase(unittest.TestCase):
 
     def test_disagreement_and_refused_answers_are_reported_not_written(self):
         bad = answer("a2", "All applications need a fee", "x")
-        client = Fake({"answers": [TURNAROUND, bad]}, {"answers": [answer("a1", found=False), PLANS]})
+        client = Fake({"answers": [TURNAROUND, bad]}, {"answers": [answer("a1", found=False), PLANS]}, {
+            "answers": [TURNAROUND, bad]})
         b, res = run(client)
         self.assertEqual(res.rows, [])
-        self.assertEqual(res.discarded, ["J#web1 run 1 a2: the quote is not on the page"])
+        self.assertEqual(res.calls, 3)      # the spare run, for the refused answer
+        self.assertEqual(res.discarded, ["J#web1 run 1 a2: the quote is not on the page",
+                                         "J#web1 run 3 a2: the quote is not on the page"])
         self.assertEqual(res.unanswered, [
             f"{URL} a1 (Permit turnaround # weeks): the runs disagree on whether the page says it",
             f"{URL} a2 (Plans required): a run's answer was refused",
@@ -298,12 +314,22 @@ class RunCase(unittest.TestCase):
         for raw, why in (("not json", "not JSON: Expecting value: line 1 column 1 (char 0)"),
                          ({"answers": [TURNAROUND]}, "answers ['a1'] do not match the asks ['a1', 'a2']")):
             with self.subTest(raw=str(raw)[:10]):
-                b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, raw))
+                b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, raw, raw))
                 self.assertEqual(res.rows, [])
-                self.assertEqual(res.discarded, [f"J#web1 run 2: {why}"])
+                self.assertEqual(res.discarded, [f"J#web1 run 2: {why}", f"J#web1 run 3: {why}"])
                 self.assertEqual(res.unread, [f"{URL}: 1 of 2 runs valid"])
                 calls = [e["detail"] for e in b.ledger.log() if e["action"] == "model-call"]
                 self.assertTrue(calls[1].endswith(f"run 2; discarded: {why}"))
+
+    def test_a_spare_run_stands_in_for_a_refused_answer_or_run(self):
+        slip = answer("a2", "All applications REQUIRE PLANS OR DRAWINGS.", "Section 4.3.2 needs plans.")
+        b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [TURNAROUND, slip]},
+                          {"answers": [TURNAROUND, PLANS]}))
+        self.assertEqual((res.calls, len(res.rows), res.unanswered), (3, 2, []))
+        b, res = run(Fake("not json", {"answers": [TURNAROUND, PLANS]}, {"answers": [TURNAROUND, PLANS]}))
+        self.assertEqual((res.calls, len(res.rows), res.unread), (3, 2, []))
+        b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [TURNAROUND, PLANS]}))
+        self.assertEqual(res.calls, 2)      # no slip, no spare
 
     def test_one_run_is_enough_when_one_is_asked_for(self):
         b, res = run(Fake({"answers": [TURNAROUND, PLANS]}), repeats=1)

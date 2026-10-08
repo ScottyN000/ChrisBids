@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "findings"],
+  "properties": {
+    "summary": {"type": "string", "maxLength": 1200},
+    "findings": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "area", "file", "line", "basis", "finding", "fix"],
+        "properties": {
+          "severity": {"type": "string", "enum": ["blocking", "advice"]},
+          "area": {"type": "string", "enum": ["design", "rules", "correctness", "clarity", "simplicity", "tests", "security", "per-pr-bar"]},
+          "file": {"type": ["string", "null"], "maxLength": 300},
+          "line": {"type": ["integer", "null"], "minimum": 1},
+          "basis": {"type": ["string", "null"], "maxLength": 300},
+          "finding": {"type": "string", "maxLength": 1500},
+          "fix": {"type": "string", "maxLength": 1500}
+        }
+      }
+    }
+  }
+}

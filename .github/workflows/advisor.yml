@@ -1,0 +1,97 @@
+name: advisor
+
+# An independent design and code review of every pull request, before Scott is
+# asked to merge it. The brief is docs/advisor.md: the architecture doc
+# (docs/architecture.txt), Scott's standing rules, and clarity, simplicity and
+# correctness. Claude Code runs with read-only file tools and no network, and
+# returns JSON matching docs/advisor-schema.json. tools/advisor.py, not the
+# model, decides the outcome: the check fails when any finding is blocking.
+#
+# It uses the repository secret ANTHROPIC_API_KEY, the same one the live gate
+# uses. Dependabot PRs get no secrets, so they are skipped.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write   # the review comment, posted by the last step, not by the model
+  issues: read           # as in the documented review workflow
+  id-token: write        # the action's own GitHub App sign-in
+
+# A newer push makes the older review moot.
+concurrency:
+  group: advisor-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Write the change for the advisor to read
+        id: inputs
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          mkdir -p .advisor
+          printf '# %s\n\n%s\n' "$TITLE" "$BODY" > .advisor/pr.md
+          git diff --stat "origin/$BASE...HEAD" > .advisor/files.txt
+          git diff "origin/$BASE...HEAD" > .advisor/diff.patch
+          echo "schema=$(python -c 'import json; print(json.dumps(json.load(open("docs/advisor-schema.json"))))')" >> "$GITHUB_OUTPUT"
+
+      - name: Review
+        id: review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the advisor for pull request #${{ github.event.pull_request.number }}.
+            Read docs/advisor.md and follow it exactly. The change is in .advisor/.
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 60
+            --allowedTools "Read,Glob,Grep"
+            --json-schema '${{ steps.inputs.outputs.schema }}'
+
+      - name: Settle the findings
+        id: gate
+        env:
+          REVIEW: ${{ steps.review.outputs.structured_output }}
+        run: |
+          printf '%s' "$REVIEW" > .advisor/review.json
+          set +e
+          python tools/advisor.py .advisor/review.json --out .advisor/comment.md
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat .advisor/comment.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Post the review on the PR
+        if: steps.gate.outputs.code != '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        # One advisor comment per PR, edited in place on each push.
+        run: gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --edit-last --create-if-none --body-file .advisor/comment.md
+
+      - name: Fail when a finding blocks
+        env:
+          CODE: ${{ steps.gate.outputs.code }}
+        run: |
+          case "$CODE" in
+            0) echo "nothing blocking" ;;
+            1) echo "blocking findings: see the advisor comment on the PR"; exit 1 ;;
+            *) echo "the advisor's reply was unusable; see the Settle step"; exit 1 ;;
+          esac

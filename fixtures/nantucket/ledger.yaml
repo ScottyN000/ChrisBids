@@ -42,7 +42,8 @@ rows:
      value: 6, unit: each, statement: 'Bracket symbols drawn on the foundation plan, labeled NEW BRACKET SUPPORT (REF. DET. 1/S-1)'}
   - {id: NAN-D-005, role: quantity, method: counted, confidence: exact, source: S-1, locator: Partial First Floor Framing Plan, tag: S-1 Frm,
      value: 6, unit: each, statement: 'Bracket symbols drawn on the framing plan'}
-  - {id: NAN-Q-001, role: quantity, method: dimensioned, confidence: exact, source: S-1, locator: Partial Foundation Plan, tag: S-1 Fnd,
+  # A number of spaces is a count worked out from dimensions, so it is counted and Takeoff writes it (p.11).
+  - {id: NAN-Q-001, role: quantity, method: counted, confidence: exact, source: S-1, locator: Partial Foundation Plan, tag: S-1 Fnd,
      value: 5, unit: spaces, calc: '({NAN-D-001} - 2 * {NAN-D-003}) / {NAN-D-002}',
      statement: 'Spaces between brackets: (182 - 2 x 11) / 32'}
   - {id: NAN-Q-002, role: quantity, method: counted, confidence: exact, source: S-1, locator: Fnd and Frm, tag: S-1 Fnd + Frm,

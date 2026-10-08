@@ -80,6 +80,33 @@ NAN-D-016 and D-017), so the gate fails a reader that adds a figure as well as
 one that misses one (Scott's ruling, 2026-10-08). Each live run prints every
 figure it produced and its token totals at the end of the log.
 
+## Takeoff (Phase 3)
+
+[`../takeoff.py`](../takeoff.py) runs after the readers, on the rows they wrote. It never opens a document.
+
+| Step | Who | What |
+|---|---|---|
+| Inputs | code | Every dimensioned or counted row with a single agreed figure. Scaled, observed and conflicting rows are never shown, so they cannot feed a quantity |
+| Formula | model | One stateless unit (the rows as a table, [`prompts/takeoff.md`](prompts/takeoff.md)) read twice live, three times in replay. Each item is a formula over `{ID}` references, the value it comes to, and a unit from `each` or `spaces` |
+| Check | code | The formula is evaluated without `eval` (`schema.arith`) and must equal the item's value. A formula that uses a row it was not shown, carries a decimal (a rate or yield only a data sheet can give), or does not evaluate is discarded and reported |
+| Vote | code | Items are matched across runs by what they compute: value, unit and the rows used. Two formulas written differently for the same figure are one quantity. An item not every run produced is written flagged unverified |
+| Rows | code | A `counted` quantity whose derivation shows each figure in place, e.g. `3 x ((182 - 2 x 11) / 32 + 1) = 18`. The broker replays the formula again and refuses a counted or dimensioned row that rests on a scaled or observed one |
+| FIELD | code | One FIELD row per scaled length and per photo condition, naming the row it comes from and repeating none of its readings. A job with no drawings gets only these, as a takeoff checklist (architecture p.16) |
+
+The golden comparison holds Takeoff to the fixture's derived quantities (NAN-Q-001 to Q-004: 5 spaces,
+6 brackets, 18 anchors, 18 bolts) by method, value and unit. The route is not compared: the first live run
+(2026-10-08) worked out 18 anchors as 3 per bracket x the 6 bracket symbols drawn, where the fixture uses the
+dimensions, and both are sound. What is checked is that every reader figure a quantity rests on is one the
+fixture carries; a quantity resting on anything else is reported extra. A fixture quantity the readers
+already wrote as an agreed count (6 brackets is also the 6 symbols drawn) is matched by that count, since
+Takeoff is told not to derive a figure that is already a row. Ocean Beach has nothing to derive from: no
+model call is made, and its one photo condition becomes a FIELD row.
+
+Live, Takeoff runs on `claude-sonnet-5-5` at effort `high` (`--takeoff-model`, `--takeoff-effort`), since
+it has to hold figures from several views at once (architecture p.13). It passed the live gate on both jobs
+on 2026-10-08 (Actions run 37780360959: readers on Haiku at high effort, two reads; Takeoff 5 spaces and
+18 + 18 agreed by both runs, 6 brackets matched by the 6 symbols drawn).
+
 ## The ruling still open
 
 Architecture p.17 asks Chris for a ruling on scaled dimensions: never order from them, or order with a stated tolerance. Until he gives it, scaled rows are written with confidence `scaled`, carry no numeric value, and the broker refuses them in any allowance or order quantity.

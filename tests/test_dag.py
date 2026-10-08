@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 
-from pipeline import dag, roles
+from pipeline import dag, roles, takeoff
 from pipeline.readers import run as reader_run
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -71,10 +71,11 @@ class DagCase(unittest.TestCase):
                 self.assertTrue(n.module, f"{n.id} is {n.status} but names no module")
                 self.assertTrue((ROOT / n.module).exists(), f"{n.id}: {n.module} is missing")
 
-    def test_a_reader_marked_replay_only_is_one_the_run_loop_can_drive(self):
+    def test_an_agent_marked_replay_only_is_one_a_run_loop_can_drive(self):
+        driven = set(reader_run.PRINCIPAL.values()) | {takeoff.PRINCIPAL}
         for n in dag.NODES:
             if n.status == dag.REPLAY:
-                self.assertIn(n.principal, reader_run.PRINCIPAL.values(), n.id)
+                self.assertIn(n.principal, driven, n.id)
 
     def test_a_planned_node_is_not_already_in_the_code(self):
         """If someone builds a planned agent, the DAG must say so in the same PR."""

@@ -16,7 +16,7 @@ flowchart TD
     spec["<b>Spec Reader</b><br/>clause + page cite<br/><i>built</i>"]
     photo["<b>Photo Reader</b><br/>conditions, no numbers<br/><i>built</i>"]
     correspondence["<b>Correspondence</b><br/>emails, PM notes<br/><i>replay-only</i>"]
-    takeoff["<b>Takeoff</b><br/>derivation or FIELD<br/><i>planned</i>"]
+    takeoff["<b>Takeoff</b><br/>derivation or FIELD<br/><i>built</i>"]
     codes["<b>Codes & Regs</b><br/>fetched, URL + section<br/><i>planned</i>"]
     materials["<b>Materials</b><br/>data sheet rates, cited<br/><i>planned</i>"]
     customer["<b>Customer Reqs</b><br/>base vs alternates<br/><i>planned</i>"]
@@ -33,6 +33,7 @@ flowchart TD
     orchestrator -->|spawns| photo
     orchestrator -->|spawns| correspondence
     drawing --> takeoff
+    photo --> takeoff
     spec --> codes
     photo --> materials
     correspondence --> customer
@@ -55,9 +56,9 @@ flowchart TD
     classDef planned fill:#f2f2f2,stroke:#9e9e9e,stroke-dasharray: 4 3
     classDef human fill:#e3edf9,stroke:#1f5fa8
     classDef data fill:#ffffff,stroke:#555
-    class intake,drawing,spec,photo,auditor built
+    class intake,drawing,spec,photo,takeoff,auditor built
     class correspondence replay
-    class orchestrator,takeoff,codes,materials,customer,scope_writer planned
+    class orchestrator,codes,materials,customer,scope_writer planned
     class ships human
     class packet,register,ledger,draft data
 ```
@@ -72,7 +73,7 @@ flowchart TD
 | Spec Reader | built | 2 | spec_reader | [`pipeline/readers/prompts/spec.md`](../pipeline/readers/prompts/spec.md) |
 | Photo Reader | built | 2 | photo_reader | [`pipeline/readers/prompts/photo.md`](../pipeline/readers/prompts/photo.md) |
 | Correspondence | replay-only | 2 | correspondence_reader | [`pipeline/readers/prompts/correspondence.md`](../pipeline/readers/prompts/correspondence.md) |
-| Takeoff | planned | 3 | takeoff | — |
+| Takeoff | built | 3 | takeoff | [`pipeline/takeoff.py`](../pipeline/takeoff.py) |
 | Codes & Regs | planned | 4 | codes | — |
 | Materials | planned | 4 | materials | — |
 | Customer Reqs | planned | 3 | customer_requirements | — |

@@ -53,7 +53,8 @@ NODES: tuple[Node, ...] = (
          principal="photo_reader", module="pipeline/readers/prompts/photo.md", phase=2),
     Node("correspondence", "Correspondence", "emails, PM notes", REPLAY,
          principal="correspondence_reader", module="pipeline/readers/prompts/correspondence.md", phase=2),
-    Node("takeoff", "Takeoff", "derivation or FIELD", PLANNED, principal="takeoff", phase=3),
+    Node("takeoff", "Takeoff", "derivation or FIELD", BUILT, principal="takeoff",
+         module="pipeline/takeoff.py", phase=3),
     Node("codes", "Codes & Regs", "fetched, URL + section", PLANNED, principal="codes", phase=4),
     Node("materials", "Materials", "data sheet rates, cited", PLANNED, principal="materials", phase=4),
     Node("customer", "Customer Reqs", "base vs alternates", PLANNED, principal="customer_requirements", phase=3),
@@ -77,6 +78,9 @@ EDGES: tuple[tuple[str, str, str], ...] = (
     ("orchestrator", "photo", "spawns"),
     ("orchestrator", "correspondence", "spawns"),
     ("drawing", "takeoff", ""),
+    # Not drawn on p.2, but the roster (p.4) has Takeoff read the Photo Reader's
+    # rows too: each photo condition becomes a FIELD row saying what to measure.
+    ("photo", "takeoff", ""),
     ("spec", "codes", ""),
     ("photo", "materials", ""),
     ("correspondence", "customer", ""),

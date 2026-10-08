@@ -12,8 +12,8 @@ strict schema. Everything else is code, and it is all here.
 | [`validate.py`](validate.py) | A small JSON Schema checker. A response that fails is discarded, never repaired |
 | `rows.not_in_source` | On a text unit, every field the reader must copy verbatim (spec requirement and product, correspondence instruction, drawing note text) has to appear in the text it was shown, whitespace aside. An item that does not is dropped in code and reported as discarded, so made-up or injected text never becomes a row |
 | [`units.py`](units.py) | Feet-and-inch strings to inches. The reader copies `15'-2"`; code writes `182 in` and the derivation the Auditor replays |
-| [`vote.py`](vote.py) | Each unit is read three times and the runs are compared field by field. Disagreement keeps every reading in the order seen and picks none, not even a majority |
-| [`rows.py`](rows.py) | Voted items become Claims. The method is fixed by rule from the item kind, never chosen by the model |
+| [`vote.py`](vote.py) | Each unit is read more than once (live default two, the recordings three) and the runs are compared field by field. Disagreement keeps every reading in the order seen and picks none, not even a majority |
+| [`rows.py`](rows.py) | Voted items become Claims. The method is fixed by rule from the item kind, never chosen by the model. When scaled readings disagree, code lists each one in inches and the range between them in the derivation, and gives no centre value, so nothing reads as a chosen length |
 | [`run.py`](run.py) | One reader over a list of units, writing through the broker as that reader's own principal, logging every call |
 | [`clients.py`](clients.py) | The model boundary, plus `ReplayClient`, which answers from recorded responses |
 | [`compare.py`](compare.py) | A produced ledger against a golden fixture: dimensioned and counted rows must match exactly |
@@ -33,7 +33,7 @@ model (schemas, vote, method rules, broker scope, comparison), not the model.
 
 What the replay shows today:
 
-- Nantucket, sheet S-1, three views: all 8 dimensioned and counted rows (NAN-D-001 to D-008) reproduce exactly. The three angle legs come back as two scalings that disagree, printed `1'-8" (reading A) / 1'-10" (reading B)` and flagged conflict, which is what the fixture carries.
+- Nantucket, sheet S-1, three views: all 10 dimensioned and counted rows (NAN-D-001 to D-008, D-016, D-017) reproduce exactly. The three angle legs come back as two scalings that disagree, printed `1'-8" (reading A) / 1'-10" (reading B)` and flagged conflict, which is what the fixture carries.
 - Ocean Beach: all 5 photos come back as observed rows with no figure. The second run words each description differently and that does not count as a disagreement. SW p.17 comes back as 4 verbatim clause rows, and the Auditor finds every one of them on the page.
 - Change one recorded count and the comparison fails. That case is in the tests.
 
@@ -46,7 +46,7 @@ python3 -m pipeline live fixtures/ocean-beach --out runs/obv-live
 
 | Module | What it does |
 |---|---|
-| [`live.py`](live.py) | `LiveClient`: one unit per Messages API call on `claude-haiku-5-5`, the reader prompt as a cached system prompt, the reader schema as structured output, effort `low` by default. Records every response to `<out>/recordings/` in the format `ReplayClient` reads, and each call's usage (cache reads included) to `calls.jsonl` |
+| [`live.py`](live.py) | `LiveClient`: one unit per Messages API call on `claude-haiku-5-5`, the reader prompt as a cached system prompt, the reader schema as structured output, effort `high` and two reads per unit by default: on 2026-10-08 high passed the gate on both jobs with two reads and with three, where low and medium kept misreading S-1 counts. Records every response to `<out>/recordings/` in the format `ReplayClient` reads, and each call's usage (cache reads included) to `calls.jsonl` |
 | [`tiles.py`](tiles.py) | Crops one view (or one tile of a fixed grid) from a drawing page with pdftoppm, at the DPI where its long edge fits 1568 px, the size the model is shown |
 | `fixtures/<job>/units.yaml` | What a live run reads: the three S-1 views by box, SW p.17 as its text layer, the five photos as uploaded |
 
@@ -74,11 +74,11 @@ must reproduce the fixture's dimensioned and counted rows. `tests/test_live.py`
 runs the whole live path with the model replaced by the expected answers; the
 real gate there runs only with `CHRISBIDS_LIVE=1`, since it spends money.
 
-A live read may list figures that are printed on a view but that the fixture
-leaves out (the Partial Foundation Plan also prints 12" and 8" wall
-dimensions). The comparison counts those as extra dimensioned rows and fails.
-Whether the fixture should carry them or the gate should only fail on missing
-rows is not decided here.
+The fixture carries every figure printed on a view, including ones no
+quantity uses (the 12" and 8" wall dimensions on the Partial Foundation Plan,
+NAN-D-016 and D-017), so the gate fails a reader that adds a figure as well as
+one that misses one (Scott's ruling, 2026-10-08). Each live run prints every
+figure it produced and its token totals at the end of the log.
 
 ## The ruling still open
 

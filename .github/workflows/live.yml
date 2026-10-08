@@ -17,12 +17,12 @@ on:
         description: "Effort for the reader calls"
         type: choice
         options: [low, medium, high]
-        default: low
+        default: high
       repeats:
         description: "Runs per unit"
         type: choice
-        options: ["3", "1"]
-        default: "3"
+        options: ["2", "3", "1"]
+        default: "2"
 
 permissions:
   contents: read

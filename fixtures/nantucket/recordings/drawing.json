@@ -38,6 +38,20 @@
        "text": null,
        "count": 6,
        "unit": "each"
+      },
+      {
+       "kind": "dimension",
+       "label": "Dimension across the top and bottom walls",
+       "text": "12\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "dimension",
+       "label": "Dimension across the east wall and the cross walls",
+       "text": "8\"",
+       "count": null,
+       "unit": null
       }
      ]
     },
@@ -70,6 +84,20 @@
        "text": null,
        "count": 6,
        "unit": "each"
+      },
+      {
+       "kind": "dimension",
+       "label": "Dimension across the top and bottom walls",
+       "text": "12\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "dimension",
+       "label": "Dimension across the east wall and the cross walls",
+       "text": "8\"",
+       "count": null,
+       "unit": null
       }
      ]
     },
@@ -102,6 +130,20 @@
        "text": null,
        "count": 6,
        "unit": "each"
+      },
+      {
+       "kind": "dimension",
+       "label": "Dimension across the top and bottom walls",
+       "text": "12\"",
+       "count": null,
+       "unit": null
+      },
+      {
+       "kind": "dimension",
+       "label": "Dimension across the east wall and the cross walls",
+       "text": "8\"",
+       "count": null,
+       "unit": null
       }
      ]
     }

@@ -95,10 +95,30 @@ class VoteCase(unittest.TestCase):
         self.assertEqual(v.status, "agree")
 
     def test_disagreement_keeps_every_reading_and_picks_none(self):
-        runs = [[cnt("brackets", 6)], [cnt("brackets", 7)], [cnt("brackets", 6)]]
-        (v,) = vote("drawing", runs)
+        a = {"kind": "scaled", "label": "leg", "text": "1'-8\"", "count": None, "unit": None}
+        (v,) = vote("drawing", [[a], [dict(a, text="1'-10\"")], [a]])
         self.assertEqual(v.status, "conflict")
-        self.assertEqual(v.readings["count"], [6, 7])
+        self.assertEqual(v.readings["text"], ["1'-8\"", "1'-10\""])
+
+    def test_a_count_read_differently_is_two_flagged_rows_and_neither_is_chosen(self):
+        runs = [[cnt("brackets", 6)], [cnt("brackets", 7)], [cnt("brackets", 6)]]
+        self.assertEqual([(v.item["count"], v.seen, v.status) for v in vote("drawing", runs)],
+                         [(6, 2, "partial"), (7, 1, "partial")])
+
+    def test_drawing_figures_match_across_runs_whatever_their_label(self):
+        runs = [[dim("Bracket spacing on center", "2'-8\""), cnt("Bracket symbols", 6)],
+                [dim("Spacing, segment 1", "2'-8\""), dim("Spacing, segment 2", "2'-8\""), cnt("brackets drawn", 6)],
+                [cnt("Brackets", 6), dim("Bracket spacing", "2'-8\"")]]
+        voted = vote("drawing", runs)
+        self.assertEqual([(v.item["label"], v.status) for v in voted],
+                         [("Bracket spacing on center", "agree"), ("Bracket symbols", "agree")])
+
+    def test_two_equal_counts_in_one_view_stay_two(self):
+        runs = [[cnt("anchors", 3, "per bracket"), cnt("bolts", 3, "per bracket")],
+                [cnt("bolts (TYP.)", 3, "per bracket"), cnt("anchors (TYP.)", 3, "per bracket")],
+                [cnt("anchors", 3, "per bracket")]]
+        self.assertEqual([(v.item["label"], v.seen) for v in vote("drawing", runs)],
+                         [("anchors", 3), ("bolts", 2)])
 
     def test_an_item_only_some_runs_saw_is_flagged(self):
         runs = [[cnt("brackets", 6), cnt("bolts", 3)], [cnt("brackets", 6)], [cnt("brackets", 6)]]
@@ -135,6 +155,18 @@ class RowsCase(unittest.TestCase):
         (c,) = rows.to_claims("drawing", "NAN", self.unit, vote("drawing", [[a], [b], [a]]))
         self.assertEqual(c.value, "1'-8\" (reading A) / 1'-10\" (reading B)")
         self.assertEqual(c.flag, "conflict")
+        self.assertEqual(c.derivation, "scaled readings 1'-8\" = 20 in, 1'-10\" = 22 in; range 2 in; "
+                                       "runs disagree on text; every reading kept, none chosen")
+        self.assertIsNone(c.value_num)
+
+    def test_the_spread_gives_no_centre_value_and_needs_readable_lengths(self):
+        self.assertEqual(rows._spread(["2'-1\"", "1'-9 1/2\""]),
+                         "scaled readings 2'-1\" = 25 in, 1'-9 1/2\" = 21.5 in; range 3.5 in")
+        self.assertEqual(rows._spread(["1'-8\""]), "")
+        self.assertEqual(rows._spread(["1'-8\"", "about two feet"]), "")
+        (one,) = rows.to_claims("drawing", "NAN", self.unit, vote("drawing", [[
+            {"kind": "scaled", "label": "leg", "text": "1'-8\"", "count": None, "unit": None}]]))
+        self.assertEqual(one.derivation, "")
 
     def test_claim_ids_are_deterministic(self):
         voted = vote("drawing", [[cnt("brackets", 6)]])
@@ -222,7 +254,7 @@ class GoldenReplayCase(unittest.TestCase):
         self.assertEqual(comparison.missing, [])
         self.assertEqual(comparison.extra, [])
         exact = [k for k in comparison.matched if k[0] in compare.EXACT]
-        self.assertEqual(len(exact), 8)  # NAN-D-001 to NAN-D-008
+        self.assertEqual(len(exact), 10)  # NAN-D-001 to NAN-D-008, D-016, D-017
         scaled = [c for c in broker.ledger.claims() if c.method == "scaled"]
         self.assertEqual({c.flag for c in scaled}, {"conflict"})
 

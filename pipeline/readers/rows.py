@@ -105,6 +105,22 @@ def _readings(values: list) -> str:
     return " / ".join(f"{v} (reading {chr(65 + i)})" for i, v in enumerate(values))
 
 
+def _spread(texts: list) -> str:
+    """How far scaled readings of one length disagree, computed in code.
+
+    Every reading is listed first and no centre value is given: a scaled length
+    is never a quantity, and a midpoint would read as one chosen (Scott's rules).
+    """
+    if len(texts) < 2:
+        return ""
+    try:
+        inches = [units.to_inches(t) for t in texts]
+    except units.DimensionError:
+        return ""
+    each = ", ".join(f"{t.strip()} = {units.figure(i)} in" for t, i in zip(texts, inches))
+    return f"scaled readings {each}; range {units.figure(max(inches) - min(inches))} in"
+
+
 def _flag(v: Voted) -> tuple[str, str]:
     """(flag, note) for a voted item."""
     if v.readings:
@@ -159,7 +175,7 @@ def _drawing(claim_id: str, unit: Unit, v: Voted, flag: str, note: str) -> Claim
         value = _readings(texts) if len(texts) > 1 else texts[0]
         return Claim(claim_id=claim_id, source_id=unit.source_id, locator=locator, tag=unit.tag,
                      statement=f"{label}, scaled", method="scaled", role="note", confidence="scaled",
-                     value=value, flag=flag, derivation=note)
+                     value=value, flag=flag, derivation="; ".join(filter(None, [_spread(texts), note])))
     # note, load, standard: printed text, quoted so the Auditor can find it.
     return _base(claim_id, unit, statement=label, method="clause", role="note", confidence="exact",
                  quote=it["text"], flag=flag, derivation=note)

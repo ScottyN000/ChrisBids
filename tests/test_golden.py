@@ -15,7 +15,11 @@ from pipeline.ledger import Ledger
 
 ROOT = Path(__file__).resolve().parent.parent
 JOBS = ("nantucket", "ocean-beach")
+# The hand-made bids are only in the shared project folder. Cited source pages
+# are read from the committed copies: the shared folder rewrites .jpg bytes
+# after upload, so its hashes are not stable.
 PACKET = Path("/mnt/project-files")
+REPO_PACKET = ROOT / "fixtures" / "packet"
 
 
 class GoldenCase(unittest.TestCase):
@@ -96,10 +100,9 @@ class GoldenCase(unittest.TestCase):
                 )
                 self.assertGreater(len(report.orphans), 20)
 
-    @unittest.skipUnless(PACKET.exists(), "the project's source packet is not mounted")
     def test_cited_pages_open_and_confirm_their_quotes(self):
         broker, _ = self.load("ocean-beach")
-        report = auditor.run(broker.as_principal("auditor"), packet=PACKET, write=True)
+        report = auditor.run(broker.as_principal("auditor"), packet=REPO_PACKET, write=True)
         notes = [c.audit_note for c in broker.ledger.claims()]
         confirmed = [n for n in notes if n.startswith("found on")]
         opened = [n for n in notes if " opened (" in n]
@@ -108,7 +111,14 @@ class GoldenCase(unittest.TestCase):
         self.assertGreater(len(confirmed), 2)
         self.assertGreater(len(opened), 20)
         self.assertEqual(report.failures, [])
-        self.assertEqual(report.hash_problems, [])
+        # Every committed file matches its register hash. The only problems are
+        # the Mersco documents no reader cites, which the repo does not carry.
+        self.assertEqual(sorted(report.hash_problems), sorted(
+            f"{sid}: source/{name} is in the register but not in the packet" for sid, name in (
+                ("PFE", "mersco_proposal-format-example.pdf"),
+                ("ARCH", "bid-pipeline-architecture_2026-10-07.pdf"),
+                ("OBV-TB", "ocean-beach-villas-repaint_scope-and-materials_2026-10-07.pdf"),
+            )))
 
 
 class StoreCase(unittest.TestCase):
@@ -118,7 +128,7 @@ class StoreCase(unittest.TestCase):
             broker.close()
             with Ledger(Path(tmp) / "ledger.db") as led:
                 self.assertEqual(led.meta("job"), "NAN")
-                self.assertEqual(len(led.claims()), 108)
+                self.assertEqual(len(led.claims()), 110)
                 self.assertTrue(led.register_csv().startswith("source_id,"))
 
 

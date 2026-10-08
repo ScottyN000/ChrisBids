@@ -165,6 +165,16 @@ def content_for(reader: str, unit: Unit) -> list[dict]:
                                      f"The page is between the {tag} tags. Return the JSON for this {reader} unit."}]
 
 
+USAGE_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+
+
+def usage_totals(calls_log: Path) -> str:
+    """One line totalling the tokens in a run's calls.jsonl, so the run log shows what it used."""
+    lines = [json.loads(l) for l in Path(calls_log).read_text().splitlines() if l.strip()]
+    total = {k: sum(c["usage"][k] or 0 for c in lines) for k in USAGE_KEYS}
+    return f"usage: {len(lines)} calls, " + ", ".join(f"{v} {k}" for k, v in total.items())
+
+
 class Recorder:
     """Writes responses as `<dir>/<reader>.json` in the ReplayClient format, after every call."""
 
@@ -193,7 +203,7 @@ class Recorder:
 class LiveClient:
     """One stateless Messages API call per unit and run."""
 
-    def __init__(self, *, model: str = MODEL, effort: str | None = "low", record: Path | None = None,
+    def __init__(self, *, model: str = MODEL, effort: str | None = "high", record: Path | None = None,
                  api: object | None = None, max_tokens: int = 16000, base_url: str = API_URL):
         self.api = api   # None until bind() gets the key from the broker
         self.model_id = model
@@ -267,8 +277,7 @@ class LiveClient:
                 "reader": reader, "unit_id": unit.unit_id, "run": run + 1, "model": msg.model,
                 "request_id": msg._request_id, "stop_reason": msg.stop_reason,
                 "input_sha256": hashlib.sha256(json.dumps(body["messages"], sort_keys=True).encode()).hexdigest()[:16],
-                "usage": {k: getattr(usage, k) for k in (
-                    "input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")},
+                "usage": {k: getattr(usage, k) for k in USAGE_KEYS},
             }
             with open(self.recorder.directory / "calls.jsonl", "a") as f:
                 f.write(json.dumps(line) + "\n")

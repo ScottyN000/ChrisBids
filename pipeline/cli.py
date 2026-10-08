@@ -8,7 +8,7 @@
     python3 -m pipeline verify-fixtures
     python3 -m pipeline replay  fixtures/nantucket --out runs/nan-replay [--repeats 3]
     python3 -m pipeline live    fixtures/nantucket --out runs/nan-live [--packet fixtures/packet]
-                                [--model claude-haiku-5-5] [--effort low]   (needs ANTHROPIC_API_KEY)
+                                [--model claude-haiku-5-5] [--effort high] [--repeats 2]   (needs ANTHROPIC_API_KEY)
 """
 from __future__ import annotations
 
@@ -138,6 +138,13 @@ def cmd_live(a) -> int:
     for res in results.values():
         print(res.text())
     print(comparison.text())
+    # Every figure the run produced, so a failing gate can be read from the log alone.
+    for c in broker.ledger.claims():
+        if c.method in ("dimensioned", "counted", "scaled"):
+            print(f"  row: {c.method} | {c.locator} | {c.value} {c.unit} | {c.flag or 'agreed'} | "
+                  f"{c.statement} | {c.derivation}")
+    if (out / "recordings" / "calls.jsonl").exists():
+        print(live.usage_totals(out / "recordings" / "calls.jsonl"))
     (out / "ledger.csv").write_text(broker.ledger.ledger_csv())
     (out / "comparison.txt").write_text(comparison.text() + "\n")
     broker.close()
@@ -189,9 +196,9 @@ def main(argv=None) -> int:
     p.add_argument("fixture")
     p.add_argument("--packet", default="fixtures/packet", help="packet root the register's paths are relative to")
     p.add_argument("--out", required=True)
-    p.add_argument("--repeats", type=int, default=3)
+    p.add_argument("--repeats", type=int, default=2)
     p.add_argument("--model", default="claude-haiku-5-5")
-    p.add_argument("--effort", default="low", choices=["low", "medium", "high", ""],
+    p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
     p.set_defaults(func=cmd_live)
 

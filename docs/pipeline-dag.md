@@ -12,9 +12,9 @@ flowchart TD
     intake["<b>Intake & Classifier</b><br/>hash, dedupe, tag divisions<br/><i>built</i>"]
     register[("<b>Source Register</b><br/>one ID per page and photo")]
     orchestrator["<b>Orchestrator</b><br/>spawns only the specialists the detected divisions need<br/><i>planned</i>"]
-    drawing["<b>Drawing Reader</b><br/>dimensioned vs scaled<br/><i>replay-only</i>"]
-    spec["<b>Spec Reader</b><br/>clause + page cite<br/><i>replay-only</i>"]
-    photo["<b>Photo Reader</b><br/>conditions, no numbers<br/><i>replay-only</i>"]
+    drawing["<b>Drawing Reader</b><br/>dimensioned vs scaled<br/><i>built</i>"]
+    spec["<b>Spec Reader</b><br/>clause + page cite<br/><i>built</i>"]
+    photo["<b>Photo Reader</b><br/>conditions, no numbers<br/><i>built</i>"]
     correspondence["<b>Correspondence</b><br/>emails, PM notes<br/><i>replay-only</i>"]
     takeoff["<b>Takeoff</b><br/>derivation or FIELD<br/><i>planned</i>"]
     codes["<b>Codes & Regs</b><br/>fetched, URL + section<br/><i>planned</i>"]
@@ -55,8 +55,8 @@ flowchart TD
     classDef planned fill:#f2f2f2,stroke:#9e9e9e,stroke-dasharray: 4 3
     classDef human fill:#e3edf9,stroke:#1f5fa8
     classDef data fill:#ffffff,stroke:#555
-    class intake,auditor built
-    class drawing,spec,photo,correspondence replay
+    class intake,drawing,spec,photo,auditor built
+    class correspondence replay
     class orchestrator,takeoff,codes,materials,customer,scope_writer planned
     class ships human
     class packet,register,ledger,draft data
@@ -68,9 +68,9 @@ flowchart TD
 | Intake & Classifier | built | 1 | intake | [`pipeline/intake.py`](../pipeline/intake.py) |
 | Source Register | data | — | — | [`pipeline/ledger.py`](../pipeline/ledger.py) |
 | Orchestrator | planned | 3 | orchestrator | — |
-| Drawing Reader | replay-only | 2 | drawing_reader | [`pipeline/readers/prompts/drawing.md`](../pipeline/readers/prompts/drawing.md) |
-| Spec Reader | replay-only | 2 | spec_reader | [`pipeline/readers/prompts/spec.md`](../pipeline/readers/prompts/spec.md) |
-| Photo Reader | replay-only | 2 | photo_reader | [`pipeline/readers/prompts/photo.md`](../pipeline/readers/prompts/photo.md) |
+| Drawing Reader | built | 2 | drawing_reader | [`pipeline/readers/prompts/drawing.md`](../pipeline/readers/prompts/drawing.md) |
+| Spec Reader | built | 2 | spec_reader | [`pipeline/readers/prompts/spec.md`](../pipeline/readers/prompts/spec.md) |
+| Photo Reader | built | 2 | photo_reader | [`pipeline/readers/prompts/photo.md`](../pipeline/readers/prompts/photo.md) |
 | Correspondence | replay-only | 2 | correspondence_reader | [`pipeline/readers/prompts/correspondence.md`](../pipeline/readers/prompts/correspondence.md) |
 | Takeoff | planned | 3 | takeoff | — |
 | Codes & Regs | planned | 4 | codes | — |

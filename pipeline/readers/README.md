@@ -12,7 +12,7 @@ strict schema. Everything else is code, and it is all here.
 | [`validate.py`](validate.py) | A small JSON Schema checker. A response that fails is discarded, never repaired |
 | `rows.not_in_source` | On a text unit, every field the reader must copy verbatim (spec requirement and product, correspondence instruction, drawing note text) has to appear in the text it was shown, whitespace aside. An item that does not is dropped in code and reported as discarded, so made-up or injected text never becomes a row |
 | [`units.py`](units.py) | Feet-and-inch strings to inches. The reader copies `15'-2"`; code writes `182 in` and the derivation the Auditor replays |
-| [`vote.py`](vote.py) | Each unit is read three times and the runs are compared field by field. Disagreement keeps every reading in the order seen and picks none, not even a majority |
+| [`vote.py`](vote.py) | Each unit is read more than once (live default two, the recordings three) and the runs are compared field by field. Disagreement keeps every reading in the order seen and picks none, not even a majority |
 | [`rows.py`](rows.py) | Voted items become Claims. The method is fixed by rule from the item kind, never chosen by the model |
 | [`run.py`](run.py) | One reader over a list of units, writing through the broker as that reader's own principal, logging every call |
 | [`clients.py`](clients.py) | The model boundary, plus `ReplayClient`, which answers from recorded responses |
@@ -46,7 +46,7 @@ python3 -m pipeline live fixtures/ocean-beach --out runs/obv-live
 
 | Module | What it does |
 |---|---|
-| [`live.py`](live.py) | `LiveClient`: one unit per Messages API call on `claude-haiku-5-5`, the reader prompt as a cached system prompt, the reader schema as structured output, effort `medium` by default (low was less consistent across runs on S-1). Records every response to `<out>/recordings/` in the format `ReplayClient` reads, and each call's usage (cache reads included) to `calls.jsonl` |
+| [`live.py`](live.py) | `LiveClient`: one unit per Messages API call on `claude-haiku-5-5`, the reader prompt as a cached system prompt, the reader schema as structured output, effort `high` and two reads per unit by default: on 2026-10-08 high passed the gate on both jobs with two reads and with three, where low and medium kept misreading S-1 counts. Records every response to `<out>/recordings/` in the format `ReplayClient` reads, and each call's usage (cache reads included) to `calls.jsonl` |
 | [`tiles.py`](tiles.py) | Crops one view (or one tile of a fixed grid) from a drawing page with pdftoppm, at the DPI where its long edge fits 1568 px, the size the model is shown |
 | `fixtures/<job>/units.yaml` | What a live run reads: the three S-1 views by box, SW p.17 as its text layer, the five photos as uploaded |
 

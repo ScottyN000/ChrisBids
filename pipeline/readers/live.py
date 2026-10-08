@@ -203,7 +203,7 @@ class Recorder:
 class LiveClient:
     """One stateless Messages API call per unit and run."""
 
-    def __init__(self, *, model: str = MODEL, effort: str | None = "medium", record: Path | None = None,
+    def __init__(self, *, model: str = MODEL, effort: str | None = "high", record: Path | None = None,
                  api: object | None = None, max_tokens: int = 16000, base_url: str = API_URL):
         self.api = api   # None until bind() gets the key from the broker
         self.model_id = model

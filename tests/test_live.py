@@ -183,7 +183,7 @@ class LiveClientCase(unittest.TestCase):
         self.assertEqual(body["model"], "claude-haiku-5-5")
         self.assertEqual(body["system"][0]["cache_control"], {"type": "ephemeral"})
         self.assertEqual(body["output_config"]["format"]["type"], "json_schema")
-        self.assertEqual(body["output_config"]["effort"], "medium")
+        self.assertEqual(body["output_config"]["effort"], "high")
         self.assertEqual(len(body["messages"]), 1)
         kinds = [b["type"] for b in body["messages"][0]["content"]]
         self.assertEqual(kinds, ["image", "text"])
@@ -197,18 +197,19 @@ class LiveClientCase(unittest.TestCase):
         from pipeline import cli
         out = self.tmp / "cli"
         api = FakeAPI(ROOT / "fixtures" / "nantucket" / "recordings")
-        real = live.LiveClient
-        with mock.patch.object(live, "LiveClient", lambda **kw: real(api=api, record=kw["record"])), \
+        real, made = live.LiveClient, []
+        with mock.patch.object(live, "LiveClient", lambda **kw: made.append(kw) or real(api=api, record=kw["record"])), \
                 mock.patch.object(live, "units_for", lambda *a: self.units_with_files("nantucket")), \
                 contextlib.redirect_stdout(io.StringIO()) as log:
             rc = cli.main(["live", str(ROOT / "fixtures" / "nantucket"), "--out", str(out)])
         self.assertEqual(rc, 0)
+        self.assertEqual((made[0]["model"], made[0]["effort"]), ("claude-haiku-5-5", "high"))
         lines = log.getvalue().splitlines()
         self.assertIn("  row: dimensioned | Partial Foundation Plan | 182 in | agreed | "
                       "Bracket run between wall faces: 15'-2\" | 15'-2\" dimension string = 182 in", lines)
         self.assertEqual(sum(l.startswith("  row: ") for l in lines), 13)
-        self.assertEqual(lines[-1], "usage: 9 calls, 90 input_tokens, 180 output_tokens, "
-                                    "0 cache_creation_input_tokens, 5400 cache_read_input_tokens")
+        self.assertEqual(lines[-1], "usage: 6 calls, 60 input_tokens, 120 output_tokens, "
+                                    "0 cache_creation_input_tokens, 3600 cache_read_input_tokens")   # 3 views x 2 runs
         self.assertTrue((out / "comparison.txt").read_text().endswith("reproduce exactly\n"))
 
     def test_the_recording_replays_to_the_same_comparison(self):
@@ -416,7 +417,7 @@ class ExactCase(unittest.TestCase):
             "system": [{"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}],
             "messages": [{"role": "user", "content": live.content_for("spec", self.unit)}],
             "output_config": {"format": {"type": "json_schema", "schema": live.api_schema(schemas.SPEC)},
-                              "effort": "medium"},
+                              "effort": "high"},
         })
         none = live.LiveClient(effort=None).request("spec", self.unit, "sys", schemas.SPEC)
         self.assertNotIn("effort", none["output_config"])

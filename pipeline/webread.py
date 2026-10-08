@@ -133,9 +133,14 @@ def load(path: Path = SOURCES) -> Table:
 
 
 def _term(term: str, text: str) -> bool:
-    # A short term (a state code) must be a whole word; a longer one may start a word.
+    # A short term must be a whole word; a longer one may start a word. A
+    # two-letter state code counts only as an address writes it (", MD" or
+    # "MD 21842"), so "10.1 fl oz" in a spec does not pull in Florida's pages.
+    t = re.escape(term)
+    if len(term) == 2:
+        return re.search(r",\s*" + t + r"(?![a-z0-9])|(?<![a-z0-9])" + t + r"\s+\d{5}\b", text) is not None
     end = r"(?![a-z0-9])" if len(term) <= 3 else ""
-    return re.search(r"(?<![a-z0-9])" + re.escape(term) + end, text) is not None
+    return re.search(r"(?<![a-z0-9])" + t + end, text) is not None
 
 
 def matches(source: Source, job_text: str) -> bool:
@@ -314,17 +319,23 @@ def _gap(job: str, n: int, source: Source, page: web.Page, ask: Ask, why: str) -
 
 
 def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
-    """Do two answers give the same reading? The figures decide: each run fills
-    the ask's # marks, and the two must fill them exactly alike, whatever
-    passage each quotes. (The kept statement may also give other figures, but
-    only ones its quote carries, so none is unchecked against the page.)
-    Answers with no figure must quote mostly the same passage, and their
-    statements must give the same figures (none, mostly)."""
+    """Do two answers give the same reading? Both must quote mostly the same
+    passage. Then the figures decide: each run fills the ask's # marks, and
+    the two must fill them exactly alike. (The kept statement gives those
+    figures and may give others, but only ones its quote carries.) Answers
+    with no figure must also give the same figures in their statements."""
     x, y = slots(a, ids), slots(b, ids)
     if any(x) or any(y):
-        return x == y
+        # the same figures from different passages may still be different
+        # readings (one passage says proposed, the other adopted): keep both
+        return x == y and _same_passage(a["quote"], b["quote"])
     return (overlap(a["quote"], b["quote"]) >= OVERLAP
             and figures(a["statement"], ids) == figures(b["statement"], ids))
+
+
+def _same_passage(a: str, b: str) -> bool:
+    """Do two quotes come mostly from one passage (either may be the longer, or joined with ...)?"""
+    return max(overlap(a, b), covered(a, b), covered(b, a)) >= OVERLAP
 
 
 def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,

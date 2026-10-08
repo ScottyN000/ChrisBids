@@ -192,6 +192,8 @@ permits and licensing, Materials for manufacturer data sheets.
 Which pages a job needs comes from [`web_sources.yaml`](web_sources.yaml). This
 is the per-jurisdiction and per-manufacturer cache the architecture describes
 (p.7-8). A page is read when the job's rows name its place, product or hazard.
+A two-letter state code counts only as an address writes it (", MD" or "MD 21842"),
+so "10.1 fl oz" in a spec does not pull in Florida's pages.
 For example, the Ocean City pages are read for a job in Ocean City, Maryland, and
 the Loxon data sheets for a job whose spec names Loxon. The table was seeded from
 the 57 pages the two hand-made test bids cite. Each ask is the test bid's
@@ -222,9 +224,10 @@ answer only if all three hold:
   ESR-4143, A24W8300);
 - the sentence gives each of those figures, and none its quote lacks. The identifiers are taken out
   whole first, so "24 hours" on the A24W8300 sheet is still a figure;
-- two runs fill the marks with exactly the same figures (identifier digits
-  aside), or, for an ask with no marks, quote mostly the same passage and
-  give the same figures in the sentence.
+- two runs quote mostly the same passage and fill the marks with exactly the
+  same figures (identifier digits aside); for an ask with no marks, their
+  sentences give the same figures. The same figure from two passages is two
+  readings, since one passage may say "proposed" and the other "adopted".
 
 When the runs find differing readings on the page (different passages and
 figures, or one run finds it and one does not), code does not pick one. Each

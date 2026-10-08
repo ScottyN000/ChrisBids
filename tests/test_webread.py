@@ -114,6 +114,11 @@ class TableCase(unittest.TestCase):
         self.assertFalse(webread.matches(source(when=(("cavat",),)), "excavation"))
         self.assertTrue(webread.matches(source(when=(("fl",),)), "Cocoa Beach, FL 32931"))
         self.assertFalse(webread.matches(source(when=(("fl",),)), "floor"))
+        # a state code counts only as an address writes it
+        self.assertTrue(webread.matches(source(when=(("fl",),)), "Cocoa Beach,FL"))
+        self.assertTrue(webread.matches(source(when=(("md",),)), "MD 21842"))
+        self.assertFalse(webread.matches(source(when=(("fl",),)), "sealant in 10.1 fl oz cartridges"))
+        self.assertFalse(webread.matches(source(when=(("md",),)), "MD Anderson"))
         self.assertFalse(webread.matches(source(when=(("abc",),)), "abcd"))
         self.assertTrue(webread.matches(source(when=(("abcd",),)), "abcde"))
         self.assertTrue(webread.matches(source(when=()), "anything"))
@@ -292,24 +297,32 @@ class AnswerCase(unittest.TestCase):
         self.assertEqual(webread._agree([good, no], a), split)
         self.assertEqual(webread._agree([no, good], a), split)
         differ = (None, "the runs give different readings")
-        # same figures agree, whichever passage each quotes
-        same = {"a1": answer("a1", "after submission. Fee", "Permits take 2-4 weeks after you apply.")}
+        # same figures from the same passage agree, whatever the wording
+        same = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-4 weeks after you apply.")}
         self.assertEqual(webread._agree([good, same], a), (TURNAROUND, "", []))
+        # the same figures from passages that may say different things are two readings: both kept
+        status = webread.Ask("a1", "The status of the # IBC")
+        proposed = {"a1": answer("a1", "The 2024 IBC is proposed for adoption.", "The 2024 IBC is proposed.")}
+        adopted = {"a1": answer("a1", "Maryland adopted the 2024 IBC in May.", "The 2024 IBC is adopted.",
+                                figures=["2024"])}
+        self.assertEqual(webread._agree([proposed, adopted], status),
+                         (*differ, [proposed["a1"], adopted["a1"]]))
         # the same passage with different figures is two readings: code keeps both, picks neither
         close = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "Permits take 4 weeks.")}
         self.assertEqual(webread._agree([good, close], a), (*differ, [TURNAROUND, close["a1"]]))
         bare = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "Permits are issued.")}
         self.assertEqual(webread._agree([good, bare], a)[:2], differ)       # one gives a figure, one none
-        fewer = {"a1": answer("a1", "after submission. Fee", "Permits take at least 2 weeks.")}
+        fewer = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "Permits take at least 2 weeks.")}
         self.assertEqual(webread._agree([good, fewer], a)[:2], differ)
         self.assertEqual(webread._agree([fewer, good], a)[2], [fewer["a1"], TURNAROUND])
         self.assertEqual(webread._agree([good, good, close], a)[2], [TURNAROUND, close["a1"]])   # once each
         # the runs are compared on the figures they fill the # marks with, not on their wording
-        model = {"a1": answer("a1", "after submission. Fee", "Form 5 permits take 2-4 weeks.", figures=["2-4"])}
+        model = {"a1": answer("a1", "Permits will be issued 2-4 weeks on average", "Form 5 permits take 2-4 weeks.",
+                              figures=["2-4"])}
         self.assertEqual(webread._agree([good, model], a)[0], TURNAROUND)
-        spaced = {"a1": answer("a1", "after submission. Fee", "x", figures=["2 – 4"])}
+        spaced = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x", figures=["2 – 4"])}
         self.assertEqual(webread._agree([good, spaced], a)[0], TURNAROUND)          # the same range
-        swapped = {"a1": answer("a1", "after submission. Fee", "x", figures=["4", "2"])}
+        swapped = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x", figures=["4", "2"])}
         self.assertEqual(webread._agree([good, swapped], a)[0], None)
         # no figures on either side: the quotes must overlap
         plans = {"a1": PLANS}

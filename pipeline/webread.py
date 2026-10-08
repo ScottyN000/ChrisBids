@@ -189,17 +189,20 @@ def figures(text: str, ids: tuple[str, ...] = ()) -> set[str]:
     return {re.sub(r"\s*[-–]\s*", "-", n) for n in NUMBER.findall(text or "")}
 
 
-def slots(answer: dict) -> tuple[tuple[str, ...], ...]:
-    """The answer's `figures`, each as the figures it holds (a range is one)."""
-    return tuple(tuple(sorted(figures(f))) for f in answer.get("figures", ()))
+def slots(answer: dict, ids: tuple[str, ...] = ()) -> tuple[tuple[str, ...], ...]:
+    """The answer's `figures`, each as the figures it holds (a range is one).
+    Figures that are part of the page's own identifiers are left out, so a run
+    that fills "LX#" with "02W0050" and one that fills it with "LX02W0050" agree."""
+    named = {n for i in ids for n in figures(i)}
+    return tuple(tuple(sorted(figures(f) - named)) for f in answer.get("figures", ()))
 
 
 def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> list[str]:
     """Why code will not keep this answer. Empty means it may become a row.
     Each entry of `figures` must be in the quote, or be part of one of the
     page's own identifiers (`ids`, from the page table: "ESR-#" is 4143). The
-    statement may give only those figures; the identifiers, taken out whole,
-    do not count."""
+    statement may give only figures its quote carries; the identifiers, taken
+    out whole, do not count."""
     if not answer["found"]:
         return []
     errs = []
@@ -219,7 +222,7 @@ def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> li
     loose = sorted(slot_figures - quoted - named)
     if loose:
         errs.append(f"figures the quote does not carry: {', '.join(loose)}")
-    extra = sorted(figures(answer["statement"], ids) - (quoted & slot_figures))
+    extra = sorted(figures(answer["statement"], ids) - quoted)
     # a figure written in words counts too ("one" is left out: it is mostly not a figure)
     extra += sorted(set(NUMBER_WORD.findall(answer["statement"].lower()))
                     - set(NUMBER_WORD.findall(answer["quote"].lower())))
@@ -300,19 +303,22 @@ def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
 
 
-def _same_reading(a: dict, b: dict) -> bool:
+def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
     """Do two answers give the same reading? The figures decide: each run fills
     the ask's # marks, and the two must fill them exactly alike, whatever
-    passage each quotes. (A statement gives only figures from its own `figures`,
-    so the kept statement states only agreed figures.) Answers with no figure
-    must quote mostly the same passage."""
-    x, y = slots(a), slots(b)
+    passage each quotes. (The kept statement may also give other figures, but
+    only ones its quote carries, so none is unchecked against the page.)
+    Answers with no figure must quote mostly the same passage, and their
+    statements must give the same figures (none, mostly)."""
+    x, y = slots(a, ids), slots(b, ids)
     if any(x) or any(y):
         return x == y
-    return overlap(a["quote"], b["quote"]) >= OVERLAP
+    return (overlap(a["quote"], b["quote"]) >= OVERLAP
+            and figures(a["statement"], ids) == figures(b["statement"], ids))
 
 
-def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None) -> tuple[dict | None, str, list[dict]]:
+def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
+           ids: tuple[str, ...] = ()) -> tuple[dict | None, str, list[dict]]:
     """The one answer the first `need` kept answers (default: one from every
     run) all give to this ask, or why there is none. When there is none but runs
     found differing readings on the page, those readings come back too: code
@@ -329,7 +335,7 @@ def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None) -> tu
     if len(found) < len(answers):
         return None, "the runs disagree on whether the page says it", _distinct(found)
     first = answers[0]
-    if not all(_same_reading(first, a) for a in answers[1:]):
+    if not all(_same_reading(first, a, ids) for a in answers[1:]):
         return None, "the runs give different readings", _distinct(found)
     return first, "", []
 
@@ -383,7 +389,8 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             continue
         page = fetcher.fetch(source.url)
         result.fetched.append(page)
-        writer.log_fetch(source.url, f"{page.retrieved}; {page.error or 'sha256 ' + page.sha256}")
+        served = f"; served by {page.final_url}" if page.final_url and page.final_url != source.url else ""
+        writer.log_fetch(source.url, f"{page.retrieved}; {page.error or 'sha256 ' + page.sha256}{served}")
         if not page.ok:
             result.unopened.append(f"{source.url}: {page.error}")
             write(_row(job, next_id(), source, page, flag="unverified", confidence="missing", quote="",
@@ -426,7 +433,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             result.unread.append(f"{source.url}: {len(runs)} of {repeats} runs valid")
             continue
         for ask in source.asks:
-            agreed, why, readings = _agree(runs, ask, repeats)
+            agreed, why, readings = _agree(runs, ask, repeats, source.ids)
             if agreed is None:
                 kept = f"; {len(readings)} readings kept, flagged unverified" if readings else ""
                 result.unanswered.append(f"{source.url} {ask.id} ({ask.ask}): {why}{kept}")

@@ -115,7 +115,7 @@ pages:
     - md
   asks:
   - id: a1
-    ask: 'Maryland has proposed (not yet final) adoption of the # IBC'
+    ask: 'The status of Maryland''s adoption of the # IBC (proposed, adopted or effective)'
     fixture: NAN-C-010
 - url: https://oceancitymd.gov/oc/departments/planning-community-development/building-code/
   title: Ocean City building code
@@ -162,8 +162,8 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'Hilti set HIT-HY # to phase-out and names HIT-HY # as the direct replacement in masonry (letter dated
-      Jan #, #)'
+    ask: 'What the letter says about HIT-HY # (its status) and which product it names in its place in masonry
+      (letter dated Jan #, #)'
     fixture: NAN-C-014
 - url: https://icc-es.org/wp-content/uploads/report-directory/ESR-4143.pdf
   title: ICC-ES ESR-4143 (Hilti HIT-HY 270)
@@ -197,7 +197,7 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: The report's status, product and expiry date
+    ask: 'The report''s status and product; it expires #'
 - url: https://icc-es.org/report-listing/esr-3342/
   title: ICC-ES ESR-3342 (Hilti HY 70 in URM)
   ids:
@@ -211,7 +211,7 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: The report's status, product and expiry date
+    ask: 'The report''s status and product; it expires #'
 - url: https://hilti.com/content/dam/urgent-folder/w1/pdf/anchors/hit-hy-270/Technical-information-ASSET-DOC-LOC-8942443.pdf
   title: Hilti HY 270 masonry bulletin
   ids:

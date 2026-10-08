@@ -220,10 +220,11 @@ answer only if all three hold:
   the quote, a range counting as one figure (so "4" does not match "2-4"), or is
   part of the page's own identifiers, which the table lists whole (`ids`:
   ESR-4143, A24W8300);
-- the sentence gives no figure but those. The identifiers are taken out whole
-  first, so "24 hours" on the A24W8300 sheet is still a figure;
-- two runs fill the marks with exactly the same figures, or, for an ask with
-  no marks, quote mostly the same passage.
+- the sentence gives no figure its quote lacks. The identifiers are taken out
+  whole first, so "24 hours" on the A24W8300 sheet is still a figure;
+- two runs fill the marks with exactly the same figures (identifier digits
+  aside), or, for an ask with no marks, quote mostly the same passage and
+  give the same figures in the sentence.
 
 When the runs find differing readings on the page (different passages and
 figures, or one run finds it and one does not), code does not pick one. Each
@@ -234,7 +235,7 @@ runs for that page, so one slip does not cost the ask.
 
 A page that does not open is written as one row flagged unverified, saying why.
 The test bids record a dead link the same way. Each fetch is logged with its
-date and content hash.
+date, its content hash and, after a redirect, the address that served it.
 
 Golden gate, live only: `python -m pipeline web fixtures/<job> --out runs/x`.
 For every ask gated against one of the fixture's own fetched rows, the run's

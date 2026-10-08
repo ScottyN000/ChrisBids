@@ -172,9 +172,6 @@ class AnswerCase(unittest.TestCase):
              ["the statement has figures not among its quoted figures: 12, 2-6"]),
             (answer("a1", "Permits will be issued 2-4 weeks", "Permits take 3 weeks.", figures=["3"]),
              ["figures the quote does not carry: 3", "the statement has figures not among its quoted figures: 3"]),
-            # a figure in the quote that the answer did not put in `figures` may not be stated
-            (answer("a1", "Fee: $1,250.50 per 1/2 lot.", "It costs 1,250.50 for each 1/2 lot.", figures=["1/2"]),
-             ["the statement has figures not among its quoted figures: 1,250.50"]),
         ):
             with self.subTest(a=a):
                 self.assertEqual(webread.answer_errors(a, self.TEXT), why)
@@ -191,6 +188,18 @@ class AnswerCase(unittest.TestCase):
         bad = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 24 hours.", figures=["4"])
         self.assertEqual(webread.answer_errors(bad, text, ("A24W08300", "A24W8300")),
                          ["the statement has figures not among its quoted figures: 24"])
+
+    def test_a_statement_may_give_any_figure_its_quote_carries(self):
+        # beyond the marks: a section number or a date the quote carries
+        a = answer("a1", "Fee: $1,250.50 per 1/2 lot.", "It costs 1,250.50 per 1/2 lot.", figures=["1/2"])
+        self.assertEqual(webread.answer_errors(a, self.TEXT), [])
+        # ...but not one the quote lacks, marks or none
+        a = answer("a1", "Fee: $1,250.50 per 1/2 lot.", "It costs 1,250.50, due 2027.", figures=[])
+        self.assertEqual(webread.answer_errors(a, self.TEXT),
+                         ["the statement has figures not among its quoted figures: 2027"])
+        # an ask that wants a date has a # for it (the ESR asks), so runs are compared on it
+        asks = [a for p in webread.load().pages for a in p.asks if "expir" in a.ask]
+        self.assertTrue(asks and all("#" in a.ask for a in asks))
 
     def test_a_figure_may_come_from_the_page_s_identifier(self):
         a = answer("a1", "Permits will be issued 2-4 weeks", "ESR-4143: 2-4 weeks.", figures=["4143", "2-4"])
@@ -299,6 +308,14 @@ class AnswerCase(unittest.TestCase):
         self.assertEqual(webread._agree([plans, also], a), (PLANS, "", []))
         other = {"a1": answer("a1", "Permits will be", "Permits exist.")}
         self.assertEqual(webread._agree([plans, other], a), (*differ, [PLANS, other["a1"]]))
+        # ...and their statements give the same figures
+        dated = {"a1": answer("a1", "All applications REQUIRE PLANS", "Plans are needed (2 sets).", figures=[])}
+        self.assertEqual(webread._agree([plans, dated], a)[:2], differ)
+        # a mark filled from the page's identifier, written whole or in part, is the same figure
+        whole = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x", figures=["LX02W0050", "2-4"])}
+        part = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x", figures=["W0050", "2-4"])}
+        self.assertEqual(webread._agree([whole, part], a, ids=("LX02W0050",))[0], whole["a1"])
+        self.assertEqual(webread._agree([whole, part], a)[0], None)
 
 
 class RunCase(unittest.TestCase):
@@ -410,6 +427,12 @@ class RunCase(unittest.TestCase):
         self.assertEqual(fetch, ["2026-10-08; HTTP 404"])
         self.assertIn(f"  unopened {URL}: HTTP 404", res.text())
         self.assertTrue(res.text().startswith("web_reader: 1 pages (0 opened)"))
+
+    def test_the_fetch_log_names_the_host_a_redirect_reached(self):
+        moved = "https://permits.example.gov/new"
+        b, res = run(Fake(), pages={URL: Resp(b"", status=301, location=moved), moved: Resp(b"", status=404)})
+        fetch = [e["detail"] for e in b.ledger.log() if e["action"] == "fetch"]
+        self.assertEqual(fetch, [f"2026-10-08; HTTP 404; served by {moved}"])
 
     def test_the_broker_refuses_a_fetch_to_a_private_address(self):
         b, res = run(Fake(), tbl=table(source(url="http://127.0.0.1/x")))

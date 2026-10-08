@@ -227,10 +227,10 @@ answer only if all three hold:
   product name the model recalls (HY 70 to HY 270, p.7) gets no pass;
 - the sentence gives each of those figures, and none its quote lacks. The identifiers are taken out
   whole first, so "24 hours" on the A24W8300 sheet is still a figure;
-- two runs quote mostly the same passage and fill the marks with exactly the
-  same figures (identifier digits aside); for an ask with no marks, their
-  sentences give the same figures. The same figure from two passages is two
-  readings, since one passage may say "proposed" and the other "adopted".
+- two runs pick the same option for a closed ask and fill the marks with
+  exactly the same figures (identifier digits aside), from whichever passage;
+  for an ask with neither, they quote mostly the same passage and their
+  sentences give the same figures.
 
 An ask whose answer is a word rather than a figure (yes/no, proposed/adopted/effective)
 lists its `options` in the table. Each run picks one (or "other"), code checks it

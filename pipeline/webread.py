@@ -17,8 +17,9 @@ verbatim quote and one sentence. Code keeps an answer only if:
   (`ids` in the table: ESR-4143) that the page carries;
 * the sentence gives each of those figures and none its quote lacks, the
   identifiers taken out whole;
-* two runs quote mostly the same passage and fill the marks with exactly the
-  same figures; when the ask has none, their sentences give the same figures.
+* two runs pick the same option for a closed ask (a status, yes or no) and
+  fill the marks with exactly the same figures; when the ask has neither,
+  they quote mostly the same passage and their sentences give the same figures.
   A run that is discarded, or an answer that is refused, gets up to SPARES
   spare runs for the page.
 
@@ -363,19 +364,20 @@ def _gap(job: str, n: int, source: Source, page: web.Page, ask: Ask, why: str) -
 
 
 def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
-    """Do two answers give the same reading? Both must quote mostly the same
-    passage. Then the figures decide: each run fills the ask's # marks, and
-    the two must fill them exactly alike. (The kept statement gives those
-    figures and may give others, but only ones its quote carries.) Answers
-    with no figure must also give the same figures in their statements."""
+    """Do two answers give the same reading? A closed answer (a status, yes
+    or no) is a choice, and the two must pick the same option. The figures
+    then decide: each run fills the ask's # marks, and the two must fill them
+    exactly alike, from whichever passage (a data sheet gives its spread rate
+    in a table and again in the text). What a passage says beyond its figures
+    is never read from free text: an ask whose answer is a word has options.
+    Answers with no figure and no options must quote mostly the same passage
+    and give the same figures in their statements."""
     if a.get("choice", "") != b.get("choice", "") or a.get("choice") == OTHER:
         return False        # a closed answer: the same option, and one of the ask's own
     x, y = slots(a, ids), slots(b, ids)
     if any(x) or any(y):
-        # the same figures from different passages may still be different
-        # readings (one passage says proposed, the other adopted): keep both
-        return x == y and _same_passage(a["quote"], b["quote"])
-    return (overlap(a["quote"], b["quote"]) >= OVERLAP
+        return x == y
+    return (_same_passage(a["quote"], b["quote"])
             and figures(a["statement"], ids) == figures(b["statement"], ids))
 
 

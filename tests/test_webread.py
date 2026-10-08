@@ -332,13 +332,18 @@ class AnswerCase(unittest.TestCase):
         # same figures from the same passage agree, whatever the wording
         same = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-4 weeks after you apply.")}
         self.assertEqual(webread._agree([good, same], a), (TURNAROUND, "", []))
-        # the same figures from passages that may say different things are two readings: both kept
-        status = webread.Ask("a1", "The status of the # IBC")
-        proposed = {"a1": answer("a1", "The 2024 IBC is proposed for adoption.", "The 2024 IBC is proposed.")}
+        # a status is a choice: the same figure with different options is two readings, both kept
+        status = webread.Ask("a1", "The status of the # IBC", options=("proposed", "adopted"))
+        proposed = {"a1": answer("a1", "The 2024 IBC is proposed for adoption.", "The 2024 IBC is proposed.",
+                                 choice="proposed")}
         adopted = {"a1": answer("a1", "Maryland adopted the 2024 IBC in May.", "The 2024 IBC is adopted.",
-                                figures=["2024"])}
+                                figures=["2024"], choice="adopted")}
         self.assertEqual(webread._agree([proposed, adopted], status),
                          (*differ, [proposed["a1"], adopted["a1"]]))
+        # the same figure from two passages (a data sheet's table and its text) is one reading
+        table_row = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-4 weeks.")}
+        text_line = {"a1": answer("a1", "Fee: $1,250.50 per 2-4 weeks", "Permits take 2-4 weeks.")}
+        self.assertEqual(webread._agree([table_row, text_line], a)[0], table_row["a1"])
         # the same passage with different figures is two readings: code keeps both, picks neither
         close = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "Permits take 4 weeks.")}
         self.assertEqual(webread._agree([good, close], a), (*differ, [TURNAROUND, close["a1"]]))

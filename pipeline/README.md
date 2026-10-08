@@ -220,7 +220,7 @@ answer only if all three hold:
   the quote, a range counting as one figure (so "4" does not match "2-4"), or is
   part of the page's own identifiers, which the table lists whole (`ids`:
   ESR-4143, A24W8300);
-- the sentence gives no figure its quote lacks. The identifiers are taken out
+- the sentence gives each of those figures, and none its quote lacks. The identifiers are taken out
   whole first, so "24 hours" on the A24W8300 sheet is still a figure;
 - two runs fill the marks with exactly the same figures (identifier digits
   aside), or, for an ask with no marks, quote mostly the same passage and
@@ -233,7 +233,9 @@ reading is written as its own row, flagged unverified, for Chris to settle.
 A run that is discarded, or an answer that is refused, gets up to two spare
 runs for that page, so one slip does not cost the ask.
 
-A page that does not open is written as one row flagged unverified, saying why.
+A page that does not open is written as one row flagged unverified, saying why,
+and so is an ask with no agreed answer and no reading kept, so the gap reaches
+the bid.
 The test bids record a dead link the same way. Each fetch is logged with its
 date, its content hash and, after a redirect, the address that served it.
 

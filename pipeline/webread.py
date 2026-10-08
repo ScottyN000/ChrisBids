@@ -200,9 +200,11 @@ def slots(answer: dict, ids: tuple[str, ...] = ()) -> tuple[tuple[str, ...], ...
 def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> list[str]:
     """Why code will not keep this answer. Empty means it may become a row.
     Each entry of `figures` must be in the quote, or be part of one of the
-    page's own identifiers (`ids`, from the page table: "ESR-#" is 4143). The
-    statement may give only figures its quote carries; the identifiers, taken
-    out whole, do not count."""
+    page's own identifiers (`ids`, from the page table: "ESR-#" is 4143; this
+    goes by digit group, so "24" counts as part of A24W8300 here), and the
+    statement must give each of them. The statement may give only figures its
+    quote carries; there the identifiers are taken out whole, so "24 hours" on
+    the A24W8300 sheet is still a figure."""
     if not answer["found"]:
         return []
     errs = []
@@ -217,11 +219,13 @@ def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> li
     if not answer["statement"].strip():
         errs.append("found, but no statement")
     quoted = figures(answer["quote"])
-    named = {n for i in ids for n in figures(i)}
-    slot_figures = {f for slot in slots(answer) for f in slot}
-    loose = sorted(slot_figures - quoted - named)
+    slot_figures = {f for slot in slots(answer, ids) for f in slot}
+    loose = sorted(slot_figures - quoted)
     if loose:
         errs.append(f"figures the quote does not carry: {', '.join(loose)}")
+    unstated = sorted(slot_figures - figures(answer["statement"], ids))
+    if unstated:
+        errs.append(f"the statement does not give its figures: {', '.join(unstated)}")
     extra = sorted(figures(answer["statement"], ids) - quoted)
     # a figure written in words counts too ("one" is left out: it is mostly not a figure)
     extra += sorted(set(NUMBER_WORD.findall(answer["statement"].lower()))
@@ -301,6 +305,12 @@ class WebResult:
 def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
     return Claim(claim_id=f"{job}-WEB-{n:03d}", source_id=SOURCE_ID, method="fetched", role="code",
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
+
+
+def _gap(job: str, n: int, source: Source, page: web.Page, ask: Ask, why: str) -> Claim:
+    """An ask with no answer is still a row, flagged unverified, so the gap reaches the bid."""
+    return _row(job, n, source, page, flag="unverified", confidence="missing", quote="", locator=f"ask {ask.id}",
+                statement=f"{source.title}: no answer for \"{ask.ask}\" ({why}); nothing on it is verified")
 
 
 def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
@@ -430,7 +440,10 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                     kept[a["ask"]] = a
             runs.append(kept)
         if len(runs) < repeats:
-            result.unread.append(f"{source.url}: {len(runs)} of {repeats} runs valid")
+            why = f"{len(runs)} of {repeats} runs valid"
+            result.unread.append(f"{source.url}: {why}")
+            for ask in source.asks:
+                write(_gap(job, next_id(), source, page, ask, why), source.agent)
             continue
         for ask in source.asks:
             agreed, why, readings = _agree(runs, ask, repeats, source.ids)
@@ -441,6 +454,8 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                     write(_row(job, next_id(), source, page, confidence="inferred", flag="unverified",
                                quote=a["quote"].strip(), statement=a["statement"].strip(),
                                locator=f"ask {ask.id}"), source.agent)
+                if not readings:
+                    write(_gap(job, next_id(), source, page, ask, why), source.agent)
                 continue
             write(_row(job, next_id(), source, page, confidence="exact", quote=agreed["quote"].strip(),
                        statement=agreed["statement"].strip(), locator=f"ask {ask.id}"),

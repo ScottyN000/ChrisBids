@@ -165,11 +165,18 @@ class AnswerCase(unittest.TestCase):
             (answer("a1", "", "Permits take 2-4 weeks.", found=True, figures=[]),
              ["found, but no quote", "the statement has figures not among its quoted figures: 2-4"]),
             (answer("a1", "   ", "x", found=True), ["found, but no quote"]),
+            # the statement must give the figures the marks were filled with, not another the quote carries
+            (answer("a1", "Permits will be issued 2-4 weeks on average after submission. Fee: $1,250.50",
+                    "Permits cost 1,250.50.", figures=["2-4"]),
+             ["the statement does not give its figures: 2-4"]),
+            (answer("a1", "Permits will be issued 2-4 weeks", "Permits are issued.", figures=["2-4"]),
+             ["the statement does not give its figures: 2-4"]),
             (answer("a1", "Permits will be issued 3 weeks", "Permits take 3 weeks."),
              ["the quote is not on the page"]),
             (answer("a1", "Permits will be issued", " "), ["found, but no statement"]),
             (answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-6 weeks, 12 at most.", figures=["2-4"]),
-             ["the statement has figures not among its quoted figures: 12, 2-6"]),
+             ["the statement does not give its figures: 2-4",
+              "the statement has figures not among its quoted figures: 12, 2-6"]),
             (answer("a1", "Permits will be issued 2-4 weeks", "Permits take 3 weeks.", figures=["3"]),
              ["figures the quote does not carry: 3", "the statement has figures not among its quoted figures: 3"]),
         ):
@@ -187,7 +194,8 @@ class AnswerCase(unittest.TestCase):
         self.assertEqual(webread.answer_errors(ok, text, ("A24W08300", "A24W8300")), [])
         bad = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 24 hours.", figures=["4"])
         self.assertEqual(webread.answer_errors(bad, text, ("A24W08300", "A24W8300")),
-                         ["the statement has figures not among its quoted figures: 24"])
+                         ["the statement does not give its figures: 4",
+                          "the statement has figures not among its quoted figures: 24"])
 
     def test_a_statement_may_give_any_figure_its_quote_carries(self):
         # beyond the marks: a section number or a date the quote carries
@@ -213,7 +221,8 @@ class AnswerCase(unittest.TestCase):
         self.assertEqual(webread.figures("issued 2-4 weeks, 350 – 400 sq ft, 1/2 in, 1,250.50"),
                          {"2-4", "350-400", "1/2", "1,250.50"})
         narrowed = answer("a1", "Permits will be issued 2-4 weeks", "Permits are issued in 4 weeks.", figures=["2-4"])
-        self.assertEqual(webread.answer_errors(narrowed, self.TEXT), ["the statement has figures not among its quoted figures: 4"])
+        self.assertEqual(webread.answer_errors(narrowed, self.TEXT), [
+            "the statement does not give its figures: 2-4", "the statement has figures not among its quoted figures: 4"])
         self.assertEqual(webread.figures("ESR-4143 and esr-4143x", ("ESR-4143",)), {"4143"})
 
     def test_a_long_answer_is_refused_by_itself(self):
@@ -372,9 +381,11 @@ class RunCase(unittest.TestCase):
         ])
         self.assertIn("  unanswered " + res.unanswered[0], res.text())
         self.assertIn("  discarded " + res.discarded[0], res.text())
-        # the one reading is kept, flagged unverified, not dropped or passed as exact
+        # the one reading is kept, flagged unverified, not dropped or passed as exact; the refused ask is a gap row
         self.assertEqual([(c.claim_id, c.quote, c.statement, c.locator, c.confidence, c.flag) for c in res.rows], [
-            ("J-WEB-001", TURNAROUND["quote"], TURNAROUND["statement"], "ask a1", "inferred", "unverified")])
+            ("J-WEB-001", TURNAROUND["quote"], TURNAROUND["statement"], "ask a1", "inferred", "unverified"),
+            ("J-WEB-002", "", "OC permits: no answer for \"Plans required\" (a run's answer was refused); "
+             "nothing on it is verified", "ask a2", "missing", "unverified")])
 
     def test_two_readings_are_both_kept_unverified(self):
         other = answer("a1", "All applications REQUIRE PLANS OR DRAWINGS.", "Plans come first.")
@@ -393,7 +404,11 @@ class RunCase(unittest.TestCase):
                          ({"answers": [TURNAROUND]}, "answers ['a1'] do not match the asks ['a1', 'a2']")):
             with self.subTest(raw=str(raw)[:10]):
                 b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, raw, raw, raw))
-                self.assertEqual(res.rows, [])
+                # each ask is a gap row, flagged unverified, so the bid still shows it
+                self.assertEqual([(c.statement, c.locator, c.confidence, c.flag) for c in res.rows], [
+                    (f'OC permits: no answer for "{a}" (1 of 2 runs valid); nothing on it is verified',
+                     f"ask {i}", "missing", "unverified")
+                    for i, a in (("a1", "Permit turnaround # weeks"), ("a2", "Plans required"))])
                 self.assertEqual(res.discarded, [f"J#web1 run {n}: {why}" for n in (2, 3, 4)])
                 self.assertEqual(res.unread, [f"{URL}: 1 of 2 runs valid"])
                 calls = [e["detail"] for e in b.ledger.log() if e["action"] == "model-call"]
@@ -466,7 +481,7 @@ class RunCase(unittest.TestCase):
                           {"answers": [TURNAROUND, answer("a2", found=False)]}),
                      pages={URL: Resp(long.encode())})
         self.assertEqual(res.notes, [f"{URL}: page cut to its first {webread.MAX_CHARS} characters"])
-        self.assertEqual(len(res.rows), 1)
+        self.assertEqual([c.flag for c in res.rows], ["", "unverified"])     # the gap is a row too
         self.assertEqual(res.unanswered, [f"{URL} a2 (Plans required): not on the page"])
 
     def test_rows_the_broker_refuses_are_reported(self):

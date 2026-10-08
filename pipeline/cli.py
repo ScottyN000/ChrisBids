@@ -8,7 +8,8 @@
     python3 -m pipeline verify-fixtures
     python3 -m pipeline replay  fixtures/nantucket --out runs/nan-replay [--repeats 3]
     python3 -m pipeline live    fixtures/nantucket --out runs/nan-live [--packet fixtures/packet]
-                                [--model claude-haiku-5-5] [--effort high] [--repeats 2]   (needs ANTHROPIC_API_KEY)
+                                [--model claude-haiku-5-5] [--effort high] [--repeats 2]
+                                [--takeoff-model claude-sonnet-5-5] [--takeoff-effort high]   (needs ANTHROPIC_API_KEY)
 """
 from __future__ import annotations
 
@@ -129,9 +130,12 @@ def cmd_live(a) -> int:
     out.mkdir(parents=True, exist_ok=True)
     try:
         client = live.LiveClient(model=a.model, effort=a.effort or None, record=out / "recordings")
+        takeoff_client = live.LiveClient(model=a.takeoff_model, effort=a.takeoff_effort or None,
+                                         record=out / "recordings")
         units = live.units_for(Path(a.fixture), Path(a.packet), out)
         broker, results, comparison = golden.replay(Path(a.fixture), out / "ledger.db", client,
-                                                    repeats=a.repeats, units=units)
+                                                    repeats=a.repeats, units=units,
+                                                    takeoff_client=takeoff_client)
     except live.LiveRunError as e:
         print(f"NOT RUN: {e}", file=sys.stderr)
         return 3
@@ -140,7 +144,7 @@ def cmd_live(a) -> int:
     print(comparison.text())
     # Every figure the run produced, so a failing gate can be read from the log alone.
     for c in broker.ledger.claims():
-        if c.method in ("dimensioned", "counted", "scaled"):
+        if c.method in ("dimensioned", "counted", "scaled", "FIELD"):
             print(f"  row: {c.method} | {c.locator} | {c.value} {c.unit} | {c.flag or 'agreed'} | "
                   f"{c.statement} | {c.derivation}")
     if (out / "recordings" / "calls.jsonl").exists():
@@ -199,6 +203,10 @@ def main(argv=None) -> int:
     p.add_argument("--repeats", type=int, default=2)
     p.add_argument("--model", default="claude-haiku-5-5")
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
+                   help="empty for the model default")
+    p.add_argument("--takeoff-model", default="claude-sonnet-5-5",
+                   help="Takeoff reconciles figures across views, so it runs on Sonnet (architecture p.13)")
+    p.add_argument("--takeoff-effort", default="high", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
     p.set_defaults(func=cmd_live)
 

@@ -1,7 +1,8 @@
 name: live
 
-# The live golden gate: the readers run on Haiku against both golden jobs and
-# their dimensioned and counted rows must reproduce the fixtures exactly
+# The live golden gate: the readers run on Haiku against both golden jobs,
+# Takeoff runs on Sonnet over the rows they wrote, and the dimensioned,
+# counted and derived rows must reproduce the fixtures exactly
 # (architecture p.10). It spends API credit, so it runs only when someone
 # starts it by hand (Actions > live > Run workflow); no push or pull request,
 # and so no fork, can trigger it.

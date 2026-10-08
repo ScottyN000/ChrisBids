@@ -1,5 +1,6 @@
 """The reader layer: schemas, arithmetic, the vote, the method rules and the golden replay."""
 import json
+import shutil
 import tempfile
 import unittest
 from fractions import Fraction
@@ -253,8 +254,11 @@ class GoldenReplayCase(unittest.TestCase):
         self.assertTrue(comparison.exact_ok, comparison.text())
         self.assertEqual(comparison.missing, [])
         self.assertEqual(comparison.extra, [])
-        exact = [k for k in comparison.matched if k[0] in compare.EXACT]
+        exact = [k for k in comparison.matched if k[0] in compare.EXACT and k[1] != "derived"]
         self.assertEqual(len(exact), 10)  # NAN-D-001 to NAN-D-008, D-016, D-017
+        derived = [k for k in comparison.matched if k[1] == "derived"]
+        self.assertEqual(sorted((k[2], k[3]) for k in derived),
+                         [("18", "each"), ("18", "each"), ("5", "spaces"), ("6", "each")])  # NAN-Q-001 to Q-004
         scaled = [c for c in broker.ledger.claims() if c.method == "scaled"]
         self.assertEqual({c.flag for c in scaled}, {"conflict"})
 
@@ -276,6 +280,7 @@ class GoldenReplayCase(unittest.TestCase):
         alt = Path(self.tmp.name) / "rec"
         alt.mkdir()
         (alt / "drawing.json").write_text(json.dumps(data))
+        shutil.copy(rec.parent / "takeoff.json", alt / "takeoff.json")
         _, _, comparison = self.replay("nantucket", client=_ReplayWithUnits(alt))
         self.assertFalse(comparison.exact_ok)
         self.assertIn(("counted", "S-1", "Partial Foundation Plan", "6", "each"), comparison.missing)

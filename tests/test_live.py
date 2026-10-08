@@ -62,8 +62,9 @@ class FakeAPI:
 
     def create(self, **body):
         self.requests.append(body)
-        reader = next(r for r in golden.READERS
-                      if body["system"][0]["text"].startswith(f"# {r.capitalize()} Reader"))
+        reader = next(r for r in golden.READERS + ("takeoff",)
+                      if body["system"][0]["text"].startswith(f"# {r.capitalize()} Reader")
+                      or body["system"][0]["text"].startswith(f"# {r.capitalize()}\n"))
         unit_id = self._unit_from(body, reader)
         n = self._runs.get(unit_id, 0)
         self._runs[unit_id] = n + 1
@@ -164,8 +165,9 @@ class LiveClientCase(unittest.TestCase):
     def run_live(self, job: str):
         api = FakeAPI(ROOT / "fixtures" / job / "recordings")
         client = live.LiveClient(api=api, record=self.tmp / job / "recordings")
+        takeoff = live.LiveClient(model="claude-sonnet-5-5", api=api, record=self.tmp / job / "recordings")
         broker, results, cmp = golden.replay(ROOT / "fixtures" / job, self.tmp / job / "ledger.db", client,
-                                             units=self.units_with_files(job))
+                                             units=self.units_with_files(job), takeoff_client=takeoff)
         self.addCleanup(broker.close)
         return api, results, cmp
 
@@ -178,7 +180,9 @@ class LiveClientCase(unittest.TestCase):
 
     def test_each_call_is_one_unit_with_a_cached_system_prompt_and_the_schema(self):
         api, _, _ = self.run_live("nantucket")
-        self.assertEqual(len(api.requests), 9)   # 3 views x 3 runs
+        self.assertEqual(len(api.requests), 12)   # 3 views x 3 runs, then Takeoff x 3 runs
+        self.assertEqual(api.requests[-1]["model"], "claude-sonnet-5-5")
+        self.assertEqual([b["type"] for b in api.requests[-1]["messages"][0]["content"]], ["text"])
         body = api.requests[0]
         self.assertEqual(body["model"], "claude-haiku-5-5")
         self.assertEqual(body["system"][0]["cache_control"], {"type": "ephemeral"})
@@ -198,18 +202,25 @@ class LiveClientCase(unittest.TestCase):
         out = self.tmp / "cli"
         api = FakeAPI(ROOT / "fixtures" / "nantucket" / "recordings")
         real, made = live.LiveClient, []
-        with mock.patch.object(live, "LiveClient", lambda **kw: made.append(kw) or real(api=api, record=kw["record"])), \
+        with mock.patch.object(live, "LiveClient",
+                               lambda **kw: made.append(kw) or real(api=api, model=kw["model"], record=kw["record"])), \
                 mock.patch.object(live, "units_for", lambda *a: self.units_with_files("nantucket")), \
                 contextlib.redirect_stdout(io.StringIO()) as log:
             rc = cli.main(["live", str(ROOT / "fixtures" / "nantucket"), "--out", str(out)])
         self.assertEqual(rc, 0)
         self.assertEqual((made[0]["model"], made[0]["effort"]), ("claude-haiku-5-5", "high"))
+        self.assertEqual((made[1]["model"], made[1]["effort"]), ("claude-sonnet-5-5", "high"))
         lines = log.getvalue().splitlines()
         self.assertIn("  row: dimensioned | Partial Foundation Plan | 182 in | agreed | "
                       "Bracket run between wall faces: 15'-2\" | 15'-2\" dimension string = 182 in", lines)
-        self.assertEqual(sum(l.startswith("  row: ") for l in lines), 13)
-        self.assertEqual(lines[-1], "usage: 6 calls, 60 input_tokens, 120 output_tokens, "
-                                    "0 cache_creation_input_tokens, 3600 cache_read_input_tokens")   # 3 views x 2 runs
+        self.assertIn("  row: counted | Partial Foundation Plan | 5 spaces | agreed | "
+                      "Spaces between bracket supports along the run: (182 - 2 x 11) / 32 = 5 | "
+                      "(182 - 2 x 11) / 32 = 5", lines)
+        # 13 reader figures, 4 derived quantities, 3 FIELD rows for the scaled angle legs.
+        self.assertEqual(sum(l.startswith("  row: ") for l in lines), 20)
+        self.assertEqual(sum(l.startswith("  row: FIELD") for l in lines), 3)
+        self.assertEqual(lines[-1], "usage: 8 calls, 80 input_tokens, 160 output_tokens, "
+                                    "0 cache_creation_input_tokens, 4800 cache_read_input_tokens")   # (3 views + Takeoff) x 2 runs
         self.assertTrue((out / "comparison.txt").read_text().endswith("reproduce exactly\n"))
 
     def test_the_recording_replays_to_the_same_comparison(self):
@@ -618,7 +629,9 @@ class LiveGateCase(unittest.TestCase):
             with self.subTest(job=job), tempfile.TemporaryDirectory() as tmp:
                 units = live.units_for(ROOT / "fixtures" / job, PACKET, Path(tmp))
                 client = live.LiveClient(record=Path(tmp) / "recordings")
-                broker, _, cmp = golden.replay(ROOT / "fixtures" / job, Path(tmp) / "ledger.db", client, units=units)
+                takeoff = live.LiveClient(model="claude-sonnet-5-5", record=Path(tmp) / "recordings")
+                broker, _, cmp = golden.replay(ROOT / "fixtures" / job, Path(tmp) / "ledger.db", client, units=units,
+                                               takeoff_client=takeoff)
                 broker.close()
                 self.assertTrue(cmp.exact_ok, cmp.text())
 

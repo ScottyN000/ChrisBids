@@ -26,6 +26,9 @@ DIVISIONS = ("", "01", "02", "03", "05", "07", "08", "09", "31", "33", "35")
 # Methods that may feed a Mersco allowance or an order quantity (architecture p.6:
 # "scaled ... never becomes an order quantity without a site check").
 ALLOWANCE_OK = ("dimensioned", "counted", "clause", "FIELD")
+# Methods that carry an exact figure. A row of either kind may only be worked
+# out from rows of these kinds.
+EXACT_METHODS = ("dimensioned", "counted")
 
 # The flat ledger field order, as the architecture doc lists it plus the
 # bookkeeping columns the fixtures already carry.
@@ -208,6 +211,10 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
             return [f"{c.claim_id}: calc input {ref} has no numeric value"]
         if c.role in ("allowance", "material") and src.method not in ALLOWANCE_OK:
             errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; it cannot feed an order quantity")
+        elif c.method in EXACT_METHODS and src.method not in EXACT_METHODS:
+            # A scaled or observed figure never becomes a dimensioned or counted one (p.6).
+            errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; a {c.method} row rests on "
+                          f"dimensioned and counted rows only")
         expr = expr.replace("{" + ref + "}", repr(src.value_num))
     if not CALC_SAFE.fullmatch(expr):
         return errors + [f"{c.claim_id}: calc {c.calc!r} is not plain arithmetic"]

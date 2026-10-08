@@ -75,3 +75,30 @@ def compare(produced: list[Claim], fixture: list[Claim], present_sources: set[st
         missing=sorted((want - got).elements()),
         extra=sorted((got - want).elements()),
     )
+
+
+def fixture_derived(fixture: list[Claim], present_sources: set[str]) -> list[Claim]:
+    """The fixture rows Takeoff would have written: a dimensioned or counted
+    quantity with a `calc`, resting only on sources in the packet."""
+    return [c for c in fixture
+            if c.calc and c.method in EXACT and c.role == "quantity"
+            and all(s in present_sources for s in c.source_id.replace("+", " ").split())]
+
+
+def add_derived(comparison: Comparison, produced_by_id: dict[str, Claim], produced: list[Claim],
+                fixture: list[Claim], present_sources: set[str]) -> Comparison:
+    """Takeoff's derived quantities against the fixture's, in the same comparison.
+
+    A derived figure is identified by its method, value and unit and by the
+    reader figures it rests on (followed through any row it uses in turn), so
+    the fixture's `{NAN-Q-001} + 1` and a formula written over the reader rows
+    directly are the same quantity when they use the same figures.
+    """
+    from ..takeoff import derived_key
+    fixture_by_id = {c.claim_id: c for c in fixture}
+    want = Counter(derived_key(c, fixture_by_id, key) for c in fixture_derived(fixture, present_sources))
+    got = Counter(derived_key(c, produced_by_id, key) for c in produced if c.calc)
+    comparison.matched = sorted(comparison.matched + list((want & got).elements()))
+    comparison.missing = sorted(comparison.missing + list((want - got).elements()))
+    comparison.extra = sorted(comparison.extra + list((got - want).elements()))
+    return comparison

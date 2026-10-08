@@ -1,0 +1,96 @@
+{
+ "reader": "takeoff",
+ "note": "Expected Takeoff answers for the rows the Nantucket drawing replay writes, three runs. Run 2 writes the spaces formula a different way to the same figure, which the vote treats as the same quantity. Every value here is a row in fixtures/nantucket/ledger.yaml (NAN-Q-001 to Q-004); nothing is added.",
+ "units": [
+  {
+   "unit_id": "NAN#takeoff",
+   "locator": "ledger rows",
+   "runs": [
+    {
+     "items": [
+      {
+       "label": "Spaces between bracket supports along the run",
+       "calc": "({NAN-DR-S1FND-01} - 2 * {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02}",
+       "value": 5,
+       "unit": "spaces"
+      },
+      {
+       "label": "Bracket supports, one more than the spaces",
+       "calc": "({NAN-DR-S1FND-01} - 2 * {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02} + 1",
+       "value": 6,
+       "unit": "each"
+      },
+      {
+       "label": "Adhesive anchors into the CMU wall, per bracket times brackets",
+       "calc": "{NAN-DR-S1DET1-01} * (({NAN-DR-S1FND-01} - 2 * {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02} + 1)",
+       "value": 18,
+       "unit": "each"
+      },
+      {
+       "label": "A325 bolts, per bracket times brackets",
+       "calc": "{NAN-DR-S1DET1-02} * (({NAN-DR-S1FND-01} - 2 * {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02} + 1)",
+       "value": 18,
+       "unit": "each"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "label": "Spaces between bracket supports along the run",
+       "calc": "({NAN-DR-S1FND-01} - {NAN-DR-S1FND-03} - {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02}",
+       "value": 5,
+       "unit": "spaces"
+      },
+      {
+       "label": "Bracket supports, one more than the spaces",
+       "calc": "({NAN-DR-S1FND-01} - {NAN-DR-S1FND-03} - {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02} + 1",
+       "value": 6,
+       "unit": "each"
+      },
+      {
+       "label": "Adhesive anchors into the CMU wall, per bracket times brackets",
+       "calc": "{NAN-DR-S1DET1-01} * (({NAN-DR-S1FND-01} - {NAN-DR-S1FND-03} - {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02} + 1)",
+       "value": 18,
+       "unit": "each"
+      },
+      {
+       "label": "A325 bolts, per bracket times brackets",
+       "calc": "{NAN-DR-S1DET1-02} * (({NAN-DR-S1FND-01} - {NAN-DR-S1FND-03} - {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02} + 1)",
+       "value": 18,
+       "unit": "each"
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "label": "Spaces between bracket supports along the run",
+       "calc": "({NAN-DR-S1FND-01} - 2 * {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02}",
+       "value": 5,
+       "unit": "spaces"
+      },
+      {
+       "label": "Bracket supports, one more than the spaces",
+       "calc": "({NAN-DR-S1FND-01} - 2 * {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02} + 1",
+       "value": 6,
+       "unit": "each"
+      },
+      {
+       "label": "Adhesive anchors into the CMU wall, per bracket times brackets",
+       "calc": "{NAN-DR-S1DET1-01} * (({NAN-DR-S1FND-01} - 2 * {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02} + 1)",
+       "value": 18,
+       "unit": "each"
+      },
+      {
+       "label": "A325 bolts, per bracket times brackets",
+       "calc": "{NAN-DR-S1DET1-02} * (({NAN-DR-S1FND-01} - 2 * {NAN-DR-S1FND-03}) / {NAN-DR-S1FND-02} + 1)",
+       "value": 18,
+       "unit": "each"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

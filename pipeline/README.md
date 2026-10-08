@@ -87,6 +87,6 @@ is the one place the audit could be made to pass by looking away.
 ## After Phase 1
 
 The readers are in [`readers/`](readers/README.md) and write through this broker
-unchanged. Takeoff, Customer Requirements, the Scope Writer, Codes &
-Regulations, Materials and Pricing are still to come; `roles.py` already
-carries their principals and write scopes.
+unchanged, and so does Takeoff ([`takeoff.py`](takeoff.py), Phase 3). Customer
+Requirements, the Scope Writer, Codes & Regulations, Materials and Pricing are
+still to come; `roles.py` already carries their principals and write scopes.

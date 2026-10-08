@@ -8,6 +8,7 @@ the rest trustworthy.
 |---|---|
 | [pipeline/](pipeline/) | **Phase 1**: the append-only claim ledger behind a broker, Intake, and the Auditor. [How it works](pipeline/README.md) |
 | [pipeline/readers/](pipeline/readers/) | **Phase 2**: drawing, spec, photo and correspondence readers: schemas, prompts, the three-run vote and the golden replay. [How it works](pipeline/readers/README.md) |
+| [pipeline/takeoff.py](pipeline/takeoff.py) | **Phase 3**, first agent: Takeoff. The model writes formulas over the readers' dimensioned and counted rows; code evaluates each one and writes the quantity with its derivation. Scaled lengths and photo conditions become FIELD rows. [How it works](pipeline/readers/README.md#takeoff-phase-3) |
 | [fixtures/](fixtures/) | The two hand-made test bids as claim ledgers: the answer key every change must reproduce |
 | [docs/pipeline-dag.md](docs/pipeline-dag.md) | The pipeline DAG from the architecture doc, with what is built, replay-only and planned. Generated from [`pipeline/dag.py`](pipeline/dag.py); CI fails if it falls behind the code |
 | [tools/build_fixture.py](tools/build_fixture.py) | Validates a fixture ledger against the method rules and renders its proposal |

@@ -183,7 +183,7 @@ class LiveClientCase(unittest.TestCase):
         self.assertEqual(body["model"], "claude-haiku-5-5")
         self.assertEqual(body["system"][0]["cache_control"], {"type": "ephemeral"})
         self.assertEqual(body["output_config"]["format"]["type"], "json_schema")
-        self.assertEqual(body["output_config"]["effort"], "low")
+        self.assertEqual(body["output_config"]["effort"], "medium")
         self.assertEqual(len(body["messages"]), 1)
         kinds = [b["type"] for b in body["messages"][0]["content"]]
         self.assertEqual(kinds, ["image", "text"])
@@ -416,7 +416,7 @@ class ExactCase(unittest.TestCase):
             "system": [{"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}],
             "messages": [{"role": "user", "content": live.content_for("spec", self.unit)}],
             "output_config": {"format": {"type": "json_schema", "schema": live.api_schema(schemas.SPEC)},
-                              "effort": "low"},
+                              "effort": "medium"},
         })
         none = live.LiveClient(effort=None).request("spec", self.unit, "sys", schemas.SPEC)
         self.assertNotIn("effort", none["output_config"])

@@ -17,7 +17,7 @@ on:
         description: "Effort for the reader calls"
         type: choice
         options: [low, medium, high]
-        default: low
+        default: medium
       repeats:
         description: "Runs per unit"
         type: choice

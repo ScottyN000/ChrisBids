@@ -8,7 +8,7 @@
     python3 -m pipeline verify-fixtures
     python3 -m pipeline replay  fixtures/nantucket --out runs/nan-replay [--repeats 3]
     python3 -m pipeline live    fixtures/nantucket --out runs/nan-live [--packet fixtures/packet]
-                                [--model claude-haiku-5-5] [--effort low]   (needs ANTHROPIC_API_KEY)
+                                [--model claude-haiku-5-5] [--effort medium]   (needs ANTHROPIC_API_KEY)
 """
 from __future__ import annotations
 
@@ -198,7 +198,7 @@ def main(argv=None) -> int:
     p.add_argument("--out", required=True)
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--model", default="claude-haiku-5-5")
-    p.add_argument("--effort", default="low", choices=["low", "medium", "high", ""],
+    p.add_argument("--effort", default="medium", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
     p.set_defaults(func=cmd_live)
 

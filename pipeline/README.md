@@ -253,7 +253,9 @@ date, its content hash and, after a redirect, the address that served it.
 Golden gate, live only: `python -m pipeline web fixtures/<job> --out runs/x`.
 For every ask gated against one of the fixture's own fetched rows, the run's
 quote must carry most of the fixture's quote, or every figure of the fixture's
-statement. A row that does neither is a wrong answer and fails the gate. An
+statement, and a closed ask's option must be the one the fixture's row gives
+(kept beside the fixture in `web_choices.yaml`, never in the page table). A row
+that does not is a wrong answer and fails the gate. An
 unverified reading does not count as an answer. An ask
 with no row is a miss: safe, since the bid then has no verified row for it, but
 incomplete, so at least 80% of the compared asks must have a row. Two cases are

@@ -236,6 +236,11 @@ class AnswerCase(unittest.TestCase):
                          ["the choice 'maybe' is not one of yes, no, other"])
         self.assertEqual(webread.choice_errors(answer("a2", "q", "s"), yn), ["the choice '' is not one of yes, no, other"])
         self.assertEqual(webread.choice_errors(answer("a2", found=False), yn), [])
+        # one figures entry per # mark, "" for a mark the page leaves unfilled
+        marked = webread.Ask("a1", "Permit turnaround # weeks")
+        self.assertEqual(webread.choice_errors(answer("a1", "q", "s", figures=[""]), marked), [])
+        self.assertEqual(webread.choice_errors(answer("a1", "q", "s", figures=[]), marked),
+                         ["figures has 0 entries for the ask's 1 # marks"])
         free = webread.Ask("a2", "Plans required")
         self.assertEqual(webread.choice_errors(answer("a2", "q", "s", choice="yes"), free),
                          ["the ask has no options, but the choice is 'yes'"])
@@ -444,13 +449,17 @@ class RunCase(unittest.TestCase):
              "nothing on it is verified", "ask a2", "missing", "unverified")])
 
     def test_two_readings_are_both_kept_unverified(self):
-        other = answer("a1", "All applications REQUIRE PLANS OR DRAWINGS.", "Plans come first.")
+        other = answer("a1", "All applications REQUIRE PLANS OR DRAWINGS.", "Plans come first.", figures=[""])
         b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [other, PLANS]}))
         rows = [(c.quote, c.confidence, c.flag) for c in res.rows if c.locator == "ask a1"]
         self.assertEqual(rows, [(TURNAROUND["quote"], "inferred", "unverified"),
                                 (other["quote"], "inferred", "unverified")])
         self.assertEqual(res.unanswered, [f"{URL} a1 (Permit turnaround # weeks): the runs give different "
                                           "readings; 2 readings kept, flagged unverified"])
+        self.assertEqual(res.readings, [
+            "J#web1 a1: figures ['2-4'], choice '', quote 'Permits will be issued 2-4 weeks on average'",
+            "J#web1 a1: figures [''], choice '', quote 'All applications REQUIRE PLANS OR DRAWINGS.'"])
+        self.assertIn("  reading " + res.readings[0], res.text())
         # an unverified reading is not an answer at the gate
         g = webread.gate(res, table(), {"J-C-001": {"id": "J-C-001", "quote": TURNAROUND["quote"]}})
         self.assertEqual((g.ok, g.failures, len(g.misses)), (False, [], 1))
@@ -566,7 +575,7 @@ class GateCase(unittest.TestCase):
         self.assertEqual((g.failures, g.misses), ([], ["J-C-001: no row for a1 (Permit turnaround # weeks)"]))
         self.assertFalse(g.ok)      # 0 of 1 answered
         self.assertIn("\n  miss J-C-001: no row", g.text())
-        other = answer("a1", "Permits will be issued", "x")
+        other = answer("a1", "Permits will be issued", "x", figures=[""])
         g = self.gate([{"answers": [other, PLANS]}] * 2)
         self.assertEqual(g.failures, ["J-C-001: quoted 'Permits will be issued', the fixture quotes "
                                       "'Permits will be issued 2-4 weeks on average after submission'"])
@@ -578,7 +587,8 @@ class GateCase(unittest.TestCase):
         tbl = table(source(asks=asks))
         text = " ".join(f"Fee {i} is {i}0 dollars." for i in range(1, 6))
         fixture = {f"J-C-{i:03d}": {"id": f"J-C-{i:03d}", "quote": f"Fee {i} is {i}0 dollars."} for i in range(1, 6)}
-        good = [answer(f"a{i}", f"Fee {i} is {i}0 dollars.", f"Fee {i} is {i}0 dollars.") for i in range(1, 6)]
+        good = [answer(f"a{i}", f"Fee {i} is {i}0 dollars.", f"Fee {i} is {i}0 dollars.", figures=[])
+                for i in range(1, 6)]
         pages = {URL: Resp(f"<html><body><p>{text}</p></body></html>".encode())}
         one_miss = good[:4] + [answer("a5", found=False)]
         _, res = run(Fake(*[{"answers": one_miss}] * 2), pages=pages, tbl=tbl)
@@ -587,7 +597,7 @@ class GateCase(unittest.TestCase):
         two_miss = good[:3] + [answer("a4", found=False), answer("a5", found=False)]
         _, res = run(Fake(*[{"answers": two_miss}] * 2), pages=pages, tbl=tbl)
         self.assertFalse(webread.gate(res, tbl, fixture).ok)
-        wrong = good[:4] + [answer("a5", "Fee 1 is 10 dollars.", "Fee 1 is 10 dollars.")]
+        wrong = good[:4] + [answer("a5", "Fee 1 is 10 dollars.", "Fee 1 is 10 dollars.", figures=[])]
         _, res = run(Fake(*[{"answers": wrong}] * 2), pages=pages, tbl=tbl)
         g = webread.gate(res, tbl, fixture)
         self.assertEqual((g.ok, len(g.failures), g.misses), (False, 1, []))
@@ -605,7 +615,7 @@ class GateCase(unittest.TestCase):
     def test_a_statement_that_narrows_or_swaps_the_fixture_s_figures_fails(self):
         fixture = {"J-C-001": {"id": "J-C-001", "statement": "Permits take 2-4 weeks",
                                "quote": "Permits will be issued 2-4 weeks on average after submission"}}
-        narrowed = answer("a1", "Permits will be issued 2-4 weeks on average", "Permits are issued.")
+        narrowed = answer("a1", "Permits will be issued 2-4 weeks on average", "Permits are issued.", figures=[""])
         g = self.gate([{"answers": [narrowed, PLANS]}] * 2, fixture=fixture)
         self.assertEqual(g.failures, ["J-C-001: states 'Permits are issued.', the fixture states "
                                       "'Permits take 2-4 weeks'"])
@@ -642,12 +652,16 @@ class GoldenCase(unittest.TestCase):
         for job in ("nantucket", "ocean-beach"):
             for r in yaml.safe_load((ROOT / "fixtures" / job / "ledger.yaml").read_text())["rows"]:
                 data[r["id"]] = r
+        choices = {}
+        for job in ("nantucket", "ocean-beach"):
+            choices.update(yaml.safe_load((ROOT / "fixtures" / job / "web_choices.yaml").read_text()))
         pages, answers = {}, {}
         for s in tbl.pages:
             quotes = [data[a.fixture]["quote"].replace(" ... ", " ") for a in s.asks if a.fixture]
             pages[s.url] = Resp(("<p>" + "</p><p>".join(quotes or ["Nothing here."]) + "</p>").encode())
             answers[s.url] = {"answers": [
-                answer(a.id, data[a.fixture]["quote"], data[a.fixture]["quote"], choice=(a.options or ("",))[0])
+                answer(a.id, data[a.fixture]["quote"], data[a.fixture]["quote"], figures=[""] * a.ask.count("#"),
+                       choice=choices.get(a.fixture, ""))
                 if a.fixture else answer(a.id, found=False)
                 for a in s.asks]}
         client = Fake(lambda unit: answers[unit.locator], lambda unit: copy.deepcopy(answers[unit.locator]))
@@ -658,6 +672,15 @@ class GoldenCase(unittest.TestCase):
             self.assertTrue(g.ok, g.text() + "\n" + res.text())
             self.assertEqual(g.compared, 23)
             self.assertEqual(res.refused, [])
+            broker.close()
+        # a closed answer the fixture contradicts is a wrong answer, whatever the quote
+        flip = next(p for p in tbl.pages if any(a.fixture == "NAN-C-005" for a in p.asks))
+        for a in answers[flip.url]["answers"]:
+            a["choice"] = "yes"
+        with tempfile.TemporaryDirectory() as d:
+            broker, res, g = webread.golden(ROOT / "fixtures" / "nantucket", Path(d) / "l.db", client, fetcher,
+                                            table=tbl)
+            self.assertEqual(g.failures, ["NAN-C-005: chose 'yes', the fixture's answer is 'no'"])
             broker.close()
 
     def test_golden_binds_a_live_client_and_closes_on_failure(self):

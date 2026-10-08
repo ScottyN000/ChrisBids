@@ -231,9 +231,10 @@ class Broker:
 
     def may_fetch(self, url: str) -> bool:
         """Outbound network is for Codes & Regs, Materials and the Auditor only,
-        and only to a public http(s) address. The per-domain allowlist is the
-        egress proxy's job (hosting plan); this refuses what no allowlist should
-        ever pass: file:, loopback, private and cloud-metadata addresses."""
+        and only to a public http(s) address: this refuses what no allowlist
+        should ever pass (file:, loopback, private and cloud-metadata addresses)
+        for the URL it is given. The per-domain allowlist is `web.Fetcher`'s,
+        checked on every redirect hop, until the hosting egress proxy takes over."""
         if not self.principal.egress:
             return False
         try:

@@ -181,9 +181,15 @@ def schema_for(source: Source) -> dict:
 
 
 def choice_errors(answer: dict, ask: Ask) -> list[str]:
-    """The choice must be one of this ask's options (or OTHER), and empty for an ask with none."""
+    """What the ask itself requires of a found answer: one entry of `figures`
+    per # mark (so the runs are compared on the figures asked for), and a
+    choice that is one of the ask's options (or OTHER), or empty for an ask
+    with none."""
     if not answer["found"]:
         return []
+    marks = ask.ask.count("#")
+    if len(answer.get("figures", ())) != marks:
+        return [f"figures has {len(answer.get('figures', ()))} entries for the ask's {marks} # marks"]
     got = answer.get("choice", "")
     if ask.options and got not in (*ask.options, OTHER):
         return [f"the choice {got!r} is not one of {', '.join(ask.options)}, {OTHER}"]
@@ -325,6 +331,7 @@ class WebResult:
     rows: list[Claim] = field(default_factory=list)
     discarded: list[str] = field(default_factory=list)   # runs or answers code refused
     unanswered: list[str] = field(default_factory=list)  # asks with no agreed answer, and why
+    readings: list[str] = field(default_factory=list)    # what each kept unverified reading read
     unopened: list[str] = field(default_factory=list)    # pages that did not open: each is an unverified row
     unread: list[str] = field(default_factory=list)      # pages that opened but gave no valid run
     refused: list[str] = field(default_factory=list)     # rows the broker refused
@@ -335,7 +342,7 @@ class WebResult:
         lines = [f"{NAME}: {self.pages} pages ({opened} opened), {self.calls} calls, {len(self.rows)} rows, "
                  f"{len(self.unanswered)} asks unanswered, {len(self.discarded)} answers or runs discarded"]
         for name, items in (("note", self.notes), ("unopened", self.unopened), ("unread", self.unread),
-                            ("unanswered", self.unanswered),
+                            ("unanswered", self.unanswered), ("reading", self.readings),
                             ("discarded", self.discarded), ("refused", self.refused)):
             lines += [f"  {name} {x}" for x in items]
         return "\n".join(lines)
@@ -502,6 +509,9 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             if agreed is None:
                 kept = f"; {len(readings)} readings kept, flagged unverified" if readings else ""
                 result.unanswered.append(f"{source.url} {ask.id} ({ask.ask}): {why}{kept}")
+                # what each kept reading read, so a split can be judged from the run log alone
+                result.readings += [f"{unit.unit_id} {ask.id}: figures {r.get('figures', [])}, "
+                                    f"choice {r.get('choice', '')!r}, quote {r['quote'][:100]!r}" for r in readings]
                 for a in readings:
                     write(_row(job, next_id(), source, page, confidence="inferred", flag="unverified",
                                quote=a["quote"].strip(), statement=a["statement"].strip(),
@@ -545,7 +555,8 @@ def _states(fixture: dict, statement: str, ids: tuple[str, ...]) -> bool:
     return want <= figures(statement, ids)
 
 
-def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate:
+def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict],
+         choices: dict[str, str] | None = None) -> Gate:
     """For every ask gated against a row of this fixture: if the page opened and
     still carries the fixture's quote, the run must have answered the ask with a
     quote that carries most of it, or that carries every figure the fixture's
@@ -589,6 +600,9 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate
             elif not _states(f, got.statement, ids):
                 failures.append(f"{a.fixture}: states {got.statement[:120]!r}, the fixture states "
                                 f"{f['statement'][:120]!r}")
+            elif a.options and got.value != (choices or {}).get(a.fixture):
+                failures.append(f"{a.fixture}: chose {got.value!r}, the fixture's answer is "
+                                f"{(choices or {}).get(a.fixture)!r}")
     ok = not failures and compared > 0 and compared - len(misses) >= ANSWERED * compared
     return Gate(ok=ok, compared=compared, failures=failures, notes=notes, misses=misses)
 
@@ -610,4 +624,8 @@ def golden(job_dir: Path, ledger_path: Path, client: ModelClient, fetcher: web.F
     table = table or load()
     result = run(broker, data["job"], client, fetcher, table=table, repeats=repeats)
     fixture_rows = {r["id"]: r for r in data["rows"] if r.get("method") == "fetched" and r.get("quote")}
-    return broker, result, gate(result, table, fixture_rows)
+    # The closed answers the fixture's rows give, kept beside the fixture and
+    # out of the page table, which holds what to look for, never what was found.
+    path = Path(job_dir) / "web_choices.yaml"
+    choices = yaml.safe_load(path.read_text()) if path.exists() else {}
+    return broker, result, gate(result, table, fixture_rows, choices)

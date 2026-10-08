@@ -1,0 +1,8 @@
+# The closed answer each gated web ask should get, read from the fixture's own
+# row (its statement and quote). Only the web reader's gate reads this file.
+NAN-C-004: "yes"    # condominiums are included in the MHIC requirement
+NAN-C-005: "no"     # home improvement excludes condo common areas, 8-101(g)(3)(vi)
+NAN-C-010: proposed # the 2024 IBC adoption is proposed, not yet final
+NAN-C-011: adopted  # Ocean City lists the 2021 IBC as adopted
+NAN-C-014: being phased out   # HIT-HY 70 set to phase-out
+NAN-C-018: "yes"    # a screen tube is required in ungrouted CMU

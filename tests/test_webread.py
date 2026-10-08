@@ -166,6 +166,33 @@ class AnswerCase(unittest.TestCase):
             with self.subTest(a=a):
                 self.assertEqual(webread.answer_errors(a, self.TEXT), why)
 
+    def test_the_statement_may_name_a_number_from_the_page_title(self):
+        a = answer("a1", "Permits will be issued 2-4 weeks", "HIT-HY 270 permits take 2-4 weeks.")
+        self.assertEqual(webread.answer_errors(a, self.TEXT, "Hilti HIT-HY 270 product page"), [])
+        self.assertEqual(webread.answer_errors(a, self.TEXT, "Hilti HIT-HY 200"),
+                         ["the statement has numbers the quote does not: 270"])
+
+    def test_a_long_answer_is_refused_by_itself(self):
+        a = answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-4 weeks." + " x" * 150)
+        self.assertEqual(webread.answer_errors(a, self.TEXT), ["the statement is longer than 300 characters"])
+        long = "Permits will be issued 2-4 weeks" + " x" * 290
+        self.assertEqual(webread.answer_errors(answer("a1", long, "y"), self.TEXT)[0],
+                         "the quote is longer than 600 characters")
+        self.assertEqual(webread.answer_errors(answer("a1", "Fee: $1,250.50 per 1/2 lot." + " " * 573, "y"),
+                                               self.TEXT), [])
+        self.assertEqual(webread.answer_errors(answer("a1", "Fee: $1", "y" * 300), self.TEXT), [])
+
+    def test_the_statement_may_name_a_number_from_the_url(self):
+        a = answer("a1", "Permits will be issued 2-4 weeks", "LX02W0050 permits take 2-4 weeks.")
+        self.assertEqual(webread.answer_errors(a, self.TEXT, "SW LX02 data sheet https://x.com/?p=LX02W0050"), [])
+
+    def test_same_facts_needs_every_number_of_the_statement(self):
+        self.assertTrue(webread.same_facts("ESR-4143 covers HY 270; reissued 2026", "ESR-4143 ... HY 270 ... 2026"))
+        self.assertFalse(webread.same_facts("ESR-4143 covers HY 270; reissued 2026", "ESR-4143 ... HY 270"))
+        self.assertFalse(webread.same_facts("Plans are required", "Plans are required"))
+        self.assertFalse(webread.same_facts("", "1"))
+        self.assertFalse(webread.same_facts("1", None))
+
     def test_response_errors(self):
         s = source()
         self.assertEqual(webread.response_errors({"answers": [PLANS, TURNAROUND]}, s), [])
@@ -206,6 +233,12 @@ class AnswerCase(unittest.TestCase):
         close = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x")}
         self.assertEqual(webread._agree([good, close], a), (TURNAROUND, ""))
         self.assertEqual(webread._agree([good, good, other], a)[0], None)
+        same = {"a1": answer("a1", "after submission. Fee", "Permits take 2-4 weeks after you apply.")}
+        self.assertEqual(webread._agree([good, same], a), (TURNAROUND, ""))
+        fewer = {"a1": answer("a1", "after submission. Fee", "Permits take 2 weeks.")}
+        self.assertEqual(webread._agree([good, fewer], a)[0], None)
+        bare = {"a1": answer("a1", "Permits will be", "x")}
+        self.assertEqual(webread._agree([other, bare], a)[0], None)   # no figures: quotes must overlap
 
 
 class RunCase(unittest.TestCase):
@@ -356,6 +389,16 @@ class GateCase(unittest.TestCase):
         self.assertEqual(g.failures, ["J-C-001: quoted 'Permits will be issued', the fixture quotes "
                                       "'Permits will be issued 2-4 weeks on average after submission'"])
         self.assertTrue(g.text().startswith("web reader gate: FAIL (1 asks compared)\n  FAIL J-C-001"))
+
+    def test_another_passage_with_the_same_numbers_passes(self):
+        fixture = {"J-C-001": {"id": "J-C-001", "statement": "Permits take 2-4 weeks",
+                               "quote": "Permits will be issued 2-4 weeks on average after submission"}}
+        other = answer("a1", "2-4 weeks", "Permits take 2-4 weeks.")
+        g = self.gate([{"answers": [other, PLANS]}] * 2, fixture=fixture)
+        self.assertEqual((g.ok, g.failures), (True, []))
+        fixture["J-C-001"]["statement"] = "Permits take 2-6 weeks"
+        g = self.gate([{"answers": [other, PLANS]}] * 2, fixture=fixture)
+        self.assertFalse(g.ok)
 
     def test_a_changed_or_dead_page_is_a_note(self):
         g = self.gate([{"answers": [TURNAROUND, PLANS]}] * 2, pages={URL: Resp(b"", status=500)})

@@ -59,6 +59,7 @@ class TextCase(unittest.TestCase):
         self.assertEqual(web.normalize("  “Don’t” –  STOP—now‐ok‑x­z\n"), "\"don't\" - stop-now-ok-xz")
         self.assertEqual(web.normalize(None), "")
         self.assertEqual(web.normalize("ﬁre"), "fire")     # NFKC
+        self.assertEqual(web.normalize("½″ to 2′ 3″"), '1/2" to 2\' 3"')   # inch, foot and fraction marks
 
     def test_quote_in_needs_every_passage_in_order(self):
         text = "The new HIT-HY 270 is available.\nSome other text.  HIT-HY 70 has been set to phase-out status."

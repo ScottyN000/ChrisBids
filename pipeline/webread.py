@@ -63,8 +63,10 @@ SCHEMA = {
             "properties": {
                 "ask": {"type": "string", "maxLength": 20, "pattern": r"^[a-z0-9]+$"},
                 "found": {"type": "boolean"},
-                "quote": {"type": "string", "maxLength": QUOTE_MAX},
-                "statement": {"type": "string", "maxLength": STATEMENT_MAX},
+                # Lengths are checked per answer (answer_errors), so one long
+                # answer does not cost the run its other answers.
+                "quote": {"type": "string"},
+                "statement": {"type": "string"},
             },
         }},
     },
@@ -151,18 +153,26 @@ def unit_for(job: str, n: int, source: Source, page: web.Page) -> tuple[Unit, bo
                 text=text, brief=brief(source)), cut
 
 
-def answer_errors(answer: dict, page_text: str) -> list[str]:
-    """Why code will not keep this answer. Empty means it may become a row."""
+def answer_errors(answer: dict, page_text: str, about: str = "") -> list[str]:
+    """Why code will not keep this answer. Empty means it may become a row.
+    Besides the numbers the quote carries, the statement may name one the page
+    table gives for the page (`about`: its title and URL, which carry a product,
+    report or section number)."""
     if not answer["found"]:
         return []
     errs = []
+    if len(answer["quote"]) > QUOTE_MAX:
+        errs.append(f"the quote is longer than {QUOTE_MAX} characters")
+    if len(answer["statement"]) > STATEMENT_MAX:
+        errs.append(f"the statement is longer than {STATEMENT_MAX} characters")
     if not answer["quote"].strip():
         errs.append("found, but no quote")
     elif not web.quote_in(answer["quote"], page_text):
         errs.append("the quote is not on the page")
     if not answer["statement"].strip():
         errs.append("found, but no statement")
-    extra = sorted(set(NUMBER.findall(answer["statement"])) - set(NUMBER.findall(answer["quote"])))
+    extra = sorted(set(NUMBER.findall(answer["statement"])) - set(NUMBER.findall(answer["quote"]))
+                   - set(NUMBER.findall(about)))
     if extra:
         errs.append(f"the statement has numbers the quote does not: {', '.join(extra)}")
     return errs
@@ -203,6 +213,13 @@ def covered(fixture_quote: str, got: str) -> float:
     return found / total
 
 
+def same_facts(fixture_statement: str, got: str) -> bool:
+    """Does the run's quote carry every number the fixture's statement gives?
+    A statement with no number is never the same facts by this test."""
+    want = set(NUMBER.findall(fixture_statement or ""))
+    return bool(want) and want <= set(NUMBER.findall(got or ""))
+
+
 @dataclass
 class WebResult:
     pages: int = 0
@@ -232,6 +249,11 @@ def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
 
 
+def _same_figures(a: dict, b: dict) -> bool:
+    x = set(NUMBER.findall(a["statement"]))
+    return bool(x) and x == set(NUMBER.findall(b["statement"]))
+
+
 def _agree(runs: list[dict[str, dict]], ask: Ask) -> tuple[dict | None, str]:
     """The one answer every run gives to this ask, or why there is none."""
     answers = [r.get(ask.id) for r in runs]
@@ -243,7 +265,10 @@ def _agree(runs: list[dict[str, dict]], ask: Ask) -> tuple[dict | None, str]:
     if not all(found):
         return None, "the runs disagree on whether the page says it"
     first = answers[0]
-    if any(overlap(first["quote"], a["quote"]) < OVERLAP for a in answers[1:]):
+    # Two runs agree when they quote mostly the same passage, or when each
+    # quotes a passage on the page (answer_errors checked) and their statements
+    # give the same figures.
+    if any(overlap(first["quote"], a["quote"]) < OVERLAP and not _same_figures(first, a) for a in answers[1:]):
         return None, "the runs quote different passages"
     return first, ""
 
@@ -313,7 +338,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                 continue
             kept = {}
             for a in data["answers"]:
-                why = answer_errors(a, unit.text)
+                why = answer_errors(a, unit.text, f"{source.title} {source.url}")
                 if why:
                     result.discarded.append(f"{unit.unit_id} run {r + 1} {a['ask']}: {'; '.join(why)}")
                 else:
@@ -353,7 +378,8 @@ class Gate:
 def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate:
     """For every ask gated against a row of this fixture: if the page opened and
     still carries the fixture's quote, the run must have answered the ask with a
-    quote that carries most of it. A page that did not open, or no longer says what the
+    quote that carries most of it, or that carries every number the fixture's
+    statement gives (the same facts from another passage of the page). A page that did not open, or no longer says what the
     fixture quoted, is reported and left out: that is the page changing, not the
     agent failing."""
     pages = {p.url: p for p in result.fetched}
@@ -381,7 +407,7 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate
             got = by_ask.get((s.url, a.id))
             if got is None:
                 failures.append(f"{a.fixture}: no row for {a.id} ({a.ask})")
-            elif covered(f["quote"], got.quote) < OVERLAP:
+            elif covered(f["quote"], got.quote) < OVERLAP and not same_facts(f.get("statement", ""), got.quote):
                 failures.append(f"{a.fixture}: quoted {got.quote[:120]!r}, the fixture quotes {f['quote'][:120]!r}")
     return Gate(ok=not failures and compared > 0, compared=compared, failures=failures, notes=notes)
 

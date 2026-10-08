@@ -104,10 +104,15 @@ def pdf_text(data: bytes) -> str:
     return out.stdout.decode("utf-8", "replace")
 
 
+# Typographic marks a model writes in plain ASCII. Inch and foot marks go
+# before NFKC, which would turn a double prime into two single ones; the
+# fraction slash NFKC makes of "½" goes after.
+MARKS = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-", "‐": "-", "‑": "-",
+                       "\xad": "", "″": '"', "′": "'", "⁄": "/"})
+
+
 def normalize(s: str) -> str:
-    s = unicodedata.normalize("NFKC", s or "")
-    s = s.translate(str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-",
-                                   "‐": "-", "‑": "-", "\xad": ""}))
+    s = unicodedata.normalize("NFKC", (s or "").translate(MARKS)).translate(MARKS)
     return re.sub(r"\s+", " ", s).strip().lower()
 
 

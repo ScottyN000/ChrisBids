@@ -4,13 +4,20 @@ name: security
 # tests. Every job is read-only; none of them sees a secret.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   schedule:
     - cron: "17 6 * * 1"   # weekly, so a new CVE in a pinned dependency surfaces without a push
 
 permissions:
   contents: read
+
+# Minutes are billed on a private repo: a branch push with a PR open used to run
+# this twice (push and pull_request), so branches run it through their PR only,
+# and a newer push cancels the older run.
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   bandit:

@@ -5,19 +5,20 @@ name: mutation
 # mutant the tests do not catch marks code nothing really checks. This job
 # fails when the score drops below the floor in tools/mutation_gate.py.
 
+# Private-repo Actions minutes are billed, and this job is most of them (about
+# 1,260 of some 1,500 wall-clock minutes by 2026-10-08, mostly on draft pushes
+# later superseded). So it runs on a PR once it is ready for review and on each
+# push after, not on drafts, and not again on main after the merge: the PR run
+# already gated the same code. Run it by hand (workflow_dispatch) when needed.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "pipeline/**"
       - "tests/**"
       - "pyproject.toml"
       - "tools/mutation_gate.py"
       - ".github/workflows/mutation.yml"
-  push:
-    branches: [main]
-    paths:
-      - "pipeline/**"
-      - "tests/**"
   workflow_dispatch:
 
 # A full run took about 45 minutes before Phase 3 and grows with the code; the
@@ -29,6 +30,7 @@ concurrency:
 
 jobs:
   mutmut:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:

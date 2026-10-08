@@ -2,8 +2,15 @@ name: ci
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+
+# Minutes are billed on a private repo: a branch push with a PR open used to run
+# this twice (push and pull_request), so branches run it through their PR only,
+# and a newer push cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:

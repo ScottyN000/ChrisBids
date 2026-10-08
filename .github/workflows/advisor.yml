@@ -85,10 +85,11 @@ jobs:
             --allowedTools "Read,Glob,Grep"
             --json-schema '${{ steps.inputs.outputs.schema }}'
 
-      # Runs even when the review step failed, so the PR says why and what it cost.
+      # Runs even when the review step failed, so the PR says why and what it
+      # cost; a run cancelled by a newer push stays quiet.
       - name: Settle the findings
         id: gate
-        if: always() && steps.inputs.outcome == 'success'
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' }}
         env:
           REVIEW: ${{ steps.review.outputs.structured_output }}
           EXECUTION: ${{ steps.review.outputs.execution_file || format('{0}/claude-execution-output.json', runner.temp) }}
@@ -102,7 +103,7 @@ jobs:
           cat .advisor/comment.md >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Fail when a finding blocks
-        if: always() && steps.gate.outcome == 'success'
+        if: ${{ !cancelled() && steps.gate.outcome == 'success' }}
         env:
           CODE: ${{ steps.gate.outputs.code }}
         run: |
@@ -114,7 +115,7 @@ jobs:
 
   post:
     needs: review
-    if: always() && needs.review.outputs.comment != ''
+    if: ${{ !cancelled() && needs.review.outputs.comment != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

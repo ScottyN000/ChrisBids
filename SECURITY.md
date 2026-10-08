@@ -28,6 +28,9 @@ produces is treated as data: it can fill a schema field, never steer the code.
 
 ## Known gaps
 
+- `anthropics/claude-code-action`, the one third-party action, holds
+  `ANTHROPIC_API_KEY` in the advisor's review job and is pinned by its `v1`
+  tag, which its owner can move. Pinning it to a commit SHA would close this.
 - The broker is a library in one process, so the access matrix holds against
   bugs and model output, not against code that constructs its own `Broker`.
   The hosting plan (per-role containers, broker as the only process holding the

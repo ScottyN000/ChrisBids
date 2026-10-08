@@ -175,7 +175,8 @@ def content_for(reader: str, unit: Unit) -> list[dict]:
     tag = "unit-" + hashlib.sha256(text.encode()).hexdigest()[:16]
     source = where.replace("<", "").replace(">", "").replace('"', "'")
     return [{"type": "text", "text": f"<{tag} source=\"{source}\">\n{text}\n</{tag}>\n"
-                                     f"The page is between the {tag} tags. Return the JSON for this {reader} unit."}]
+                                     f"The page is between the {tag} tags. Return the JSON for this {reader} unit."
+                                     + (f"\n\n{unit.brief}" if unit.brief else "")}]
 
 
 USAGE_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")

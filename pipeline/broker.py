@@ -244,6 +244,13 @@ class Broker:
             return False
         return True
 
+    def log_fetch(self, url: str, detail: str) -> None:
+        """Record one fetch: the URL, the retrieval date and the content hash or the error."""
+        if not self.principal.egress:
+            self._deny("fetch")
+        self._log("fetch", url[:500], detail)
+        self.ledger.db.commit()
+
     def secret(self, name: str) -> str:
         """Secrets come from the broker's environment, never from a prompt."""
         if name not in SECRET_ENV:

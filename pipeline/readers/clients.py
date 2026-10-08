@@ -53,7 +53,7 @@ class ReplayClient:
         return self._cache[reader]
 
     def units(self, reader: str) -> list[Unit]:
-        fields = ("unit_id", "source_id", "locator", "tag", "path", "scale", "text")
+        fields = ("unit_id", "source_id", "locator", "tag", "path", "scale", "text", "brief")
         return [Unit(**{k: u.get(k, "") for k in fields}) for u in self.recording(reader)["units"]]
 
     def complete(self, reader: str, unit: Unit, system: str, schema: dict, run: int) -> dict | str:

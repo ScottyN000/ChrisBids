@@ -153,8 +153,7 @@ The plan is a lookup by document kind:
 
 A source that is missing, a duplicate, or of a kind no reader opens yet
 (template, past bid, spreadsheet, unknown) is listed with the reason, so the plan
-accounts for every register row. Customer Requirements, Codes and Materials are
-listed as not built.
+accounts for every register row. Customer Requirements is listed as not built.
 
 The architecture puts the Orchestrator on Sonnet (p.13). With only the register to
 go on, the plan has no choices a model would add, so it is code: the same plan
@@ -172,11 +171,65 @@ A bid run does the following, in order:
 2. The plan (`plan.json`).
 3. Each reader on its units, prepared and hash-checked by `readers/live.prepare_units`.
 4. Takeoff.
-5. The Scope Writer (`proposal.md`, `xref.csv`).
-6. The Auditor, with the packet and the proposal.
+5. Codes & Regs and Materials, when the run has network (`--no-web` skips them).
+6. The Scope Writer (`proposal.md`, `xref.csv`).
+7. The Auditor, with the packet and the proposal.
 
 It also writes `ledger.csv` and a summary, `bid.txt`. A test runs a small
 synthetic packet through every step with fake model clients.
 
 A new packet's readers write no header rows (project name, address, client),
 so the Scope Writer may leave those slots empty and the proposal says FIELD there.
+
+## Codes & Regs and Materials (Phase 4)
+
+[`webread.py`](webread.py) reads the code, permit, licensing and product pages a
+job needs, and writes what they say as `fetched` rows. Each row carries the URL,
+the retrieval date and a verbatim quote (architecture p.4, p.6, p.16). The two
+agents share the module, and each page names its agent: Codes & Regs for codes,
+permits and licensing, Materials for manufacturer data sheets.
+
+Which pages a job needs comes from [`web_sources.yaml`](web_sources.yaml). This
+is the per-jurisdiction and per-manufacturer cache the architecture describes
+(p.7-8). A page is read when the job's rows name its place, product or hazard.
+For example, the Ocean City pages are read for a job in Ocean City, Maryland, and
+the Loxon data sheets for a job whose spec names Loxon. The table was seeded from
+the 57 pages the two hand-made test bids cite. Each ask is the test bid's
+statement with its figures masked (`Permit turnaround # weeks on average`), so
+the model has to read the figure from the page. A jurisdiction the table does not
+know gets no rows yet: the cold-cache search plan (p.13) is not built.
+
+Every bid re-fetches its pages: a cached row is evidence, never a conclusion
+(p.7-8). Code does the fetching ([`web.py`](web.py)) and checks every URL first:
+
+- only `.gov` and `.us` hosts, or a domain the table names, may be fetched;
+- the URL must be public (no file:, loopback or private address);
+- every redirect hop is checked the same way;
+- a page is at most 8 MB, with a 30-second timeout.
+
+HTML and PDF pages are turned into text.
+
+A model (Haiku) answers each ask with a quote and one sentence. Code keeps an
+answer only if all three hold:
+
+- the quote is on the page, compared after folding case, spacing, quotes and dashes;
+- every number in the sentence is also in the quote;
+- every run gives the answer, with quotes that overlap.
+
+A page that does not open is written as one row flagged unverified, saying why.
+The test bids record a dead link the same way. Each fetch is logged with its
+date and content hash.
+
+Golden gate, live only: `python -m pipeline web fixtures/<job> --out runs/x`.
+For every ask gated against one of the fixture's own fetched rows, the run's
+quote must carry most of the fixture's quote. Two cases are reported and left
+out, because the page changed rather than the agent failing:
+
+- a page that no longer opens;
+- a page that no longer carries the fixture's quote.
+
+The gate runs in `live.yml` (`part: web`).
+
+Not built yet: order quantities from spread rates (a `material` row may not be
+`fetched`, p.6), the cold-cache search, and the 90-day cache for federal
+regulations (p.8).

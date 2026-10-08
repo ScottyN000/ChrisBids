@@ -13,8 +13,9 @@ kind, and a lookup in code gives the same plan every time and costs nothing.
 A model earns its place here once Intake tags divisions and a plan has choices
 to make (one Takeoff and Materials pass per division, p.7).
 
-`bid` carries the plan out: Intake, the readers, Takeoff, the Scope Writer and
-the Auditor, each through its own principal, with every result written to the
+`bid` carries the plan out: Intake, the readers, Takeoff, Codes & Regs and
+Materials (when the run has network), the Scope Writer and the Auditor, each
+through its own principal, with every result written to the
 run folder. The Orchestrator itself writes no row.
 """
 from __future__ import annotations
@@ -23,7 +24,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from . import auditor, fixtures, intake, scope_writer, takeoff
+from . import auditor, fixtures, intake, scope_writer, takeoff, web, webread
 from .broker import Broker
 from .readers import live, run as reader_run
 from .readers import tiles
@@ -48,6 +49,7 @@ NOT_READ = {
     "design": "a design document about the pipeline, not about the job",
     "spreadsheet": "no reader for spreadsheets yet",
     "unknown": "Intake could not tell what it is; a person must classify it",
+    "fetched": "the pages Codes & Regs and Materials fetch; each row carries its own URL",
 }
 READERS = ("drawing", "spec", "photo", "correspondence")
 # A drawing sheet with no hand-drawn view boxes is read in a fixed grid
@@ -141,8 +143,8 @@ def plan(job: str, register: list[dict]) -> Plan:
         Step("takeoff", True, "derives quantities from the drawing rows and writes FIELD rows"
              if read_any else "no drawing or photo rows; writes nothing"),
         Step("customer", False, "not built yet; it waits on Chris's Oct 6 email to be tested"),
-        Step("codes", False, "Phase 4, not built yet"),
-        Step("materials", False, "Phase 4, not built yet"),
+        Step("codes", True, "fetches the code, permit and licensing pages the page table matches to the job"),
+        Step("materials", True, "fetches the product data sheets the page table matches to the job"),
         Step("scope_writer", True, "lays out the proposal from the ledger"),
         Step("auditor", True, "re-hashes the sources, checks every row and traces every figure in the proposal"),
     ]
@@ -156,6 +158,7 @@ class BidResult:
     scope: scope_writer.ScopeResult | None = None
     audit: auditor.AuditReport | None = None
     problems: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -166,6 +169,7 @@ class BidResult:
     def text(self) -> str:
         lines = [self.plan.text()]
         lines += [f"PROBLEM {p}" for p in self.problems]
+        lines += [f"note {n}" for n in self.notes]
         lines += [r.text() for r in self.results.values()]
         if self.scope is not None:
             lines.append(self.scope.report())
@@ -176,7 +180,8 @@ class BidResult:
 
 
 def bid(packet: Path, job: str, out: Path, *, reader_client: ModelClient, takeoff_client: ModelClient,
-        scope_client: ModelClient, repeats: int = 2, phrase_library: Path = fixtures.PHRASE_LIBRARY) -> BidResult:
+        scope_client: ModelClient, repeats: int = 2, phrase_library: Path = fixtures.PHRASE_LIBRARY,
+        fetcher: web.Fetcher | None = None, web_table: webread.Table | None = None) -> BidResult:
     """Run a bid end to end on a packet folder. Everything lands in `out`."""
     packet, out = Path(packet).resolve(), Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -200,6 +205,11 @@ def bid(packet: Path, job: str, out: Path, *, reader_client: ModelClient, takeof
                 result.results[reader] = reader_run.read(broker, reader, job, units[reader], reader_client,
                                                          repeats=repeats)
         result.results["takeoff"] = takeoff.run(broker, job, takeoff_client, repeats=repeats)
+        if fetcher is None:
+            result.notes.append("codes and materials: no network in this run, so no page was fetched")
+        else:
+            result.results["web"] = webread.run(broker, job, reader_client, fetcher, table=web_table,
+                                                    repeats=repeats)
         result.scope = scope_writer.run(broker, job, scope_client, phrase_library, repeats=repeats)
         scope_writer.write(result.scope, out)
         result.audit = auditor.run(

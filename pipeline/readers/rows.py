@@ -27,6 +27,7 @@ class Unit:
     path: str = ""        # the page image, tile or file the model is shown
     scale: str = ""       # drawing views: the stated scale, e.g. 3/4"=1'-0"
     text: str = ""        # text units: the text layer or message body the model is shown
+    brief: str = ""       # what to look for in the text; shown after it, outside its delimiter
 
 
 class ReaderOutputError(ValueError):

@@ -255,12 +255,47 @@ class AnswerCase(unittest.TestCase):
 
     def test_a_figure_may_come_from_the_page_s_identifier(self):
         a = answer("a1", "Permits will be issued 2-4 weeks", "ESR-4143: 2-4 weeks.", figures=["4143", "2-4"])
-        self.assertEqual(webread.answer_errors(a, self.TEXT + " ESR-4143", ("ESR-4143",)), [])
-        self.assertEqual(webread.answer_errors(a, self.TEXT, ("ESR-4143",))[0], "figures the quote does not carry: 4143")
+        ask = "What ESR-# says about permits: # weeks"
+        self.assertEqual(webread.id_marks(ask, ("ESR-4143",)), frozenset({0}))
+        self.assertEqual(webread.answer_errors(a, self.TEXT + " ESR-4143", ("ESR-4143",), ask), [])
+        self.assertEqual(webread.answer_errors(a, self.TEXT, ("ESR-4143",), ask)[0],
+                         "figures the quote does not carry: 4143")
         self.assertEqual(webread.answer_errors(a, self.TEXT)[0], "figures the quote does not carry: 4143")
+        # only a mark the ask places in the identifier is exempt: "ESR-# ... # weeks" filled "4143" in the
+        # second mark is a figure the quote must carry
+        swapped = dict(a, figures=["4143", "4143"])
+        self.assertEqual(webread.answer_errors(swapped, self.TEXT + " ESR-4143", ("ESR-4143",), ask)[0],
+                         "figures the quote does not carry: 4143")
         self.assertEqual(webread.slots(a), (("4143",), ("2-4",)))
-        self.assertEqual(webread.slots({"figures": ["", "Jan 15, 2018"]}), ((), ("15", "2018")))
+        self.assertEqual(webread.slots(a, ("ESR-4143",), frozenset({0})), ((), ("2-4",)))
+        self.assertEqual(webread.slots(a, ("ESR-4143",)), (("4143",), ("2-4",)))
+        self.assertEqual(webread.slots({"figures": ["", "Jan 15, 2018"]}), ((), ("jan 15 2018",)))
         self.assertEqual(webread.slots({}), ())
+
+    def test_identifier_marks_come_from_the_ask_and_the_page_s_identifiers(self):
+        cases = [("Kem Kromik B# spread rate: # sq ft/gal", ("B50WZ0001", "B50"), {0}),
+                 ("Loxon S# joint size limits (#\" wide, #\" deep)", ("Loxon S1",), {0}),
+                 ("What ESR-# covers for HIT-HY # and when it was reissued: #", ("ESR-4143", "HIT-HY 270"), {0, 1}),
+                 ("Primer A#W# spread rate (# sq ft/gal)", ("A24W8300",), {0, 1}),
+                 ("AWS D#/D#M (:#)", ("D1.1",), {0, 1}),
+                 ("At what height: # ft", ("29 CFR 1926.501",), set())]
+        for ask, ids, want in cases:
+            self.assertEqual(webread.id_marks(ask, ids), frozenset(want), ask)
+
+    def test_a_date_s_month_is_part_of_the_figure(self):
+        self.assertEqual(webread.figures("Reissued March 2024, revised May 2024; Jan. 15, 2018; may 2 coats"),
+                         {"mar 2024", "may 2024", "jan 15 2018", "2"})
+        text = "<p>Reissued March 2024. Revised May 2024.</p>"
+        march = answer("a1", "Reissued March 2024", "It was reissued March 2024.", figures=["March 2024"])
+        self.assertEqual(webread.answer_errors(march, web.html_text(text)), [])
+        # a sentence that changes the month gives a date its quote does not carry
+        moved = dict(march, statement="It was reissued May 2024.")
+        self.assertIn("the statement has figures not among its quoted figures: may 2024",
+                      webread.answer_errors(moved, web.html_text(text)))
+        # two runs that read different months of one year are two readings
+        may = answer("a1", "Revised May 2024", "It was revised May 2024.", figures=["May 2024"])
+        ask = webread.Ask("a1", "When it was reissued: #")
+        self.assertIsNone(webread._agree([{"a1": march}, {"a1": may}], ask)[0])
 
     def test_a_range_is_one_figure(self):
         self.assertEqual(webread.figures("issued 2-4 weeks, 350 – 400 sq ft, 1/2 in, 1,250.50"),
@@ -386,10 +421,16 @@ class AnswerCase(unittest.TestCase):
         dated = {"a1": answer("a1", "All applications REQUIRE PLANS", "Plans are needed (2 sets).", figures=[])}
         self.assertEqual(webread._agree([plans, dated], a)[:2], differ)
         # a mark filled from the page's identifier, written whole or in part, is the same figure
+        lx = webread.Ask("a1", "Primer LX# turnaround: # weeks")
         whole = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x", figures=["LX02W0050", "2-4"])}
         part = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x", figures=["W0050", "2-4"])}
-        self.assertEqual(webread._agree([whole, part], a, ids=("LX02W0050",))[0], whole["a1"])
-        self.assertEqual(webread._agree([whole, part], a)[0], None)
+        self.assertEqual(webread._agree([whole, part], lx, ids=("LX02W0050",))[0], whole["a1"])
+        self.assertEqual(webread._agree([whole, part], lx)[0], None)
+        # identifier digits count in every other mark: "1/4 to 1" and "1/4" differ on the Loxon S1 sheet
+        s1 = webread.Ask("a1", "Loxon S# joint width: #")
+        wide = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x", figures=["S1", '1/4" to 1"'])}
+        narrow = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x", figures=["S1", '1/4"'])}
+        self.assertIsNone(webread._agree([wide, narrow], s1, ids=("Loxon S1",))[0])
 
 
 class RunCase(unittest.TestCase):

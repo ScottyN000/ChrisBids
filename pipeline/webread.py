@@ -68,6 +68,11 @@ OTHER = "other"
 # A figure, with a range ("2-4", "350 – 400") as one figure, so a statement
 # cannot narrow a range to one end and still match the quote.
 NUMBER = re.compile(r"\d+(?:[.,/]\d+)*(?:\s*[-–]\s*\d+(?:[.,/]\d+)*)?")
+# A date written with its month ("March 2024", "Jan. 15, 2018") is one figure,
+# its month included, so runs that read different months of one year differ.
+# The month counts only before a year, so "may 2 coats" is not a date.
+DATE = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+"
+                  r"(?:(\d{1,2}),?\s+)?((?:19|20)\d\d)\b", re.I)
 NUMBER_WORD = re.compile(r"\b(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen"
                          r"|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy"
                          r"|eighty|ninety|hundred|thousand|million|dozen)\b")
@@ -223,28 +228,52 @@ def on_page(ids: tuple[str, ...], page_text: str) -> tuple[str, ...]:
 
 
 def figures(text: str, ids: tuple[str, ...] = ()) -> set[str]:
-    """The figures in a text, each range as one ("2-4"), after taking out the
+    """The figures in a text, each range as one ("2-4") and each date with its
+    month as one ("mar 2024"), after taking out the
     page's own identifiers whole (ESR-4143, A24W8300), so their digits are not
     counted. Only whole identifiers come out: "24 hours" on the A24W8300 sheet
     is still a figure."""
     for i in sorted(ids, key=len, reverse=True):
         text = re.sub(r"(?<![\w.])" + re.escape(i) + r"(?![\w])", " ", text or "", flags=re.I)
-    return {re.sub(r"\s*[-–]\s*", "-", n) for n in NUMBER.findall(text or "")}
+    dates = {" ".join(x for x in (m[1].lower(), m[2], m[3]) if x) for m in DATE.finditer(text or "")}
+    text = DATE.sub(" ", text or "")
+    return dates | {re.sub(r"\s*[-–]\s*", "-", n) for n in NUMBER.findall(text)}
 
 
-def slots(answer: dict, ids: tuple[str, ...] = ()) -> tuple[tuple[str, ...], ...]:
+def id_marks(ask: str, ids: tuple[str, ...]) -> frozenset[int]:
+    """Which of the ask's # marks fill part of one of the page's identifiers
+    ("LX#", "ESR-#", "HIT-HY #", "A#W#"): the text the ask writes before the
+    mark, with earlier marks as wildcards, begins one of the identifiers."""
+    out, parts = set(), ask.split("#")
+    for k in range(len(parts) - 1):
+        before = "#".join(parts[:k + 1])
+        last = re.search(r"[\w#.-]*$", before).group(0)
+        word = re.search(r"([\w#.-]+ )?$", before[:len(before) - len(last)]).group(0)
+        for token in {last, word + last}:   # "LX#", "ESR-#"; "HIT-HY #"
+            if not re.search(r"[A-Za-z]", token):
+                continue
+            pattern = re.compile(re.escape(token).replace(r"\#", r"[\w.]*"), re.I)
+            if any(pattern.match(i) for i in ids):
+                out.add(k)
+    return frozenset(out)
+
+
+def slots(answer: dict, ids: tuple[str, ...] = (), marks: frozenset[int] = frozenset()) -> tuple[tuple[str, ...], ...]:
     """The answer's `figures`, each as the figures it holds (a range is one).
-    Figures that are part of the page's own identifiers are left out, so a run
-    that fills "LX#" with "02W0050" and one that fills it with "LX02W0050" agree."""
+    In a mark that fills an identifier (`marks`, from id_marks), figures that
+    are part of the page's own identifiers are left out, so a run that fills
+    "LX#" with "02W0050" and one that fills it with "LX02W0050" agree. Every
+    other mark keeps all its figures."""
     named = {n for i in ids for n in figures(i)}
-    return tuple(tuple(sorted(figures(f) - named)) for f in answer.get("figures", ()))
+    return tuple(tuple(sorted(figures(f) - (named if k in marks else set())))
+                 for k, f in enumerate(answer.get("figures", ())))
 
 
-def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> list[str]:
+def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = (), ask: str = "") -> list[str]:
     """Why code will not keep this answer. Empty means it may become a row.
-    Each entry of `figures` must be in the quote, or be part of one of the
-    page's own identifiers (`ids`, from the page table: "ESR-#" is 4143; this
-    goes by digit group, so "24" counts as part of A24W8300 here), and the
+    Each entry of `figures` must be in the quote or, in a mark the ask places
+    in an identifier, be part of one of the page's own identifiers (`ids`,
+    from the page table: "ESR-#" is 4143; this goes by digit group), and the
     statement must give each of them. The statement may give only figures its
     quote carries; there the identifiers are taken out whole, so "24 hours" on
     the A24W8300 sheet is still a figure."""
@@ -265,7 +294,7 @@ def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> li
     if not answer["statement"].strip():
         errs.append("found, but no statement")
     quoted = figures(answer["quote"])
-    slot_figures = {f for slot in slots(answer, ids) for f in slot}
+    slot_figures = {f for slot in slots(answer, ids, id_marks(ask, ids)) for f in slot}
     loose = sorted(slot_figures - quoted)
     if loose:
         errs.append(f"figures the quote does not carry: {', '.join(loose)}")
@@ -365,7 +394,7 @@ def _gap(job: str, n: int, source: Source, page: web.Page, ask: Ask, why: str) -
                 statement=f"{source.title}: no answer for \"{ask.ask}\" ({why}); nothing on it is verified")
 
 
-def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
+def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = (), marks: frozenset[int] = frozenset()) -> bool:
     """Do two answers give the same reading? A closed answer (a status, yes
     or no) is a choice, and the two must pick the same option. The figures
     then decide: each run fills the ask's # marks, and the two must fill them
@@ -377,7 +406,7 @@ def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
     and give the same figures in their statements."""
     if a.get("choice", "") != b.get("choice", "") or a.get("choice") == OTHER:
         return False        # a closed answer: the same option, and one of the ask's own
-    x, y = slots(a, ids), slots(b, ids)
+    x, y = slots(a, ids, marks), slots(b, ids, marks)
     if any(x) or any(y):
         return x == y
     if a.get("choice"):
@@ -409,7 +438,8 @@ def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
     if len(found) < len(answers):
         return None, "the runs disagree on whether the page says it", _distinct(found)
     first = answers[0]
-    if not all(_same_reading(first, a, ids) for a in answers[1:]):
+    marks = id_marks(ask.ask, ids)
+    if not all(_same_reading(first, a, ids, marks) for a in answers[1:]):
         return None, "the runs give different readings", _distinct(found)
     return first, "", []
 
@@ -514,7 +544,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             kept = {}
             by_id = {x.id: x for x in source.asks}
             for a in data["answers"]:
-                why = answer_errors(a, unit.text, ids) + choice_errors(a, by_id[a["ask"]])
+                why = answer_errors(a, unit.text, ids, by_id[a["ask"]].ask) + choice_errors(a, by_id[a["ask"]])
                 if why:
                     result.discarded.append(f"{unit.unit_id} run {r + 1} {a['ask']}: {'; '.join(why)}")
                 else:

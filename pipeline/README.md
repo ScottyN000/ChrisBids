@@ -223,14 +223,17 @@ answer only if all three hold:
 
 - the quote is on the page, compared after folding case, spacing, quotes and dashes;
 - the model fills the ask's `#` marks with figures (`figures`), and each is in
-  the quote, a range counting as one figure (so "4" does not match "2-4"), or is
-  part of one of the page's own identifiers, which the table lists whole (`ids`:
+  the quote, a range counting as one figure (so "4" does not match "2-4") and a
+  date with its month as one ("March 2024" does not match "May 2024"), or, in a
+  mark the ask writes inside an identifier ("LX#", "ESR-#"), is part of one of
+  the page's own identifiers, which the table lists whole (`ids`:
   ESR-4143, A24W8300) and which count only if the page carries them, so a
   product name the model recalls (HY 70 to HY 270, p.7) gets no pass;
 - the sentence gives each of those figures, and none its quote lacks. The identifiers are taken out
   whole first, so "24 hours" on the A24W8300 sheet is still a figure;
 - two runs pick the same option for a closed ask and fill the marks with
-  exactly the same figures (identifier digits aside), from whichever passage;
+  exactly the same figures (identifier digits aside, in identifier marks only),
+  from whichever passage;
   for an ask with neither, they quote mostly the same passage and their
   sentences give the same figures.
 

@@ -84,9 +84,9 @@ numbers, years, phone numbers, product codes — is `IGNORE` in
 [`auditor.py`](auditor.py). Each entry says why it is skipped, because that list
 is the one place the audit could be made to pass by looking away.
 
-## Not in Phase 1
+## After Phase 1
 
-Readers, Takeoff, Customer Requirements, the Scope Writer, Codes & Regulations,
-Materials and Pricing. `roles.py` already carries their principals and their
-write scopes, so a Phase 2 reader is a prompt and an output schema, not a change
-to the store.
+The readers are in [`readers/`](readers/README.md) and write through this broker
+unchanged. Takeoff, Customer Requirements, the Scope Writer, Codes &
+Regulations, Materials and Pricing are still to come; `roles.py` already
+carries their principals and write scopes.

@@ -1,0 +1,13 @@
+# Tool configuration only; the pipeline is run as `python3 -m pipeline`.
+
+[tool.mutmut]
+# Mutation testing: mutmut changes the code under pipeline/ one small edit at a
+# time (a < becomes <=, a constant changes, a condition is negated) and runs the
+# tests. A mutant the tests do not catch is a line nothing really checks.
+source_paths = ["pipeline/"]
+pytest_add_cli_args_test_selection = ["tests/"]
+also_copy = ["fixtures/", "tools/", "docs/"]
+do_not_mutate = ["pipeline/cli.py", "pipeline/__main__.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

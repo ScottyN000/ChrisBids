@@ -4,6 +4,7 @@ import sqlite3
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from pipeline import auditor, guard, intake
@@ -119,6 +120,53 @@ class PathCase(unittest.TestCase):
         ok, why = auditor.link_live("http://169.254.169.254/latest/meta-data/")
         self.assertFalse(ok)
         self.assertIn("not checked", why)
+
+
+class PublicUrlCase(unittest.TestCase):
+    def resolving(self, addr):
+        return mock.patch("pipeline.guard.socket.getaddrinfo", return_value=[(2, 1, 6, "", (addr, 443))])
+
+    def test_a_public_host_passes_and_is_returned_unchanged(self):
+        with self.resolving("93.184.215.14") as m:
+            self.assertEqual(guard.public_url("https://example.org:8443/a?b=1"), "https://example.org:8443/a?b=1")
+        self.assertEqual(m.call_args.args, ("example.org", 8443))
+        with self.resolving("93.184.215.14") as m:
+            guard.public_url("http://example.org/")
+        self.assertEqual(m.call_args.args, ("example.org", 80))
+
+    def test_a_name_that_resolves_to_a_private_address_is_refused(self):
+        with self.resolving("10.0.0.5"), self.assertRaises(guard.UnsafeInput) as e:
+            guard.public_url("https://intranet.example.org/")
+        self.assertEqual(str(e.exception), "intranet.example.org resolves to non-public address 10.0.0.5")
+
+    def test_without_resolve_no_lookup_is_made(self):
+        with mock.patch("pipeline.guard.socket.getaddrinfo") as m:
+            self.assertEqual(guard.public_url("https://example.org/", resolve=False), "https://example.org/")
+        m.assert_not_called()
+
+    def test_refusal_messages(self):
+        cases = {
+            "ftp://example.org/": "only http(s) URLs are fetched, not 'ftp'",
+            "example.org": "only http(s) URLs are fetched, not 'no scheme'",
+            "https://u@example.org/": "a URL carrying credentials is not fetched",
+            "https:///path": "URL has no host",
+            "http://app.localhost/": "app.localhost is the local machine",
+            "http://192.168.1.1/": "192.168.1.1 is a non-public address",
+        }
+        for url, msg in cases.items():
+            with self.subTest(url=url), self.assertRaises(guard.UnsafeInput) as e:
+                guard.public_url(url, resolve=False)
+            self.assertEqual(str(e.exception), msg)
+
+    def test_a_redirect_to_a_local_address_is_refused(self):
+        handler = auditor._PublicRedirects()
+        with self.assertRaises(guard.UnsafeInput):
+            handler.redirect_request(None, None, 302, "Found", {}, "http://169.254.169.254/")
+
+    def test_the_packet_root_itself_is_inside(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(guard.inside(d, "."), Path(d).resolve())
+            self.assertEqual(guard.inside(d, ""), Path(d).resolve())
 
 
 if __name__ == "__main__":

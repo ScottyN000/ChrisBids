@@ -6,3 +6,4 @@ runs/
 *.db-shm
 .env
 *.env
+mutants/

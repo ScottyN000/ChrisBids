@@ -3,9 +3,12 @@
     python3 -m pipeline intake  <packet-dir> --job NAN --out runs/nan [--images]
     python3 -m pipeline load    fixtures/nantucket --out runs/nan-fixture
     python3 -m pipeline export  runs/nan-fixture/ledger.db [--out ledger.csv]
-    python3 -m pipeline audit   runs/nan-fixture/ledger.db [--packet /mnt/project-files]
+    python3 -m pipeline audit   runs/nan-fixture/ledger.db [--packet fixtures/packet]
                                 [--proposal fixtures/nantucket/proposal.md] [--links]
     python3 -m pipeline verify-fixtures
+    python3 -m pipeline replay  fixtures/nantucket --out runs/nan-replay [--repeats 3]
+    python3 -m pipeline live    fixtures/nantucket --out runs/nan-live [--packet fixtures/packet]
+                                [--model claude-haiku-5-5] [--effort low]   (needs ANTHROPIC_API_KEY)
 """
 from __future__ import annotations
 
@@ -104,6 +107,44 @@ def cmd_verify_fixtures(a) -> int:
     return rc
 
 
+def cmd_replay(a) -> int:
+    """Run the readers on a fixture's recorded responses and compare with its ledger."""
+    from .readers import golden
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    broker, results, comparison = golden.replay(Path(a.fixture), out / "ledger.db", repeats=a.repeats)
+    for res in results.values():
+        print(res.text())
+    print(comparison.text())
+    (out / "ledger.csv").write_text(broker.ledger.ledger_csv())
+    broker.close()
+    failed = any(r.refused or r.unread for r in results.values())
+    return 0 if comparison.exact_ok and not failed else 1
+
+
+def cmd_live(a) -> int:
+    """Run the readers live on a fixture job's source packet and compare with its ledger."""
+    from .readers import golden, live
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        client = live.LiveClient(model=a.model, effort=a.effort or None, record=out / "recordings")
+        units = live.units_for(Path(a.fixture), Path(a.packet), out)
+        broker, results, comparison = golden.replay(Path(a.fixture), out / "ledger.db", client,
+                                                    repeats=a.repeats, units=units)
+    except live.LiveRunError as e:
+        print(f"NOT RUN: {e}", file=sys.stderr)
+        return 3
+    for res in results.values():
+        print(res.text())
+    print(comparison.text())
+    (out / "ledger.csv").write_text(broker.ledger.ledger_csv())
+    (out / "comparison.txt").write_text(comparison.text() + "\n")
+    broker.close()
+    failed = any(r.refused or r.unread for r in results.values())
+    return 0 if comparison.exact_ok and not failed else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="pipeline", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -137,6 +178,22 @@ def main(argv=None) -> int:
     p = sub.add_parser("verify-fixtures", help="golden test: both fixtures load and export byte-identically")
     p.add_argument("--out", default="")
     p.set_defaults(func=cmd_verify_fixtures)
+
+    p = sub.add_parser("replay", help="run the readers on recorded responses and compare with the fixture")
+    p.add_argument("fixture")
+    p.add_argument("--out", required=True)
+    p.add_argument("--repeats", type=int, default=3)
+    p.set_defaults(func=cmd_replay)
+
+    p = sub.add_parser("live", help="run the readers live on Haiku against a fixture's packet and compare")
+    p.add_argument("fixture")
+    p.add_argument("--packet", default="fixtures/packet", help="packet root the register's paths are relative to")
+    p.add_argument("--out", required=True)
+    p.add_argument("--repeats", type=int, default=3)
+    p.add_argument("--model", default="claude-haiku-5-5")
+    p.add_argument("--effort", default="low", choices=["low", "medium", "high", ""],
+                   help="empty for the model default")
+    p.set_defaults(func=cmd_live)
 
     a = ap.parse_args(argv)
     try:

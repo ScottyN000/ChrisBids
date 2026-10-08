@@ -13,16 +13,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Install poppler and PyYAML
+      - name: Install poppler and the Python requirements
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils
-          python -m pip install --quiet pyyaml
+          python -m pip install --quiet -r requirements.txt
       - name: Golden fixtures are not stale
         run: |
           python tools/build_fixture.py fixtures/nantucket --check
           python tools/build_fixture.py fixtures/ocean-beach --check
       - name: Fixtures load through the broker and export byte-identically
         run: python -m pipeline verify-fixtures --out "$RUNNER_TEMP/verify"
+      - name: Readers replay the golden jobs and reproduce their figures
+        run: |
+          python -m pipeline replay fixtures/nantucket --out "$RUNNER_TEMP/replay-nan"
+          python -m pipeline replay fixtures/ocean-beach --out "$RUNNER_TEMP/replay-obv"
+      - name: The pipeline DAG matches the code
+        run: python tools/render_dag.py --check
       - name: Tests
         run: python -m unittest discover -s tests -t . -v

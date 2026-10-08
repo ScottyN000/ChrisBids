@@ -14,8 +14,8 @@ verbatim quote and one sentence. Code keeps an answer only if:
 * the quote is on the page (`web.quote_in`);
 * every number in the sentence is also in the quote, or in the page's name or
   URL in the table (a product or report number);
-* two runs give it, with quotes that overlap or sentences that give exactly the
-  same figures. A run that is discarded, or an answer that is refused, gets up
+* two runs give the same reading: their sentences give exactly the same
+  figures, or, when neither gives a figure, their quotes overlap. A run that is discarded, or an answer that is refused, gets up
   to SPARES spare runs for the page.
 
 Each kept answer is one `fetched` row with the URL, the retrieval date and the
@@ -59,6 +59,9 @@ ANSWERED = 0.8
 # Most spare runs a page gets when answers are refused (see run()).
 SPARES = 2
 NUMBER = re.compile(r"\d+(?:[.,/]\d+)*")
+NUMBER_WORD = re.compile(r"\b(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen"
+                         r"|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy"
+                         r"|eighty|ninety|hundred|thousand|million|dozen)\b")
 
 SCHEMA = {
     "type": "object",
@@ -181,6 +184,9 @@ def answer_errors(answer: dict, page_text: str, about: str = "") -> list[str]:
         errs.append("found, but no statement")
     extra = sorted(set(NUMBER.findall(answer["statement"])) - set(NUMBER.findall(answer["quote"]))
                    - set(NUMBER.findall(about)))
+    # a figure written in words counts too ("one" is left out: it is mostly not a figure)
+    extra += sorted(set(NUMBER_WORD.findall(answer["statement"].lower()))
+                    - set(NUMBER_WORD.findall(answer["quote"].lower())))
     if extra:
         errs.append(f"the statement has numbers the quote does not: {', '.join(extra)}")
     return errs
@@ -259,13 +265,22 @@ def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
 
 
-def _same_figures(a: dict, b: dict, about: str = "") -> bool:
-    """Do two statements give exactly the same figures? Numbers the page table
-    gives for the page do not count. One giving fewer figures than the other is
-    a different reading, not the same one."""
-    skip = set(NUMBER.findall(about))
-    x, y = (set(NUMBER.findall(v["statement"])) - skip for v in (a, b))
-    return bool(x) and x == y
+def _figures(a: dict, about: str = "") -> set[str]:
+    """The figures a statement gives. Numbers the page table gives for the page
+    (its product or report number) are not figures read from it."""
+    return set(NUMBER.findall(a["statement"])) - set(NUMBER.findall(about))
+
+
+def _same_reading(a: dict, b: dict, about: str = "") -> bool:
+    """Do two answers give the same reading? The statement is where a fetched
+    row states its figure, so the figures decide: two statements with figures
+    must give exactly the same ones, whatever passage each quotes (fewer
+    figures is a different reading). Two statements with no figure must quote
+    mostly the same passage."""
+    x, y = _figures(a, about), _figures(b, about)
+    if x or y:
+        return x == y
+    return overlap(a["quote"], b["quote"]) >= OVERLAP
 
 
 def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
@@ -286,19 +301,16 @@ def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
     if len(found) < len(answers):
         return None, "the runs disagree on whether the page says it", _distinct(found)
     first = answers[0]
-    # Two runs agree when they quote mostly the same passage, or when each
-    # quotes a passage on the page (answer_errors checked) and their statements
-    # give exactly the same figures.
-    if any(overlap(first["quote"], a["quote"]) < OVERLAP and not _same_figures(first, a, about) for a in answers[1:]):
-        return None, "the runs quote different passages", _distinct(found)
+    if not all(_same_reading(first, a, about) for a in answers[1:]):
+        return None, "the runs give different readings", _distinct(found)
     return first, "", []
 
 
 def _distinct(answers: list[dict]) -> list[dict]:
-    """The readings, once each (two runs may give the same quote)."""
+    """The readings, once each (two runs may give the same quote and sentence)."""
     out, seen = [], set()
     for a in answers:
-        key = web.normalize(a["quote"])
+        key = (web.normalize(a["quote"]), web.normalize(a["statement"]))
         if key not in seen:
             seen.add(key)
             out.append(a)

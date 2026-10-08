@@ -207,7 +207,8 @@ Every bid re-fetches its pages: a cached row is evidence, never a conclusion
   are refused);
 - the URL must be public (no file:, loopback or private address);
 - every redirect hop is checked the same way;
-- a page is at most 8 MB, with a 30-second timeout.
+- a page is at most 8 MB, and each read has a 30-second socket timeout (a
+  server that trickles bytes can take longer in total).
 
 HTML and PDF pages are turned into text.
 
@@ -217,8 +218,8 @@ answer only if all three hold:
 - the quote is on the page, compared after folding case, spacing, quotes and dashes;
 - every number in the sentence is also in the quote, or in the page's name in
   the table (a product or report number such as HIT-HY 270);
-- two runs give the answer, with quotes that overlap or sentences that give
-  exactly the same figures.
+- two runs give the same reading: their sentences give exactly the same
+  figures, or, when neither gives a figure, their quotes overlap.
 
 When the runs find differing readings on the page (different passages and
 figures, or one run finds it and one does not), code does not pick one. Each

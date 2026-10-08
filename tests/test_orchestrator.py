@@ -99,6 +99,13 @@ class PlanCase(unittest.TestCase):
                          "derives quantities from the drawing rows and writes FIELD rows")
         self.assertIn("  run  photo, 1 units: 1 units from the register", p.text())
 
+    def test_without_network_the_plan_says_the_web_agents_do_not_run(self):
+        p = orch.plan("J", [src("IMG_1", "photo")])
+        self.assertTrue(p.step("codes").run and p.step("materials").run)
+        p = orch.plan("J", [src("IMG_1", "photo")], web=False)
+        for name in ("codes", "materials"):
+            self.assertEqual((p.step(name).run, p.step(name).reason), (False, orch.NO_WEB))
+
     def test_a_drawing_sheet_is_read_in_grid_tiles(self):
         units = orch.units_for_source("drawing", src("S-1", "drawing", pages="1"))
         self.assertEqual([u["unit_id"] for u in units],

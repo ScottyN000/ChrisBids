@@ -182,6 +182,13 @@ class AnswerCase(unittest.TestCase):
                                                self.TEXT), [])
         self.assertEqual(webread.answer_errors(answer("a1", "Fee: $1", "y" * 500), self.TEXT), [])
 
+    def test_a_figure_in_words_must_be_in_the_quote(self):
+        self.assertEqual(webread.answer_errors(answer("a1", "Permits will be issued", "Permits take three weeks."),
+                                               self.TEXT), ["the statement has numbers the quote does not: three"])
+        text = "Allow three weeks. One coat."
+        self.assertEqual(webread.answer_errors(answer("a1", "Allow three weeks.", "Three weeks."), text), [])
+        self.assertEqual(webread.answer_errors(answer("a1", "One coat.", "Apply one coat."), text), [])
+
     def test_the_statement_may_name_a_number_from_the_url(self):
         a = answer("a1", "Permits will be issued 2-4 weeks", "LX02W0050 permits take 2-4 weeks.")
         self.assertEqual(webread.answer_errors(a, self.TEXT, "SW LX02 data sheet https://x.com/?p=LX02W0050"), [])
@@ -235,25 +242,28 @@ class AnswerCase(unittest.TestCase):
         split = (None, "the runs disagree on whether the page says it", [TURNAROUND])
         self.assertEqual(webread._agree([good, no], a), split)
         self.assertEqual(webread._agree([no, good], a), split)
-        other = {"a1": answer("a1", "All applications REQUIRE PLANS", "x")}
-        self.assertEqual(webread._agree([good, other], a),
-                         (None, "the runs quote different passages", [TURNAROUND, other["a1"]]))
-        close = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "x")}
-        self.assertEqual(webread._agree([good, close], a), (TURNAROUND, "", []))
-        self.assertEqual(webread._agree([good, good, other], a)[2], [TURNAROUND, other["a1"]])   # once each
+        differ = (None, "the runs give different readings")
+        # same figures agree, whichever passage each quotes
         same = {"a1": answer("a1", "after submission. Fee", "Permits take 2-4 weeks after you apply.")}
         self.assertEqual(webread._agree([good, same], a), (TURNAROUND, "", []))
-        # fewer figures is a different reading: code keeps both, picks neither
+        # the same passage with different figures is two readings: code keeps both, picks neither
+        close = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "Permits take 4 weeks.")}
+        self.assertEqual(webread._agree([good, close], a), (*differ, [TURNAROUND, close["a1"]]))
+        bare = {"a1": answer("a1", "Permits will be issued 2-4 weeks", "Permits are issued.")}
+        self.assertEqual(webread._agree([good, bare], a)[:2], differ)       # one gives a figure, one none
         fewer = {"a1": answer("a1", "after submission. Fee", "Permits take at least 2 weeks.")}
-        self.assertEqual(webread._agree([good, fewer], a)[:2], (None, "the runs quote different passages"))
+        self.assertEqual(webread._agree([good, fewer], a)[:2], differ)
         self.assertEqual(webread._agree([fewer, good], a)[2], [fewer["a1"], TURNAROUND])
-        differ = {"a1": answer("a1", "after submission. Fee", "Permits take 2-6 weeks.")}
-        self.assertEqual(webread._agree([good, differ], a)[0], None)
+        self.assertEqual(webread._agree([good, good, close], a)[2], [TURNAROUND, close["a1"]])   # once each
         model = {"a1": answer("a1", "after submission. Fee", "Form 5 permits take 2-4 weeks.")}
         self.assertEqual(webread._agree([good, model], a)[0], None)                     # 5 is a figure here
         self.assertEqual(webread._agree([good, model], a, about="Form 5")[0], TURNAROUND)  # not here
-        bare = {"a1": answer("a1", "Permits will be", "x")}
-        self.assertEqual(webread._agree([other, bare], a)[0], None)   # no figures: quotes must overlap
+        # no figures on either side: the quotes must overlap
+        plans = {"a1": PLANS}
+        also = {"a1": answer("a1", "All applications REQUIRE PLANS", "Plans are needed.")}
+        self.assertEqual(webread._agree([plans, also], a), (PLANS, "", []))
+        other = {"a1": answer("a1", "Permits will be", "Permits exist.")}
+        self.assertEqual(webread._agree([plans, other], a), (*differ, [PLANS, other["a1"]]))
 
 
 class RunCase(unittest.TestCase):
@@ -320,8 +330,8 @@ class RunCase(unittest.TestCase):
         rows = [(c.quote, c.confidence, c.flag) for c in res.rows if c.locator == "ask a1"]
         self.assertEqual(rows, [(TURNAROUND["quote"], "inferred", "unverified"),
                                 (other["quote"], "inferred", "unverified")])
-        self.assertEqual(res.unanswered, [f"{URL} a1 (Permit turnaround # weeks): the runs quote different "
-                                          "passages; 2 readings kept, flagged unverified"])
+        self.assertEqual(res.unanswered, [f"{URL} a1 (Permit turnaround # weeks): the runs give different "
+                                          "readings; 2 readings kept, flagged unverified"])
         # an unverified reading is not an answer at the gate
         g = webread.gate(res, table(), {"J-C-001": {"id": "J-C-001", "quote": TURNAROUND["quote"]}})
         self.assertEqual((g.ok, g.failures, len(g.misses)), (False, [], 1))

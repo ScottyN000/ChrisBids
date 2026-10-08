@@ -116,8 +116,11 @@ def units_for_source(reader: str, s: dict) -> list[dict]:
     return [{"unit_id": sid, "source_id": sid, "locator": "", "tag": sid}]
 
 
-def plan(job: str, register: list[dict]) -> Plan:
-    """The work plan, from the Source Register alone."""
+NO_WEB = "no network in this run (--no-web), so no page is fetched"
+
+
+def plan(job: str, register: list[dict], *, web: bool = True) -> Plan:
+    """The work plan, from the Source Register and whether the run may fetch pages."""
     units: dict[str, list[dict]] = {r: [] for r in READERS}
     sources = []
     for s in register:
@@ -143,8 +146,10 @@ def plan(job: str, register: list[dict]) -> Plan:
         Step("takeoff", True, "derives quantities from the drawing rows and writes FIELD rows"
              if read_any else "no drawing or photo rows; writes nothing"),
         Step("customer", False, "not built yet; it waits on Chris's Oct 6 email to be tested"),
-        Step("codes", True, "fetches the code, permit and licensing pages the page table matches to the job"),
-        Step("materials", True, "fetches the product data sheets the page table matches to the job"),
+        Step("codes", web, "fetches the code, permit and licensing pages the page table matches to the job"
+             if web else NO_WEB),
+        Step("materials", web, "fetches the product data sheets the page table matches to the job"
+             if web else NO_WEB),
         Step("scope_writer", True, "lays out the proposal from the ledger"),
         Step("auditor", True, "re-hashes the sources, checks every row and traces every figure in the proposal"),
     ]
@@ -158,7 +163,6 @@ class BidResult:
     scope: scope_writer.ScopeResult | None = None
     audit: auditor.AuditReport | None = None
     problems: list[str] = field(default_factory=list)
-    notes: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -169,7 +173,6 @@ class BidResult:
     def text(self) -> str:
         lines = [self.plan.text()]
         lines += [f"PROBLEM {p}" for p in self.problems]
-        lines += [f"note {n}" for n in self.notes]
         lines += [r.text() for r in self.results.values()]
         if self.scope is not None:
             lines.append(self.scope.report())
@@ -196,7 +199,7 @@ def bid(packet: Path, job: str, out: Path, *, reader_client: ModelClient, takeof
             if hasattr(c, "bind"):
                 c.bind(broker)   # a live client takes its key from the broker
         register = list(broker.ledger.register().values())
-        p = plan(job, register)
+        p = plan(job, register, web=fetcher is not None)
         result = BidResult(plan=p)
         (out / "plan.json").write_text(p.as_json())
         units = live.prepare_units(job, p.units_spec(), register, packet, out)
@@ -205,9 +208,7 @@ def bid(packet: Path, job: str, out: Path, *, reader_client: ModelClient, takeof
                 result.results[reader] = reader_run.read(broker, reader, job, units[reader], reader_client,
                                                          repeats=repeats)
         result.results["takeoff"] = takeoff.run(broker, job, takeoff_client, repeats=repeats)
-        if fetcher is None:
-            result.notes.append("codes and materials: no network in this run, so no page was fetched")
-        else:
+        if fetcher is not None:
             result.results["web"] = webread.run(broker, job, reader_client, fetcher, table=web_table,
                                                     repeats=repeats)
         result.scope = scope_writer.run(broker, job, scope_client, phrase_library, repeats=repeats)

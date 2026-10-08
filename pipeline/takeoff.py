@@ -276,20 +276,3 @@ def run(broker: Broker, job: str, client: ModelClient | None, *, repeats: int = 
         except LedgerError as e:
             result.refused.append(f"{claim.claim_id}: {e}")
     return result
-
-
-# ---- the golden comparison ----------------------------------------------------
-
-def leaves(c: Claim, by_id: dict[str, Claim], key, _depth: int = 0) -> tuple:
-    """The reader figures a derived row rests on, by what a human would check."""
-    if not c.calc or _depth > 20:
-        return (key(c),)
-    out = set()
-    for r in schema.CALC_REF.findall(c.calc):
-        if r in by_id:
-            out.update(leaves(by_id[r], by_id, key, _depth + 1))
-    return tuple(sorted(out))
-
-
-def derived_key(c: Claim, by_id: dict[str, Claim], key) -> tuple:
-    return (c.method, "derived", c.value, c.unit, leaves(c, by_id, key))

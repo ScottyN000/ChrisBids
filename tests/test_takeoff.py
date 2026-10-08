@@ -306,33 +306,65 @@ class AccessCase(LedgerCase):
 
 
 class GoldenCompareCase(unittest.TestCase):
-    def test_a_derived_quantity_is_identified_by_the_figures_it_rests_on(self):
-        q1 = Claim(**{**reader_row("Q1", 5, "spaces", "x", method="counted").__dict__, "calc": SPACES})
-        q2 = Claim(**{**reader_row("Q2", 6, "each", "x", method="counted").__dict__, "calc": "{Q1} + 1"})
-        direct = Claim(**{**reader_row("T2", 6, "each", "y", method="counted").__dict__, "calc": SPACES + " + 1"})
-        by_id = {**BY_ID, "Q1": q1, "Q2": q2, "T2": direct}
-        self.assertEqual(takeoff.derived_key(q2, by_id, compare.key), takeoff.derived_key(direct, by_id, compare.key))
-        self.assertEqual(takeoff.derived_key(q2, by_id, compare.key)[:4], ("counted", "derived", "6", "each"))
-        self.assertEqual(takeoff.leaves(ROWS[0], by_id, compare.key), (compare.key(ROWS[0]),))
-        loop = Claim(**{**q1.__dict__, "claim_id": "L", "calc": "{L} + 1"})
-        # A row that refers to itself stops at a fixed depth instead of recursing forever.
-        self.assertEqual(takeoff.leaves(loop, {"L": loop}, compare.key), (compare.key(loop),))
+    BRACKETS = "NAN-DR-FND-04"
 
-    def test_fixture_derived_rows_and_the_merged_comparison(self):
-        q = Claim(**{**reader_row("Q", 6, "each", "x", method="counted").__dict__, "calc": SPACES + " + 1"})
+    def setUp(self):
+        self.symbols = reader_row(self.BRACKETS, 6, "each", "Bracket symbols", method="counted")
+        q = lambda cid, v, u, calc: Claim(**{**reader_row(cid, v, u, "x", method="counted").__dict__, "calc": calc})
+        self.fixture = ROWS + [self.symbols, q("Q1", 5, "spaces", SPACES), q("Q2", 6, "each", "{Q1} + 1"),
+                               q("Q3", 18, "each", f"{{{ANCH}}} * {{Q2}}")]
+        self.q = q
+
+    def compare(self, produced, extra_rows=()):
+        by_id = {c.claim_id: c for c in ROWS + [self.symbols, *extra_rows, *produced]}
+        cmp = compare.Comparison(matched=[("z",)], missing=[], extra=[])
+        return compare.add_derived(cmp, by_id, produced, self.fixture, {"S-1"})
+
+    def test_the_route_to_a_figure_is_not_compared(self):
+        """18 anchors from 3 x the 6 symbols drawn is the fixture's 18 from the dimensions."""
+        cmp = self.compare([self.q("T1", 5, "spaces", f"{{{self.BRACKETS}}} - 1"),
+                            self.q("T2", 18, "each", f"{{{ANCH}}} * {{{self.BRACKETS}}}")])
+        self.assertTrue(cmp.exact_ok, cmp.text())
+        # 6 brackets is already a counted row, so it matches without being derived.
+        self.assertEqual(cmp.matched, sorted([("z",), ("counted", "derived", "5", "spaces"),
+                                              ("counted", "derived", "6", "each"),
+                                              ("counted", "derived", "18", "each")]))
+
+    def test_a_wrong_figure_is_missing_and_extra(self):
+        cmp = self.compare([self.q("T1", 5, "spaces", SPACES), self.q("T2", 21, "each", f"{{{ANCH}}} * 7")])
+        self.assertFalse(cmp.exact_ok)
+        self.assertEqual(cmp.missing, [("counted", "derived", "18", "each")])
+        self.assertEqual(cmp.extra, [("counted", "derived", "21", "each")])
+
+    def test_a_figure_resting_on_a_row_the_fixture_lacks_is_extra(self):
+        odd = reader_row("NAN-DR-ODD", 18, "each", "x", method="counted", locator="Elsewhere")
+        cmp = self.compare([self.q("T1", 5, "spaces", SPACES), self.q("T2", 18, "each", "{NAN-DR-ODD}")], [odd])
+        self.assertEqual(cmp.missing, [("counted", "derived", "18", "each")])
+        self.assertEqual(cmp.extra, [("counted", "derived", "18", "each", (compare.key(odd),))])
+
+    def test_a_flagged_count_does_not_stand_in_for_a_derived_figure(self):
+        self.symbols = reader_row(self.BRACKETS, 6, "each", "Bracket symbols", method="counted", flag="unverified")
+        cmp = self.compare([self.q("T1", 5, "spaces", SPACES), self.q("T2", 18, "each", f"{{{ANCH}}} * 6")])
+        self.assertEqual(cmp.missing, [("counted", "derived", "6", "each")])
+
+    def test_leaves_follow_derived_rows_and_stop_on_a_loop(self):
+        q1 = self.q("Q1", 5, "spaces", SPACES)
+        q2 = self.q("Q2", 6, "each", "{Q1} + 1 + {NAN-GONE}")
+        by_id = {**BY_ID, "Q1": q1, "Q2": q2}
+        self.assertEqual(compare.leaves(q2, by_id), tuple(sorted(compare.key(BY_ID[r]) for r in (SPAN, SPACING, END))))
+        self.assertEqual(compare.leaves(ROWS[0], by_id), (compare.key(ROWS[0]),))
+        loop = self.q("L", 1, "each", "{L} + 1")
+        self.assertEqual(compare.leaves(loop, {"L": loop}), (compare.key(loop),))
+        self.assertEqual(compare.derived_key(q2), ("counted", "derived", "6", "each"))
+
+    def test_fixture_derived_rows(self):
+        q = self.q("Q", 6, "each", SPACES + " + 1")
         allowance = Claim(**{**q.__dict__, "claim_id": "A", "role": "allowance"})
         offsite = Claim(**{**q.__dict__, "claim_id": "W", "source_id": "S-1 + WEB"})
         scaled = Claim(**{**q.__dict__, "claim_id": "S", "method": "scaled"})
         fixture = ROWS + [q, allowance, offsite, scaled]
         self.assertEqual([c.claim_id for c in compare.fixture_derived(fixture, {"S-1"})], ["Q"])
         self.assertEqual([c.claim_id for c in compare.fixture_derived(fixture, {"S-1", "WEB"})], ["Q", "W"])
-        cmp = compare.Comparison(matched=[("z",)], missing=[], extra=[])
-        wrong = Claim(**{**q.__dict__, "claim_id": "T", "value": "7", "value_num": 7.0})
-        compare.add_derived(cmp, {**BY_ID, "T": wrong}, ROWS + [wrong], fixture, {"S-1"})
-        self.assertFalse(cmp.exact_ok)
-        self.assertEqual([k[2] for k in cmp.missing], ["6"])
-        self.assertEqual([k[2] for k in cmp.extra], ["7"])
-        self.assertEqual(cmp.matched, [("z",)])
 
 
 class GoldenReplayCase(unittest.TestCase):

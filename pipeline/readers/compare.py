@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 
-from ..schema import Claim
+from ..schema import CALC_REF, Claim
 
 EXACT = ("dimensioned", "counted")
 REPORTED = ("scaled", "observed")
@@ -89,16 +89,49 @@ def add_derived(comparison: Comparison, produced_by_id: dict[str, Claim], produc
                 fixture: list[Claim], present_sources: set[str]) -> Comparison:
     """Takeoff's derived quantities against the fixture's, in the same comparison.
 
-    A derived figure is identified by its method, value and unit and by the
-    reader figures it rests on (followed through any row it uses in turn), so
-    the fixture's `{NAN-Q-001} + 1` and a formula written over the reader rows
-    directly are the same quantity when they use the same figures.
+    A derived figure is identified by its method, value and unit. The same
+    figure can be reached from more than one set of rows (18 anchors is 3 per
+    bracket x 6 bracket symbols, or 3 x the brackets the dimensions space out),
+    and both are sound, so the route is not compared. What is checked instead:
+
+    * every reader figure a derived row rests on is one the fixture carries,
+      or the row is reported extra with the figures it used;
+    * a fixture quantity that the readers already wrote as a counted figure
+      (6 brackets is also the 6 symbols drawn) is matched by that figure, since
+      Takeoff is told not to derive a number that is already a row.
     """
-    from ..takeoff import derived_key
-    fixture_by_id = {c.claim_id: c for c in fixture}
-    want = Counter(derived_key(c, fixture_by_id, key) for c in fixture_derived(fixture, present_sources))
-    got = Counter(derived_key(c, produced_by_id, key) for c in produced if c.calc)
-    comparison.matched = sorted(comparison.matched + list((want & got).elements()))
-    comparison.missing = sorted(comparison.missing + list((want - got).elements()))
-    comparison.extra = sorted(comparison.extra + list((got - want).elements()))
+    known = {key(c) for c in reader_rows(fixture, present_sources)}
+    want = Counter(derived_key(c) for c in fixture_derived(fixture, present_sources))
+    got, unsourced = Counter(), []
+    for c in produced:
+        if not c.calc:
+            continue
+        stray = [leaf for leaf in leaves(c, produced_by_id) if leaf not in known]
+        if stray:
+            unsourced.append(derived_key(c) + (tuple(stray),))
+        else:
+            got[derived_key(c)] += 1
+    counted = Counter(("counted", "derived", c.value, c.unit) for c in produced_by_id.values()
+                      if c.method == "counted" and not c.calc and not c.flag and key(c) in known)
+    missing = want - got
+    covered = missing & counted
+    comparison.matched = sorted(comparison.matched + list((want & got).elements()) + list(covered.elements()))
+    comparison.missing = sorted(comparison.missing + list((missing - covered).elements()))
+    comparison.extra = sorted(comparison.extra + list((got - want).elements()) + unsourced)
     return comparison
+
+
+def derived_key(c: Claim) -> tuple:
+    return (c.method, "derived", c.value, c.unit)
+
+
+def leaves(c: Claim, by_id: dict[str, Claim], _depth: int = 0) -> tuple:
+    """The reader figures a derived row rests on, by what a human would check,
+    followed through any derived row it uses in turn."""
+    if not c.calc or _depth > 20:
+        return (key(c),)
+    out = set()
+    for r in CALC_REF.findall(c.calc):
+        if r in by_id:
+            out.update(leaves(by_id[r], by_id, _depth + 1))
+    return tuple(sorted(out))

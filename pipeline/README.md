@@ -202,7 +202,9 @@ know gets no rows yet: the cold-cache search plan (p.13) is not built.
 Every bid re-fetches its pages: a cached row is evidence, never a conclusion
 (p.7-8). Code does the fetching ([`web.py`](web.py)) and checks every URL first:
 
-- only `.gov` and `.us` hosts, or a domain the table names, may be fetched;
+- only `.gov` hosts, `.us` state portals (`*.state.xx.us`) or a domain the table
+  names may be fetched (anyone may register a `.us` name, so other `.us` hosts
+  are refused);
 - the URL must be public (no file:, loopback or private address);
 - every redirect hop is checked the same way;
 - a page is at most 8 MB, with a 30-second timeout.
@@ -216,7 +218,11 @@ answer only if all three hold:
 - every number in the sentence is also in the quote, or in the page's name in
   the table (a product or report number such as HIT-HY 270);
 - two runs give the answer, with quotes that overlap or sentences that give
-  the same figures.
+  exactly the same figures.
+
+When the runs find differing readings on the page (different passages and
+figures, or one run finds it and one does not), code does not pick one. Each
+reading is written as its own row, flagged unverified, for Chris to settle.
 
 A run that is discarded, or an answer that is refused, gets up to two spare
 runs for that page, so one slip does not cost the ask.
@@ -228,7 +234,8 @@ date and content hash.
 Golden gate, live only: `python -m pipeline web fixtures/<job> --out runs/x`.
 For every ask gated against one of the fixture's own fetched rows, the run's
 quote must carry most of the fixture's quote, or every figure of the fixture's
-statement. A row that does neither is a wrong answer and fails the gate. An ask
+statement. A row that does neither is a wrong answer and fails the gate. An
+unverified reading does not count as an answer. An ask
 with no row is a miss: safe, since the bid then has no verified row for it, but
 incomplete, so at least 80% of the compared asks must have a row. Two cases are
 reported and left out, because the page changed rather than the agent failing:

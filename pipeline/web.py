@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 import html.parser
 import re
-# pdftotext runs on a fetched PDF, by absolute argument list and with no shell.
+# pdftotext runs on a fetched PDF, called with an argument list and no shell.
 import subprocess  # nosec B404
 import tempfile
 import unicodedata
@@ -29,9 +29,12 @@ from urllib.parse import urljoin, urlsplit
 
 from . import guard
 
-# The allowlist the architecture names (p.12): .gov, .us state portals, and
-# named manufacturer domains. The named domains come from the page table.
-ALWAYS = (".gov", ".us")
+# The allowlist the architecture names (p.11): .gov, .us state portals, and
+# named manufacturer domains. The named domains come from the page table. Any
+# .gov host is allowed; under .us only a state portal (`*.state.xx.us`), since
+# anyone may register a .us name.
+GOV = ".gov"
+STATE_PORTAL = re.compile(r"(?:^|\.)state\.[a-z]{2}\.us$")
 MAX_BYTES = 8_000_000
 MAX_REDIRECTS = 5
 TIMEOUT = 30
@@ -59,7 +62,7 @@ def allowed(url: str, named: frozenset[str] | set[str]) -> str:
     except guard.UnsafeInput as e:
         return str(e)
     host = host_of(url)
-    if host.endswith(ALWAYS) or any(host == d or host.endswith("." + d) for d in named):
+    if host.endswith(GOV) or STATE_PORTAL.search(host) or any(host == d or host.endswith("." + d) for d in named):
         return ""
     return f"{host} is not on the allowlist"
 
@@ -191,11 +194,16 @@ class Fetcher:
             except (urllib.error.URLError, OSError, ValueError) as e:
                 page.error = f"did not open: {getattr(e, 'reason', e)}"
                 return page
-            status = resp.getcode() or 0
-            if status in (301, 302, 303, 307, 308) and resp.headers.get("Location"):
-                current = urljoin(current, resp.headers["Location"])
-                continue
-            return self._read(page, current, status, resp)
+            try:
+                status = resp.getcode() or 0
+                if status in (301, 302, 303, 307, 308) and resp.headers.get("Location"):
+                    current = urljoin(current, resp.headers["Location"])
+                    continue
+                return self._read(page, current, status, resp)
+            finally:
+                close = getattr(resp, "close", None)
+                if close:
+                    close()     # a bid fetches dozens of pages; free each socket now
         page.error = f"more than {MAX_REDIRECTS} redirects"
         return page
 

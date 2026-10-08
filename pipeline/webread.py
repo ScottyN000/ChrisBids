@@ -12,11 +12,15 @@ p.13) is shown the text and the page's asks, and answers each ask with a
 verbatim quote and one sentence. Code keeps an answer only if:
 
 * the quote is on the page (`web.quote_in`);
-* every number in the sentence is also in the quote;
-* every run gives it, with quotes that overlap.
+* every number in the sentence is also in the quote, or in the page's name or
+  URL in the table (a product or report number);
+* two runs give it, with quotes that overlap or sentences that give exactly the
+  same figures. A run that is discarded, or an answer that is refused, gets up
+  to SPARES spare runs for the page.
 
 Each kept answer is one `fetched` row with the URL, the retrieval date and the
-quote. A page that does not open is one row flagged unverified, saying why, which
+quote. When the runs find differing readings on the page, code does not pick
+one: each reading is written as its own row, flagged unverified. A page that does not open is one row flagged unverified, saying why, which
 is how the hand-made test bids record a dead link.
 
 Codes & Regs and Materials share this module. They differ only in their
@@ -256,34 +260,49 @@ def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
 
 
 def _same_figures(a: dict, b: dict, about: str = "") -> bool:
-    """Do two statements give the same figures, one perhaps fewer than the
-    other (a date or a second rate)? Numbers the page table gives for the page
-    do not count."""
+    """Do two statements give exactly the same figures? Numbers the page table
+    gives for the page do not count. One giving fewer figures than the other is
+    a different reading, not the same one."""
     skip = set(NUMBER.findall(about))
     x, y = (set(NUMBER.findall(v["statement"])) - skip for v in (a, b))
-    return bool(x) and bool(y) and (x <= y or y <= x)
+    return bool(x) and x == y
 
 
-def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None, about: str = "") -> tuple[dict | None, str]:
+def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
+           about: str = "") -> tuple[dict | None, str, list[dict]]:
     """The one answer the first `need` kept answers (default: one from every
-    run) all give to this ask, or why there is none."""
+    run) all give to this ask, or why there is none. When there is none but runs
+    found differing readings on the page, those readings come back too: code
+    never picks between them (the determinism rule), it keeps each one,
+    flagged unverified."""
     answers = [r[ask.id] for r in runs if ask.id in r]
     need = len(runs) if need is None else need
     if len(answers) < need:
-        return None, "a run's answer was refused"
+        return None, "a run's answer was refused", []
     answers = answers[:need]    # the first kept answers; a spare run only stands in
-    found = [a["found"] for a in answers]
-    if not any(found):
-        return None, "not on the page"
-    if not all(found):
-        return None, "the runs disagree on whether the page says it"
+    found = [a for a in answers if a["found"]]
+    if not found:
+        return None, "not on the page", []
+    if len(found) < len(answers):
+        return None, "the runs disagree on whether the page says it", _distinct(found)
     first = answers[0]
     # Two runs agree when they quote mostly the same passage, or when each
     # quotes a passage on the page (answer_errors checked) and their statements
-    # give the same figures.
+    # give exactly the same figures.
     if any(overlap(first["quote"], a["quote"]) < OVERLAP and not _same_figures(first, a, about) for a in answers[1:]):
-        return None, "the runs quote different passages"
-    return first, ""
+        return None, "the runs quote different passages", _distinct(found)
+    return first, "", []
+
+
+def _distinct(answers: list[dict]) -> list[dict]:
+    """The readings, once each (two runs may give the same quote)."""
+    out, seen = [], set()
+    for a in answers:
+        key = web.normalize(a["quote"])
+        if key not in seen:
+            seen.add(key)
+            out.append(a)
+    return out
 
 
 def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, table: Table | None = None,
@@ -367,9 +386,14 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             result.unread.append(f"{source.url}: {len(runs)} of {repeats} runs valid")
             continue
         for ask in source.asks:
-            agreed, why = _agree(runs, ask, repeats, f"{source.title} {source.url}")
+            agreed, why, readings = _agree(runs, ask, repeats, f"{source.title} {source.url}")
             if agreed is None:
-                result.unanswered.append(f"{source.url} {ask.id} ({ask.ask}): {why}")
+                kept = f"; {len(readings)} readings kept, flagged unverified" if readings else ""
+                result.unanswered.append(f"{source.url} {ask.id} ({ask.ask}): {why}{kept}")
+                for a in readings:
+                    write(_row(job, next_id(), source, page, confidence="inferred", flag="unverified",
+                               quote=a["quote"].strip(), statement=a["statement"].strip(),
+                               locator=f"ask {ask.id}"), source.agent)
                 continue
             write(_row(job, next_id(), source, page, confidence="exact", quote=agreed["quote"].strip(),
                        statement=agreed["statement"].strip(), locator=f"ask {ask.id}"),
@@ -412,7 +436,7 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate
     pages = {p.url: p for p in result.fetched}
     by_ask = {}
     for c in result.rows:
-        if c.locator.startswith("ask "):
+        if c.locator.startswith("ask ") and c.flag != "unverified":   # an unverified reading is not an answer
             by_ask[(c.url, c.locator[4:])] = c
     failures, notes, misses, compared = [], [], [], 0
     for s in table.pages:

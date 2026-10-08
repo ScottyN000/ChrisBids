@@ -20,7 +20,8 @@ class AllowedCase(unittest.TestCase):
     def test_gov_us_and_named_domains_pass(self):
         for url in ("https://www.osha.gov/x", "https://labor.maryland.gov/a", "http://www.leg.state.fl.us/s",
                     "https://paintdocs.com/p", "https://www.paintdocs.com/p", "https://files-ask.hilti.com/x.pdf",
-                    "https://OSHA.GOV/x", "https://osha.gov./x"):
+                    "https://OSHA.GOV/x", "https://osha.gov./x", "https://state.md.us/x",
+                    "https://www.courts.state.md.us/x"):
             with self.subTest(url=url):
                 self.assertEqual(web.allowed(url, NAMED), "")
 
@@ -30,6 +31,12 @@ class AllowedCase(unittest.TestCase):
             ("https://notpaintdocs.com/x", "notpaintdocs.com is not on the allowlist"),
             ("https://paintdocs.com.evil.io/x", "paintdocs.com.evil.io is not on the allowlist"),
             ("https://gov.example.com/x", "gov.example.com is not on the allowlist"),
+            # anyone may register a .us name: only state portals pass
+            ("https://example.us/x", "example.us is not on the allowlist"),
+            ("https://attacker-pages.us/x", "attacker-pages.us is not on the allowlist"),
+            ("https://notstate.md.us/x", "notstate.md.us is not on the allowlist"),
+            ("https://state.mdx.us/x", "state.mdx.us is not on the allowlist"),
+            ("https://evil.state.md.us.io/x", "evil.state.md.us.io is not on the allowlist"),
             ("file:///etc/passwd", "only http(s) URLs are fetched, not 'file'"),
             ("http://127.0.0.1/x", "127.0.0.1 is a non-public address"),
             ("https://user:pw@osha.gov/x", "a URL carrying credentials is not fetched"),
@@ -189,6 +196,9 @@ class FetchCase(unittest.TestCase):
         page = f.fetch("https://osha.gov/a")
         self.assertEqual((page.text, page.final_url, page.url), ("Here", "https://paintdocs.com/c",
                                                                  "https://osha.gov/a"))
+        # every response is closed once: both redirect hops and the page
+        self.assertEqual([sites.pages[u].closed for u in ("https://osha.gov/a", "https://osha.gov/b",
+                                                          "https://paintdocs.com/c")], [1, 1, 1])
         self.assertEqual(f.fetch("https://osha.gov/evil").error, "not fetched: example.com is not on the allowlist")
         sites.requests.clear()
         self.assertEqual(f.fetch("https://osha.gov/loop").error, f"more than {web.MAX_REDIRECTS} redirects")

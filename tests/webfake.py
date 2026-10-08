@@ -6,7 +6,7 @@ from email.message import Message
 
 class Resp:
     def __init__(self, body: bytes, status: int = 200, ctype: str = "text/html; charset=utf-8", location: str = ""):
-        self.body, self.status = body, status
+        self.body, self.status, self.closed = body, status, 0
         self.headers = Message()
         if ctype:
             self.headers["Content-Type"] = ctype
@@ -18,6 +18,9 @@ class Resp:
 
     def read(self, n=-1):
         return self.body if n < 0 else self.body[:n]
+
+    def close(self):
+        self.closed += 1
 
 
 class Sites:

@@ -67,11 +67,12 @@ def usage_line(execution: str) -> str:
     if not results:
         return "usage: not reported (no result message)"
     r = results[-1]
+    failed = f"review failed: {str(r.get('result') or 'no reason given')[:300]}; " if r.get("is_error") else ""
     u = r.get("usage") or {}
     tokens = ", ".join(f"{u.get(k) or 0} {k}" for k in USAGE_KEYS)
     cost = r.get("total_cost_usd")
     cost = f", ${cost:.2f} as Claude Code reports it" if isinstance(cost, (int, float)) else ""
-    return f"usage: {r.get('num_turns', '?')} turns, {tokens}{cost}"
+    return f"{failed}usage: {r.get('num_turns', '?')} turns, {tokens}{cost}"
 
 
 def render(summary: str, findings: list[dict], usage: str | None = None) -> str:
@@ -98,16 +99,19 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, help="write the PR comment here (default: stdout)")
     ap.add_argument("--usage", type=Path, help="Claude Code's execution output, to report what the review used")
     a = ap.parse_args(argv)
+    usage = None
+    if a.usage:
+        usage = usage_line(a.usage.read_text()) if a.usage.exists() else "usage: not reported (no execution output)"
+        print(usage)
     try:
         review = json.loads(a.review.read_text())
         findings = check(review)
     except ValueError as e:  # json.JSONDecodeError is a ValueError
         print(f"advisor reply unusable: {e}", file=sys.stderr)
+        if a.out:
+            a.out.write_text(f"{MARKER}\n## Advisor: no review\n\nThe advisor returned no usable reply ({e}).\n\n"
+                             f"<sub>{usage or 'usage: not reported'}</sub>\n")
         return 2
-    usage = None
-    if a.usage:
-        usage = usage_line(a.usage.read_text()) if a.usage.exists() else "usage: not reported (no execution output)"
-        print(usage)
     text = render(review["summary"], findings, usage)
     if a.out:
         a.out.write_text(text)

@@ -76,20 +76,22 @@ jobs:
             --allowedTools "Read,Glob,Grep"
             --json-schema '${{ steps.inputs.outputs.schema }}'
 
+      # Runs even when the review step failed, so the PR says why and what it cost.
       - name: Settle the findings
         id: gate
+        if: always() && steps.inputs.outcome == 'success'
         env:
           REVIEW: ${{ steps.review.outputs.structured_output }}
-          EXECUTION: ${{ steps.review.outputs.execution_file }}
+          EXECUTION: ${{ steps.review.outputs.execution_file || format('{0}/claude-execution-output.json', runner.temp) }}
         run: |
           printf '%s' "$REVIEW" > .advisor/review.json
           set +e
-          python tools/advisor.py .advisor/review.json --usage "${EXECUTION:-.advisor/none}" --out .advisor/comment.md
+          python tools/advisor.py .advisor/review.json --usage "$EXECUTION" --out .advisor/comment.md
           echo "code=$?" >> "$GITHUB_OUTPUT"
           cat .advisor/comment.md >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Post the review on the PR
-        if: steps.gate.outputs.code != '2'
+        if: always() && steps.gate.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -97,6 +99,7 @@ jobs:
         run: gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --edit-last --create-if-none --body-file .advisor/comment.md
 
       - name: Fail when a finding blocks
+        if: always() && steps.gate.outcome == 'success'
         env:
           CODE: ${{ steps.gate.outputs.code }}
         run: |

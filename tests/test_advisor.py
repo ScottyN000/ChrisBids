@@ -87,8 +87,10 @@ class MainCase(unittest.TestCase):
         blocks = json.dumps({"summary": "", "findings": [finding(severity="blocking", basis="arch p.4")]})
         self.assertEqual(self.run_main(clean)[0], 0)
         self.assertEqual(self.run_main(blocks)[0], 1)
-        self.assertEqual(self.run_main("not json"), (2, ""))
-        self.assertEqual(self.run_main(json.dumps({"summary": ""})), (2, ""))
+        for reply in ("not json", json.dumps({"summary": ""})):
+            code, comment = self.run_main(reply)
+            self.assertEqual(code, 2)
+            self.assertIn("## Advisor: no review", comment)
 
 
 class BriefCase(unittest.TestCase):
@@ -133,3 +135,19 @@ class UsageCase(unittest.TestCase):
             self.assertIn("<sub>usage: 9 turns,", out.read_text())
             self.assertEqual(advisor.main([str(src), "--usage", str(Path(d) / "none"), "--out", str(out)]), 0)
             self.assertIn("<sub>usage: not reported (no execution output)</sub>", out.read_text())
+
+
+class FailureCase(unittest.TestCase):
+    def test_a_failed_run_says_why(self):
+        failed = {"type": "result", "is_error": True, "num_turns": 1, "total_cost_usd": 0, "result": "Invalid API key"}
+        self.assertTrue(advisor.usage_line(json.dumps([failed])).startswith("review failed: Invalid API key; usage: 1 turns"))
+
+    def test_no_reply_still_writes_a_comment_with_the_reason(self):
+        with tempfile.TemporaryDirectory() as d:
+            src, ex, out = Path(d) / "r.json", Path(d) / "ex.json", Path(d) / "c.md"
+            src.write_text("")
+            ex.write_text(json.dumps([{"type": "result", "is_error": True, "result": "Credit balance is too low"}]))
+            self.assertEqual(advisor.main([str(src), "--usage", str(ex), "--out", str(out)]), 2)
+            text = out.read_text()
+            self.assertTrue(text.startswith(advisor.MARKER + "\n## Advisor: no review\n"))
+            self.assertIn("review failed: Credit balance is too low", text)

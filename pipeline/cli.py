@@ -138,6 +138,8 @@ def cmd_live(a) -> int:
     for res in results.values():
         print(res.text())
     print(comparison.text())
+    if (out / "recordings" / "calls.jsonl").exists():
+        print(live.usage_totals(out / "recordings" / "calls.jsonl"))
     (out / "ledger.csv").write_text(broker.ledger.ledger_csv())
     (out / "comparison.txt").write_text(comparison.text() + "\n")
     broker.close()

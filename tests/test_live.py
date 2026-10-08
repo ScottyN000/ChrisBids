@@ -361,6 +361,15 @@ class ExactCase(unittest.TestCase):
         rec = json.loads((self.tmp / "rec" / "spec.json").read_text())
         self.assertEqual(rec["units"][0]["runs"], [{"items": []}, {"items": []}])
 
+    def test_usage_totals_add_up_every_call(self):
+        log = self.tmp / "calls.jsonl"
+        log.write_text(json.dumps({"usage": {"input_tokens": 5, "output_tokens": 2,
+                                             "cache_creation_input_tokens": None, "cache_read_input_tokens": 7}})
+                       + "\n\n" + json.dumps({"usage": {"input_tokens": 1, "output_tokens": 3,
+                                                       "cache_creation_input_tokens": 4, "cache_read_input_tokens": 0}}) + "\n")
+        self.assertEqual(live.usage_totals(log), "usage: 2 calls, 6 input_tokens, 5 output_tokens, "
+                                                 "4 cache_creation_input_tokens, 7 cache_read_input_tokens")
+
     def test_without_a_recorder_nothing_is_written(self):
         client = live.LiveClient(api=OneAnswer(msg("[1]")))
         self.assertIsNone(client.recorder)

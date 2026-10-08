@@ -47,7 +47,7 @@ from .broker import Broker
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
 from .readers.rows import Unit
-from .schema import Claim, LedgerError
+from .schema import Claim, LedgerError, sources_of
 
 NAME = "web_reader"
 AGENTS = ("codes", "materials")
@@ -425,14 +425,23 @@ def _distinct(answers: list[dict]) -> list[dict]:
     return out
 
 
+def from_packet(c: Claim) -> bool:
+    """Does this row rest only on the job's own documents?"""
+    cited = sources_of(c.source_id)
+    return bool(cited) and SOURCE_ID not in cited
+
+
 def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, table: Table | None = None,
         agents: tuple[str, ...] = AGENTS, repeats: int = 2) -> WebResult:
     table = table or load()
     gone = broker.ledger.superseded()
     claims = [c for c in broker.ledger.claims() if c.claim_id not in gone]
-    # Matched on what the readers and Takeoff wrote, not on fetched rows: those
-    # are this agent's own output, from this run or an earlier one.
-    sources = pick(table, [c for c in claims if c.method != "fetched"], agents)
+    # Matched on what the readers and Takeoff wrote from the packet: not on
+    # fetched rows, which are this agent's own output from this run or an
+    # earlier one, nor on any row that cites the web or no source at all (a
+    # question or FIELD row written from web research would pick the very pages
+    # that research found).
+    sources = pick(table, [c for c in claims if c.method != "fetched" and from_packet(c)], agents)
     result = WebResult(pages=len(sources))
     if not sources:
         result.notes.append("no page in the table matches this job's rows (a cold-cache search is not built)")
@@ -581,7 +590,8 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict],
     incomplete, so the gate passes only while at least ANSWERED of the compared
     asks have a row. A page that did not open, or no longer says what the
     fixture quoted, is reported and left out: that is the page changing, not the
-    agent failing."""
+    agent failing. So is a page the job's packet rows do not lead to (the test
+    bid found it by searching, which is not built)."""
     pages = {p.url: p for p in result.fetched}
     by_ask = {}
     for c in result.rows:
@@ -598,7 +608,10 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict],
                 failures.append(f"{a.fixture}: the broker refused to fetch {s.url}")
                 continue
             if page is None:
-                failures.append(f"{a.fixture}: {s.url} was not read (the table did not match the job)")
+                # The job's own rows do not lead to this page: the test bid found it
+                # by its own search, which is not built (p.13). Reported, not compared;
+                # the offline golden test pins how many asks each job compares.
+                notes.append(f"{a.fixture}: {s.url} not matched by the job's packet rows (cold-cache search not built)")
                 continue
             if not page.ok:
                 notes.append(f"{a.fixture}: {s.url} did not open ({page.error})")

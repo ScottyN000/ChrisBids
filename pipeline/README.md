@@ -191,7 +191,9 @@ permits and licensing, Materials for manufacturer data sheets.
 
 Which pages a job needs comes from [`web_sources.yaml`](web_sources.yaml). This
 is the per-jurisdiction and per-manufacturer cache the architecture describes
-(p.7-8). A page is read when the job's rows name its place, product or hazard.
+(p.7-8). A page is read when the job's rows from its own documents name its place,
+product or hazard (never fetched rows or rows citing the web, which would pick the
+pages that research already found).
 A two-letter state code counts only as an address writes it (", MD" or "MD 21842"),
 so "10.1 fl oz" in a spec does not pull in Florida's pages.
 For example, the Ocean City pages are read for a job in Ocean City, Maryland, and
@@ -259,10 +261,14 @@ that does not is a wrong answer and fails the gate. An
 unverified reading does not count as an answer. An ask
 with no row is a miss: safe, since the bid then has no verified row for it, but
 incomplete, so at least 80% of the compared asks must have a row. Two cases are
-reported and left out, because the page changed rather than the agent failing:
+reported and left out:
 
-- a page that no longer opens;
-- a page that no longer carries the fixture's quote.
+- a page that no longer opens, or no longer carries the fixture's quote (the
+  page changed, not the agent);
+- a page the job's own documents do not lead to: the test bid found it by
+  searching, which is not built (p.13). The offline golden test pins how many
+  asks each job compares (19 and 24), so a table edit that stops a page
+  matching still fails CI.
 
 The gate runs in `live.yml` (`part: web`).
 

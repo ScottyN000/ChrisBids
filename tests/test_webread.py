@@ -8,6 +8,7 @@ from pipeline import intake, web, webread
 from pipeline.broker import Broker
 from pipeline.readers import validate
 from pipeline.readers.clients import prompt, prompt_version
+from pipeline.schema import Claim
 from tests.webfake import Resp, Sites
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -655,10 +656,18 @@ class GateCase(unittest.TestCase):
         self.assertEqual((g.ok, g.notes), (False, ["J-C-001: the page no longer carries the fixture's quote"]))
         self.assertIn("  note J-C-001: the page no longer", g.text())
 
-    def test_a_page_the_table_did_not_match_fails(self):
+    def test_a_page_the_job_s_rows_do_not_lead_to_is_reported_not_compared(self):
         tbl = table(source(when=(("nowhere",),)))
         g = self.gate([], tbl=tbl)
-        self.assertEqual(g.failures, [f"J-C-001: {URL} was not read (the table did not match the job)"])
+        self.assertEqual((g.ok, g.compared, g.failures, g.notes), (False, 0, [], [
+            f"J-C-001: {URL} not matched by the job's packet rows (cold-cache search not built)"]))
+
+    def test_pages_are_matched_only_on_rows_from_the_packet(self):
+        def row(source_id):
+            return Claim(claim_id="J-Q-001", statement="EPA RRP applies if built before 1978", source_id=source_id,
+                         method="clause", role="question", confidence="exact")
+        self.assertEqual([webread.from_packet(row(s)) for s in ("SP", "SP + PH", "WEB", "SP + WEB", "none", "")],
+                         [True, True, False, False, False, False])
 
     def test_asks_of_other_fixtures_are_skipped(self):
         g = self.gate([{"answers": [TURNAROUND, PLANS]}] * 2, fixture={})
@@ -689,12 +698,15 @@ class GoldenCase(unittest.TestCase):
                 for a in s.asks]}
         client = Fake(lambda unit: answers[unit.locator], lambda unit: copy.deepcopy(answers[unit.locator]))
         fetcher = web.Fetcher(tbl.named, opener=Sites(pages), clock=lambda: "2026-10-08", resolve=False)
-        for job, compared in (("nantucket", 23), ("ocean-beach", 27)):
+        for job, compared in (("nantucket", 19), ("ocean-beach", 24)):
             with self.subTest(job=job), tempfile.TemporaryDirectory() as d:
                 broker, res, g = webread.golden(ROOT / "fixtures" / job, Path(d) / "l.db", client, fetcher,
                                                 table=tbl)
                 self.assertTrue(g.ok, g.text() + "\n" + res.text())
                 self.assertEqual(g.compared, compared)
+                if job == "ocean-beach":     # the RRP page is named only by rows the test bid wrote from the web
+                    self.assertIn("OBV-C-022: https://www.epa.gov/lead/lead-renovation-repair-and-painting-program "
+                                  "not matched by the job's packet rows (cold-cache search not built)", g.notes)
                 self.assertEqual(res.refused, [])
                 broker.close()
         # a closed answer the fixture contradicts is a wrong answer, whatever the quote

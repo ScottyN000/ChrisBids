@@ -1,0 +1,60 @@
+name: security
+
+# Kept apart from ci.yml so the scanners can change without touching the golden
+# tests. Every job is read-only; none of them sees a secret.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"   # weekly, so a new CVE in a pinned dependency surfaces without a push
+
+permissions:
+  contents: read
+
+jobs:
+  bandit:
+    name: bandit (Python static analysis)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --quiet bandit==1.9.4
+      # Medium and high severity fail the build. A finding that is a false
+      # positive is silenced on its line with `# nosec <ID>` and a reason.
+      - run: bandit -r pipeline tools -ll
+
+  pip-audit:
+    name: pip-audit (known vulnerabilities in dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --quiet pip-audit==2.10.1
+      - run: pip-audit -r requirements.txt --strict
+
+  gitleaks:
+    name: gitleaks (secrets in the code or its history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The CLI rather than gitleaks-action: the action needs pull-request
+      # read access and a licence key for some accounts; the CLI needs neither.
+      # Pinned by version and checksum.
+      - name: Install gitleaks 8.21.2
+        run: |
+          curl -sSfL -o gitleaks.tgz https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
+          echo "5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba  gitleaks.tgz" | sha256sum -c -
+          tar xzf gitleaks.tgz gitleaks
+      - run: ./gitleaks git --no-banner --redact --verbose .

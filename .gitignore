@@ -4,4 +4,6 @@ runs/
 *.db
 *.db-wal
 *.db-shm
+.env
+*.env
 mutants/

@@ -160,8 +160,14 @@ class LinkCase(unittest.TestCase):
         def __exit__(self, *a):
             return False
 
+    PUBLIC = [(2, 1, 6, "", ("93.184.215.14", 443))]
+
     def check(self, effect):
-        with mock.patch("pipeline.auditor.urllib.request.urlopen", side_effect=effect) as m:
+        # The host resolves to a public address without touching the network,
+        # and the auditor's own opener (which re-checks redirects) is the one
+        # that answers.
+        with mock.patch("pipeline.guard.socket.getaddrinfo", return_value=self.PUBLIC), \
+                mock.patch.object(auditor._OPENER, "open", side_effect=effect) as m:
             out = auditor.link_live("https://example.org/a", timeout=7)
         return out, m
 

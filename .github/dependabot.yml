@@ -1,0 +1,16 @@
+# Weekly update PRs for Python packages, GitHub Actions and the Docker base
+# image. Each one runs the golden tests and the security workflow like any PR.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

@@ -29,6 +29,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 PHRASES = ROOT / "fixtures" / "phrase-library.yaml"
+sys.path.insert(0, str(ROOT))
+from pipeline.schema import arith  # noqa: E402  (the one arithmetic evaluator; no eval)
 
 METHODS = {"dimensioned", "counted", "scaled", "clause", "observed", "fetched", "customer", "FIELD"}
 CONFIDENCE = {"exact", "scaled", "inferred", "missing"}
@@ -140,7 +142,11 @@ def validate(data, register, phrases):
             if not re.fullmatch(r"[0-9.+\-*/() ]+", env_expr):
                 errors.append(f"{rid}: calc {expr!r} is not plain arithmetic")
                 continue
-            got = eval(env_expr, {"__builtins__": {}})  # arithmetic only, checked above
+            try:
+                got = arith(env_expr)
+            except (ValueError, ZeroDivisionError) as e:
+                errors.append(f"{rid}: calc {expr!r} does not evaluate: {e}")
+                continue
             if abs(got - (r.get("value") or 0)) > 1e-9:
                 errors.append(f"{rid}: calc {expr} = {got}, ledger says {r.get('value')}")
 

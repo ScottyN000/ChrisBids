@@ -49,8 +49,9 @@ class BrokerLogCase(unittest.TestCase):
         c = self.reader.append(count())
         self.assertEqual((c.agent, c.timestamp, c.run_id, c.model_id, c.prompt_version, c.audit, c.audit_note),
                          ("drawing reader", "2026-10-07T00:00:00Z", "run-7", "m", "drawing@abc", "", ""))
+        # The broker says who wrote a row and when; a caller's own values are ignored.
         kept = self.reader.append(count("Q-002", agent="someone", timestamp="2026-01-01T00:00:00Z"))
-        self.assertEqual((kept.agent, kept.timestamp), ("someone", "2026-01-01T00:00:00Z"))
+        self.assertEqual((kept.agent, kept.timestamp), ("drawing reader", "2026-10-07T00:00:00Z"))
         self.assertEqual(self.entries(start), [("drawing_reader", "append", "Q-001", "counted/quantity"),
                                                ("drawing_reader", "append", "Q-002", "counted/quantity")])
         row = self.intake.ledger.db.execute("SELECT principal, written_at FROM claims WHERE claim_id='Q-001'").fetchone()

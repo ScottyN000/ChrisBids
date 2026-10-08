@@ -16,6 +16,12 @@ COPY tools/ ./tools/
 COPY fixtures/ ./fixtures/
 COPY tests/ ./tests/
 
+# Run as an unprivileged user: a malformed PDF that trips poppler gets this
+# user's rights, not root's.
+RUN useradd --system --uid 10001 --home /app pipeline \
+ && mkdir -p /runs && chown pipeline /runs
+USER pipeline
+
 # A packet is a folder and a bid is a run (architecture p.17): mount the packet
 # read-only at /packet and let runs land in /runs.
 VOLUME ["/packet", "/runs"]

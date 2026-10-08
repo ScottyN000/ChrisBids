@@ -53,7 +53,7 @@ NODES: tuple[Node, ...] = (
          principal="photo_reader", module="pipeline/readers/prompts/photo.md", phase=2),
     Node("correspondence", "Correspondence", "emails, PM notes", REPLAY,
          principal="correspondence_reader", module="pipeline/readers/prompts/correspondence.md", phase=2),
-    Node("takeoff", "Takeoff", "derivation or FIELD", REPLAY, principal="takeoff",
+    Node("takeoff", "Takeoff", "derivation or FIELD", BUILT, principal="takeoff",
          module="pipeline/takeoff.py", phase=3),
     Node("codes", "Codes & Regs", "fetched, URL + section", PLANNED, principal="codes", phase=4),
     Node("materials", "Materials", "data sheet rates, cited", PLANNED, principal="materials", phase=4),

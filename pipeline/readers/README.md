@@ -103,8 +103,9 @@ Takeoff is told not to derive a figure that is already a row. Ocean Beach has no
 model call is made, and its one photo condition becomes a FIELD row.
 
 Live, Takeoff runs on `claude-sonnet-5-5` at effort `high` (`--takeoff-model`, `--takeoff-effort`), since
-it has to hold figures from several views at once (architecture p.13). It is replay-only on the DAG until a
-live run passes the gate.
+it has to hold figures from several views at once (architecture p.13). It passed the live gate on both jobs
+on 2026-10-08 (Actions run 37780360959: readers on Haiku at high effort, two reads; Takeoff 5 spaces and
+18 + 18 agreed by both runs, 6 brackets matched by the 6 symbols drawn).
 
 ## The ruling still open
 

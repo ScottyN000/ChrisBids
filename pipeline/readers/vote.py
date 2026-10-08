@@ -7,6 +7,14 @@ majority. An item that only some runs produced is kept and flagged unverified.
 
 Fields that are allowed to vary between runs (a photo's description wording)
 are excluded from the comparison and taken from the first run that has them.
+
+A drawing figure is identified by the figure itself, not by the label the model
+gives it, since labels are worded differently on every run (live run 1,
+2026-10-08). A dimension string is one figure however many times it is printed,
+as the fixtures record it. Counts are matched by value and unit in the order
+each run lists them, so two "3 per bracket" counts on one detail stay two. A
+figure one run read differently is then a separate row that not every run
+produced, flagged unverified with the rest.
 """
 from __future__ import annotations
 
@@ -21,7 +29,7 @@ def _norm(s) -> str:
 # key: what identifies the same item across runs.
 # compared: the fields that must agree for the item to pass.
 RULES = {
-    "drawing": {"key": ("kind", "label"), "compared": ("text", "count", "unit")},
+    "drawing": {"key": ("kind", "label"), "compared": ("text", "count", "unit")},   # scaled, note, load, standard
     "spec": {"key": ("clause", "requirement"), "compared": ("division", "product")},
     "photo": {"key": ("location", "condition"), "compared": ("severity",)},
     "correspondence": {"key": ("instruction",), "compared": ("sender", "date")},
@@ -44,14 +52,32 @@ class Voted:
         return "agree"
 
 
+# Drawing kinds identified by their figure: the fields that make up the key.
+FIGURE_KEY = {"dimension": ("text",), "count": ("count", "unit")}
+
+
+def _key(reader: str, item: dict, seen: dict) -> tuple:
+    fields = FIGURE_KEY.get(item.get("kind")) if reader == "drawing" else None
+    if fields is None:
+        return tuple(_norm(item.get(f)) for f in RULES[reader]["key"])
+    k = (item["kind"], *(_norm(item.get(f)) for f in fields))
+    if item["kind"] == "count":
+        # The n-th count of this value in a run is matched with the n-th in the others.
+        n = seen.get(k, 0)
+        seen[k] = n + 1
+        k = (*k, n)
+    return k
+
+
 def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
     rule = RULES[reader]
     order: list[tuple] = []
     by_key: dict[tuple, list[dict]] = {}
     for items in runs:
         seen_this_run = set()
+        counts: dict[tuple, int] = {}
         for item in items:
-            k = tuple(_norm(item.get(f)) for f in rule["key"])
+            k = _key(reader, item, counts)
             if k in seen_this_run:
                 continue  # a run that repeats itself counts once
             seen_this_run.add(k)

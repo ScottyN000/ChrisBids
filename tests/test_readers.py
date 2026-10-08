@@ -95,10 +95,30 @@ class VoteCase(unittest.TestCase):
         self.assertEqual(v.status, "agree")
 
     def test_disagreement_keeps_every_reading_and_picks_none(self):
-        runs = [[cnt("brackets", 6)], [cnt("brackets", 7)], [cnt("brackets", 6)]]
-        (v,) = vote("drawing", runs)
+        a = {"kind": "scaled", "label": "leg", "text": "1'-8\"", "count": None, "unit": None}
+        (v,) = vote("drawing", [[a], [dict(a, text="1'-10\"")], [a]])
         self.assertEqual(v.status, "conflict")
-        self.assertEqual(v.readings["count"], [6, 7])
+        self.assertEqual(v.readings["text"], ["1'-8\"", "1'-10\""])
+
+    def test_a_count_read_differently_is_two_flagged_rows_and_neither_is_chosen(self):
+        runs = [[cnt("brackets", 6)], [cnt("brackets", 7)], [cnt("brackets", 6)]]
+        self.assertEqual([(v.item["count"], v.seen, v.status) for v in vote("drawing", runs)],
+                         [(6, 2, "partial"), (7, 1, "partial")])
+
+    def test_drawing_figures_match_across_runs_whatever_their_label(self):
+        runs = [[dim("Bracket spacing on center", "2'-8\""), cnt("Bracket symbols", 6)],
+                [dim("Spacing, segment 1", "2'-8\""), dim("Spacing, segment 2", "2'-8\""), cnt("brackets drawn", 6)],
+                [cnt("Brackets", 6), dim("Bracket spacing", "2'-8\"")]]
+        voted = vote("drawing", runs)
+        self.assertEqual([(v.item["label"], v.status) for v in voted],
+                         [("Bracket spacing on center", "agree"), ("Bracket symbols", "agree")])
+
+    def test_two_equal_counts_in_one_view_stay_two(self):
+        runs = [[cnt("anchors", 3, "per bracket"), cnt("bolts", 3, "per bracket")],
+                [cnt("bolts (TYP.)", 3, "per bracket"), cnt("anchors (TYP.)", 3, "per bracket")],
+                [cnt("anchors", 3, "per bracket")]]
+        self.assertEqual([(v.item["label"], v.seen) for v in vote("drawing", runs)],
+                         [("anchors", 3), ("bolts", 2)])
 
     def test_an_item_only_some_runs_saw_is_flagged(self):
         runs = [[cnt("brackets", 6), cnt("bolts", 3)], [cnt("brackets", 6)], [cnt("brackets", 6)]]

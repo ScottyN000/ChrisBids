@@ -216,8 +216,10 @@ A model (Haiku) answers each ask with a quote and one sentence. Code keeps an
 answer only if all three hold:
 
 - the quote is on the page, compared after folding case, spacing, quotes and dashes;
-- every number in the sentence is also in the quote, or in the page's name in
-  the table (a product or report number such as HIT-HY 270);
+- every figure in the sentence is also in the quote, a range counting as one
+  figure (so "4 weeks" does not match "2-4 weeks"). The only exception is the
+  page's own identifiers, which the table lists whole (`ids`: ESR-4143,
+  A24W8300), so "24 hours" on the A24W8300 sheet is still a figure;
 - two runs give the same reading: their sentences give exactly the same
   figures, or, when neither gives a figure, their quotes overlap.
 

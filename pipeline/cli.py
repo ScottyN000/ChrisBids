@@ -219,7 +219,7 @@ def cmd_bid(a) -> int:
     out = Path(a.out)
     if a.plan_only:
         sources = intake.scan(Path(a.packet))
-        plan = orchestrator.plan(a.job, [s.as_register_row() for s in sources])
+        plan = orchestrator.plan(a.job, [s.as_register_row() for s in sources], web=not a.no_web)
         print(plan.text())
         return 0
     rec = out / "recordings"

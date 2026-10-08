@@ -12,8 +12,9 @@ p.13) is shown the text and the page's asks, and answers each ask with a
 verbatim quote and one sentence. Code keeps an answer only if:
 
 * the quote is on the page (`web.quote_in`);
-* every number in the sentence is also in the quote, or in the page's name or
-  URL in the table (a product or report number);
+* every figure in the sentence is also in the quote, a range counting as one
+  figure; the page's own identifiers (`ids` in the table, taken out whole) are
+  not figures;
 * two runs give the same reading: their sentences give exactly the same
   figures, or, when neither gives a figure, their quotes overlap. A run that is discarded, or an answer that is refused, gets up
   to SPARES spare runs for the page.
@@ -58,7 +59,9 @@ OVERLAP = 0.6
 ANSWERED = 0.8
 # Most spare runs a page gets when answers are refused (see run()).
 SPARES = 2
-NUMBER = re.compile(r"\d+(?:[.,/]\d+)*")
+# A figure, with a range ("2-4", "350 – 400") as one figure, so a statement
+# cannot narrow a range to one end and still match the quote.
+NUMBER = re.compile(r"\d+(?:[.,/]\d+)*(?:\s*[-–]\s*\d+(?:[.,/]\d+)*)?")
 NUMBER_WORD = re.compile(r"\b(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen"
                          r"|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy"
                          r"|eighty|ninety|hundred|thousand|million|dozen)\b")
@@ -98,6 +101,10 @@ class Source:
     agent: str
     when: tuple[tuple[str, ...], ...]   # every group must match; any term in a group will do
     asks: tuple[Ask, ...]
+    # The page's own identifiers (a product, report or section number). A
+    # statement may name one although the quote does not; its digits are not
+    # figures read from the page.
+    ids: tuple[str, ...] = ()
 
 
 @dataclass
@@ -116,6 +123,7 @@ def load(path: Path = SOURCES) -> Table:
             url=p["url"], title=p["title"], agent=p["agent"],
             when=tuple(tuple(t.lower() for t in g) for g in p["when"]),
             asks=tuple(Ask(a["id"], a["ask"], a.get("fixture", "")) for a in p["asks"]),
+            ids=tuple(p.get("ids", ())),
         ))
     return Table(named=frozenset(data["named_domains"]), pages=pages)
 
@@ -151,7 +159,10 @@ def schema_for(source: Source) -> dict:
 
 
 def brief(source: Source) -> str:
-    lines = [f"The page: {source.title}", "Answer each ask from the page:"]
+    lines = [f"The page: {source.title}"]
+    if source.ids:
+        lines.append(f"Its identifiers: {', '.join(source.ids)}")
+    lines.append("Answer each ask from the page:")
     lines += [f"{a.id}: {a.ask}" for a in source.asks]
     return "\n".join(lines)
 
@@ -164,11 +175,20 @@ def unit_for(job: str, n: int, source: Source, page: web.Page) -> tuple[Unit, bo
                 text=text, brief=brief(source)), cut
 
 
-def answer_errors(answer: dict, page_text: str, about: str = "") -> list[str]:
+def figures(text: str, ids: tuple[str, ...] = ()) -> set[str]:
+    """The figures in a text, each range as one ("2-4"), after taking out the
+    page's own identifiers whole (ESR-4143, A24W8300), so their digits are not
+    counted. Only whole identifiers come out: "24 hours" on the A24W8300 sheet
+    is still a figure."""
+    for i in sorted(ids, key=len, reverse=True):
+        text = re.sub(r"(?<![\w.])" + re.escape(i) + r"(?![\w])", " ", text or "", flags=re.I)
+    return {re.sub(r"\s*[-–]\s*", "-", n) for n in NUMBER.findall(text or "")}
+
+
+def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> list[str]:
     """Why code will not keep this answer. Empty means it may become a row.
-    Besides the numbers the quote carries, the statement may name one the page
-    table gives for the page (`about`: its title and URL, which carry a product,
-    report or section number)."""
+    Every figure in the statement must be in the quote; the page's own
+    identifiers (`ids`, from the page table) do not count as figures."""
     if not answer["found"]:
         return []
     errs = []
@@ -182,8 +202,7 @@ def answer_errors(answer: dict, page_text: str, about: str = "") -> list[str]:
         errs.append("the quote is not on the page")
     if not answer["statement"].strip():
         errs.append("found, but no statement")
-    extra = sorted(set(NUMBER.findall(answer["statement"])) - set(NUMBER.findall(answer["quote"]))
-                   - set(NUMBER.findall(about)))
+    extra = sorted(figures(answer["statement"], ids) - figures(answer["quote"]))
     # a figure written in words counts too ("one" is left out: it is mostly not a figure)
     extra += sorted(set(NUMBER_WORD.findall(answer["statement"].lower()))
                     - set(NUMBER_WORD.findall(answer["quote"].lower())))
@@ -227,13 +246,12 @@ def covered(fixture_quote: str, got: str) -> float:
     return found / total
 
 
-def same_facts(fixture_statement: str, got: str, about: str = "") -> bool:
-    """Does the run's quote carry every figure the fixture's statement gives?
-    A product or section number the page table gives for the page (`about`)
-    is not a figure read from the page, so it is left out. A statement with no
-    figure is never the same facts by this test."""
-    want = set(NUMBER.findall(fixture_statement or "")) - set(NUMBER.findall(about))
-    return bool(want) and want <= set(NUMBER.findall(got or ""))
+def same_facts(fixture_statement: str, got: str, ids: tuple[str, ...] = ()) -> bool:
+    """Does `got` carry every figure the fixture's statement gives? The page's
+    own identifiers are not figures. A statement with no figure is never the
+    same facts by this test."""
+    want = figures(fixture_statement, ids)
+    return bool(want) and want <= figures(got, ids)
 
 
 @dataclass
@@ -265,26 +283,20 @@ def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
 
 
-def _figures(a: dict, about: str = "") -> set[str]:
-    """The figures a statement gives. Numbers the page table gives for the page
-    (its product or report number) are not figures read from it."""
-    return set(NUMBER.findall(a["statement"])) - set(NUMBER.findall(about))
-
-
-def _same_reading(a: dict, b: dict, about: str = "") -> bool:
+def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
     """Do two answers give the same reading? The statement is where a fetched
     row states its figure, so the figures decide: two statements with figures
     must give exactly the same ones, whatever passage each quotes (fewer
     figures is a different reading). Two statements with no figure must quote
     mostly the same passage."""
-    x, y = _figures(a, about), _figures(b, about)
+    x, y = figures(a["statement"], ids), figures(b["statement"], ids)
     if x or y:
         return x == y
     return overlap(a["quote"], b["quote"]) >= OVERLAP
 
 
 def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
-           about: str = "") -> tuple[dict | None, str, list[dict]]:
+           ids: tuple[str, ...] = ()) -> tuple[dict | None, str, list[dict]]:
     """The one answer the first `need` kept answers (default: one from every
     run) all give to this ask, or why there is none. When there is none but runs
     found differing readings on the page, those readings come back too: code
@@ -301,7 +313,7 @@ def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
     if len(found) < len(answers):
         return None, "the runs disagree on whether the page says it", _distinct(found)
     first = answers[0]
-    if not all(_same_reading(first, a, about) for a in answers[1:]):
+    if not all(_same_reading(first, a, ids) for a in answers[1:]):
         return None, "the runs give different readings", _distinct(found)
     return first, "", []
 
@@ -388,7 +400,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                 continue
             kept = {}
             for a in data["answers"]:
-                why = answer_errors(a, unit.text, f"{source.title} {source.url}")
+                why = answer_errors(a, unit.text, source.ids)
                 if why:
                     result.discarded.append(f"{unit.unit_id} run {r + 1} {a['ask']}: {'; '.join(why)}")
                 else:
@@ -398,7 +410,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             result.unread.append(f"{source.url}: {len(runs)} of {repeats} runs valid")
             continue
         for ask in source.asks:
-            agreed, why, readings = _agree(runs, ask, repeats, f"{source.title} {source.url}")
+            agreed, why, readings = _agree(runs, ask, repeats, source.ids)
             if agreed is None:
                 kept = f"; {len(readings)} readings kept, flagged unverified" if readings else ""
                 result.unanswered.append(f"{source.url} {ask.id} ({ask.ask}): {why}{kept}")
@@ -434,12 +446,22 @@ class Gate:
         return "\n".join(lines)
 
 
+def _states(fixture: dict, statement: str, ids: tuple[str, ...]) -> bool:
+    """Does the run's statement give every figure of the fixture's statement
+    that the fixture's own quote carries? (A figure the fixture's statement
+    adds from elsewhere, such as a table number, no quote could support.)"""
+    want = figures(fixture.get("statement", ""), ids) & figures(fixture["quote"])
+    return want <= figures(statement, ids)
+
+
 def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate:
     """For every ask gated against a row of this fixture: if the page opened and
     still carries the fixture's quote, the run must have answered the ask with a
-    quote that carries most of it, or that carries every number the fixture's
-    statement gives (the same facts from another passage of the page). A row
-    that does neither is a wrong answer and fails the gate. An ask left without
+    quote that carries most of it, or that carries every figure the fixture's
+    statement gives (the same facts from another passage of the page), and its
+    statement must give every figure of the fixture's statement that the
+    fixture's quote carries (so a narrowed range or a swapped date fails). A row that does not is a wrong
+    answer and fails the gate. An ask left without
     a row is a miss: the bid then has no verified row for it, which is safe but
     incomplete, so the gate passes only while at least ANSWERED of the compared
     asks have a row. A page that did not open, or no longer says what the
@@ -470,9 +492,11 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate
             got = by_ask.get((s.url, a.id))
             if got is None:
                 misses.append(f"{a.fixture}: no row for {a.id} ({a.ask})")
-            elif covered(f["quote"], got.quote) < OVERLAP and not same_facts(
-                    f.get("statement", ""), got.quote, f"{s.title} {s.url}"):
+            elif covered(f["quote"], got.quote) < OVERLAP and not same_facts(f.get("statement", ""), got.quote, s.ids):
                 failures.append(f"{a.fixture}: quoted {got.quote[:120]!r}, the fixture quotes {f['quote'][:120]!r}")
+            elif not _states(f, got.statement, s.ids):
+                failures.append(f"{a.fixture}: states {got.statement[:120]!r}, the fixture states "
+                                f"{f['statement'][:120]!r}")
     ok = not failures and compared > 0 and compared - len(misses) >= ANSWERED * compared
     return Gate(ok=ok, compared=compared, failures=failures, notes=notes, misses=misses)
 

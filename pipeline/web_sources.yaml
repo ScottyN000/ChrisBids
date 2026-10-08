@@ -37,8 +37,7 @@ pages:
     - md
   asks:
   - id: a1
-    ask: Permit application asks for MHIC License No. and OC Business License No. (field labels reported by the
-      fetch tool, not quoted text)
+    ask: The license numbers the permit application asks the applicant for
 - url: https://oceancitymd.gov/oc/departments/planning-community-development/building-forms-and-applications/
   title: OC building forms
   agent: codes
@@ -53,6 +52,9 @@ pages:
     fixture: NAN-C-004
 - url: https://mgaleg.maryland.gov/2026RS/Statute_Web/gbr/8-101.pdf
   title: MD Bus. Reg. § 8-101
+  ids:
+  - § 8-101
+  - 8-101
   agent: codes
   when:
   - - maryland
@@ -84,6 +86,9 @@ pages:
     fixture: NAN-C-007
 - url: https://labor.md.gov/labor/build/comar091251.pdf
   title: COMAR 09.12.51
+  ids:
+  - COMAR 09.12.51
+  - 09.12.51
   agent: codes
   when:
   - - maryland
@@ -131,7 +136,7 @@ pages:
   - - ibc
   asks:
   - id: a1
-    ask: 'IBC # § # and special inspection of post-installed anchors: code text did not open'
+    ask: 'IBC § # requirements for special inspection of post-installed anchors'
 - url: https://maa.maryland.gov/wp-content/uploads/2022/02/MAA-Special-Inspections-Matrix.pdf
   title: MAA special inspections matrix
   agent: codes
@@ -144,6 +149,11 @@ pages:
       Airport permits only; has no row for anchors in masonry
 - url: https://files-ask.hilti.com/original/un/unhmbciryf.pdf
   title: Hilti HY 70 transition letter
+  ids:
+  - HIT-HY 70
+  - HIT-HY 270
+  - HY 70
+  - HY 270
   agent: materials
   when:
   - - hit-hy
@@ -157,6 +167,10 @@ pages:
     fixture: NAN-C-014
 - url: https://icc-es.org/wp-content/uploads/report-directory/ESR-4143.pdf
   title: ICC-ES ESR-4143 (Hilti HIT-HY 270)
+  ids:
+  - ESR-4143
+  - HIT-HY 270
+  - HY 270
   agent: codes
   when:
   - - hit-hy
@@ -172,6 +186,9 @@ pages:
     fixture: NAN-C-018
 - url: https://icc-es.org/report-listing/esr-2682/
   title: ICC-ES ESR-2682 (Hilti HY 70 in CMU)
+  ids:
+  - ESR-2682
+  - HY 70
   agent: codes
   when:
   - - hit-hy
@@ -180,9 +197,12 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'ESR-# (HY # in CMU): listing returned HTTP #; status not stated anywhere'
+    ask: The report's status, product and expiry date
 - url: https://icc-es.org/report-listing/esr-3342/
   title: ICC-ES ESR-3342 (Hilti HY 70 in URM)
+  ids:
+  - ESR-3342
+  - HY 70
   agent: codes
   when:
   - - hit-hy
@@ -191,9 +211,12 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'ESR-# (HY # in URM): listing returned HTTP #; status not stated anywhere'
+    ask: The report's status, product and expiry date
 - url: https://hilti.com/content/dam/urgent-folder/w1/pdf/anchors/hit-hy-270/Technical-information-ASSET-DOC-LOC-8942443.pdf
   title: Hilti HY 270 masonry bulletin
+  ids:
+  - HIT-HY 270
+  - HY 270
   agent: materials
   when:
   - - hit-hy
@@ -202,10 +225,12 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'Table row read as #" rod with HIT-SC #x# in a hollow CMU face. The fetch tool gave inconsistent table
-      readings; check the PDF by eye'
+    ask: 'The HIT-SC screen tube size listed for a #" rod in a hollow CMU face'
 - url: https://www.hilti.com/c/CLS_FASTENER_7135/CLS_CHEMICAL_ANCHORS_7135/2194247
   title: Hilti HIT-HY 270 product page
+  ids:
+  - HIT-HY 270
+  - HY 270
   agent: materials
   when:
   - - hit-hy
@@ -245,6 +270,8 @@ pages:
     fixture: NAN-C-023
 - url: https://www.aws.org/about/news/d11-release/
   title: AWS D1.1 release
+  ids:
+  - D1.1
   agent: codes
   when:
   - - weld
@@ -255,6 +282,9 @@ pages:
     fixture: NAN-C-024
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-M/section-1926.501
   title: 29 CFR 1926.501
+  ids:
+  - 29 CFR 1926.501
+  - '1926.501'
   agent: codes
   when:
   - - fall
@@ -266,6 +296,9 @@ pages:
     fixture: NAN-C-025
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-Z/section-1926.1153
   title: 29 CFR 1926.1153 Table 1
+  ids:
+  - 29 CFR 1926.1153
+  - '1926.1153'
   agent: codes
   when: &id002
   - - concrete
@@ -282,6 +315,9 @@ pages:
     fixture: NAN-C-027
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-X/section-1926.1053
   title: 29 CFR 1926.1053
+  ids:
+  - 29 CFR 1926.1053
+  - '1926.1053'
   agent: codes
   when:
   - - excavat
@@ -292,6 +328,9 @@ pages:
     fixture: NAN-C-028
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-P/section-1926.650
   title: 29 CFR 1926.650
+  ids:
+  - 29 CFR 1926.650
+  - '1926.650'
   agent: codes
   when:
   - - excavat
@@ -312,8 +351,7 @@ pages:
       balcony restoration
     fixture: OBV-C-001
   - id: a2
-    ask: Painting, stucco, soffit and siding do not appear on the list, which the page calls "more common projects".
-      An absence, not a ruling
+    ask: The projects the page lists as needing a permit
   - id: a3
     ask: Permit and business tax applications go through the OpenGov portal
     fixture: OBV-C-003
@@ -359,6 +397,8 @@ pages:
     ask: 'FBC-Existing Building Chapter # "Repairs": only the title loaded; section text unverified'
 - url: http://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0400-0499/0489/Sections/0489.105.html
   title: F.S. 489.105
+  ids:
+  - '489.105'
   agent: codes
   when:
   - - florida
@@ -368,7 +408,7 @@ pages:
     ask: A Florida CGC's services are unlimited as to type of work
     fixture: OBV-C-008
   - id: a2
-    ask: Painting is not one of the contractor categories (a)-(q). An absence finding
+    ask: The contractor categories the definitions list
 - url: https://floridadep.gov/rcp/coastal-construction-control-line/content/apply-coastal-construction-control-line-cccl
   title: FDEP CCCL
   agent: codes
@@ -381,6 +421,8 @@ pages:
     fixture: OBV-C-010
 - url: http://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0100-0199/0161/Sections/0161.053.html
   title: F.S. 161.053(11)(a)
+  ids:
+  - '161.053'
   agent: codes
   when:
   - - florida
@@ -392,15 +434,19 @@ pages:
     fixture: OBV-C-011
 - url: https://www.flrules.org/gateway/ruleNo.asp?id=62B-33.004
   title: Rule 62B-33.004
+  ids:
+  - 62B-33.004
   agent: codes
   when:
   - - florida
     - fl
   asks:
   - id: a1
-    ask: 'Rule #B-# exemptions, amended #: current text did not open'
+    ask: 'Rule #B-# exemptions and the date the rule was last amended'
 - url: https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-62B-33-004
   title: Rule 62B-33.004 (2018 copy)
+  ids:
+  - 62B-33.004
   agent: codes
   when:
   - - florida
@@ -417,10 +463,12 @@ pages:
     - fl
   asks:
   - id: a1
-    ask: Parcel position relative to the CCCL is found on DEP Map Direct (not yet checked)
+    ask: Where to find a parcel's position relative to the CCCL
     fixture: OBV-C-014
 - url: http://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0500-0599/0553/Sections/0553.899.html
   title: F.S. 553.899
+  ids:
+  - '553.899'
   agent: codes
   when:
   - - florida
@@ -443,6 +491,9 @@ pages:
     fixture: OBV-C-016
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.501
   title: 29 CFR 1926.501
+  ids:
+  - 29 CFR 1926.501
+  - '1926.501'
   agent: codes
   when:
   - - fall
@@ -454,6 +505,9 @@ pages:
     fixture: OBV-C-017
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.453
   title: 29 CFR 1926.453
+  ids:
+  - 29 CFR 1926.453
+  - '1926.453'
   agent: codes
   when:
   - - lift
@@ -464,6 +518,9 @@ pages:
     fixture: OBV-C-018
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.451
   title: 29 CFR 1926.451(g)(1)(ii)
+  ids:
+  - 29 CFR 1926.451
+  - '1926.451'
   agent: codes
   when:
   - - swing
@@ -474,6 +531,9 @@ pages:
     fixture: OBV-C-019
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.1153
   title: 29 CFR 1926.1153
+  ids:
+  - 29 CFR 1926.1153
+  - '1926.1153'
   agent: codes
   when: *id002
   asks:
@@ -482,6 +542,9 @@ pages:
     fixture: OBV-C-020
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.62
   title: 29 CFR 1926.62
+  ids:
+  - 29 CFR 1926.62
+  - '1926.62'
   agent: codes
   when:
   - - paint
@@ -503,6 +566,9 @@ pages:
     fixture: OBV-C-022
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=A24W08300
   title: SW A24W8300 data sheet (2014)
+  ids:
+  - A24W08300
+  - A24W8300
   agent: materials
   when:
   - - a24
@@ -513,6 +579,9 @@ pages:
     fixture: OBV-C-023
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX02W0050
   title: SW LX02 data sheet
+  ids:
+  - LX02W0050
+  - LX02
   agent: materials
   when:
   - - lx02
@@ -523,6 +592,9 @@ pages:
     fixture: OBV-C-024
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX03W0100
   title: SW LX03 data sheet
+  ids:
+  - LX03W0100
+  - LX03
   agent: materials
   when:
   - - lx03
@@ -533,6 +605,9 @@ pages:
     fixture: OBV-C-025
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=A89W03151
   title: SW A89 data sheet
+  ids:
+  - A89W03151
+  - A89
   agent: materials
   when:
   - - a89
@@ -543,6 +618,9 @@ pages:
     fixture: OBV-C-026
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=K62W00651
   title: SW K62 data sheet
+  ids:
+  - K62W00651
+  - K62
   agent: materials
   when:
   - - k62
@@ -553,6 +631,9 @@ pages:
     fixture: OBV-C-027
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B66W00310
   title: SW B66 data sheet (2015)
+  ids:
+  - B66W00310
+  - B66
   agent: materials
   when:
   - - b66
@@ -563,16 +644,22 @@ pages:
     fixture: OBV-C-028
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B53W02151
   title: SW B53 data sheet
+  ids:
+  - B53W02151
+  - B53
   agent: materials
   when:
   - - b53
     - b53
   asks:
   - id: a1
-    ask: 'WB Alkyd Urethane Enamel B# semi-gloss: # sq ft/gal (spec p.# says # and governs)'
+    ask: 'WB Alkyd Urethane Enamel B# semi-gloss: # sq ft/gal'
     fixture: OBV-C-029
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B50WZ0001
   title: SW B50 data sheet
+  ids:
+  - B50WZ0001
+  - B50
   agent: materials
   when:
   - - b50
@@ -583,6 +670,9 @@ pages:
     fixture: OBV-C-030
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX21S5043
   title: SW Loxon S1 data sheet
+  ids:
+  - LX21S5043
+  - Loxon S1
   agent: materials
   when:
   - - lx21
@@ -599,7 +689,7 @@ pages:
     - patch
   asks:
   - id: a1
-    ask: No Sherwin-Williams product named "Conseal" elastomeric patch was found
+    ask: The patching and repair products the page lists
 - url: https://sweets.construction.com/manufacturer/sherwin-williams-company-nst2204/products/sherwin-williams-concrete---masonry-patch-nst747590-p
   title: Sweets listing (third party)
   agent: materials
@@ -611,10 +701,12 @@ pages:
     fixture: OBV-C-033
 - url: https://www.sherwin-williams.com/painting-contractors/products/1050-quick-dry-siliconized-acrylic-latex-caulk
   title: SW caulk search
+  ids:
+  - '1050'
   agent: materials
   when:
   - - c1100a
     - caulk
   asks:
   - id: a1
-    ask: No Sherwin-Williams caulk numbered "C#A" was found
+    ask: The caulk product's name and number

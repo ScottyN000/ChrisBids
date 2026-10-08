@@ -16,9 +16,9 @@ PAGE = ("<html><body><h1>Permits</h1><p>Permits will be issued 2-4 weeks on aver
 URL = "https://permits.example.gov/oc"
 
 
-def source(url=URL, agent="codes", when=(("ocean city",),), asks=None, title="OC permits"):
+def source(url=URL, agent="codes", when=(("ocean city",),), asks=None, title="OC permits", ids=()):
     asks = asks or (webread.Ask("a1", "Permit turnaround # weeks", "J-C-001"), webread.Ask("a2", "Plans required"))
-    return webread.Source(url=url, title=title, agent=agent, when=when, asks=tuple(asks))
+    return webread.Source(url=url, title=title, agent=agent, when=when, asks=tuple(asks), ids=tuple(ids))
 
 
 def table(*pages):
@@ -78,6 +78,9 @@ class TableCase(unittest.TestCase):
                                                      (("ocean city",), ("maryland", "md"))))
         self.assertEqual(first.asks[1], webread.Ask("a2", "Permit turnaround # weeks on average", "NAN-C-002"))
         self.assertEqual(sum(1 for p in t.pages for a in p.asks if a.fixture), 50)
+        esr = next(p for p in t.pages if p.url.endswith("ESR-4143.pdf"))
+        self.assertEqual(esr.ids, ("ESR-4143", "HIT-HY 270", "HY 270"))
+        self.assertEqual(first.ids, ())
         for p in t.pages:
             self.assertEqual(web.allowed(p.url, t.named), "", p.url)
             self.assertEqual(len({a.id for a in p.asks}), len(p.asks))
@@ -130,6 +133,7 @@ class TableCase(unittest.TestCase):
         self.assertEqual(answers["items"]["properties"]["ask"], {"enum": ["a1", "a2"]})
         self.assertEqual(webread.SCHEMA["properties"]["answers"]["maxItems"], 20)    # left untouched
         self.assertEqual(validate.errors({"answers": [TURNAROUND, PLANS]}, sch), [])
+        self.assertEqual(webread.brief(source(ids=("F-1",))).splitlines()[1], "Its identifiers: F-1")
         self.assertEqual(webread.brief(s), "The page: OC permits\nAnswer each ask from the page:\na1: Permit turnaround # weeks\n"
                                            "a2: Plans required")
         page = web.Page(URL, text="x" * (webread.MAX_CHARS + 5))
@@ -155,22 +159,36 @@ class AnswerCase(unittest.TestCase):
     def test_what_code_refuses(self):
         for a, why in (
             (answer("a1", "", "Permits take 2-4 weeks.", found=True),
-             ["found, but no quote", "the statement has numbers the quote does not: 2, 4"]),
+             ["found, but no quote", "the statement has numbers the quote does not: 2-4"]),
             (answer("a1", "   ", "x", found=True), ["found, but no quote"]),
             (answer("a1", "Permits will be issued 3 weeks", "Permits take 3 weeks."),
              ["the quote is not on the page"]),
             (answer("a1", "Permits will be issued", " "), ["found, but no statement"]),
             (answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-6 weeks, 12 at most."),
-             ["the statement has numbers the quote does not: 12, 6"]),
+             ["the statement has numbers the quote does not: 12, 2-6"]),
         ):
             with self.subTest(a=a):
                 self.assertEqual(webread.answer_errors(a, self.TEXT), why)
 
-    def test_the_statement_may_name_a_number_from_the_page_title(self):
+    def test_the_statement_may_name_the_page_s_own_identifiers(self):
         a = answer("a1", "Permits will be issued 2-4 weeks", "HIT-HY 270 permits take 2-4 weeks.")
-        self.assertEqual(webread.answer_errors(a, self.TEXT, "Hilti HIT-HY 270 product page"), [])
-        self.assertEqual(webread.answer_errors(a, self.TEXT, "Hilti HIT-HY 200"),
+        self.assertEqual(webread.answer_errors(a, self.TEXT, ("HIT-HY 270",)), [])
+        self.assertEqual(webread.answer_errors(a, self.TEXT, ("HIT-HY 200",)),
                          ["the statement has numbers the quote does not: 270"])
+        # only the whole identifier comes out: its digits are still figures elsewhere
+        text = "Recoat: 4 hours."
+        ok = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 4 hours.")
+        self.assertEqual(webread.answer_errors(ok, text, ("A24W08300", "A24W8300")), [])
+        bad = answer("a1", "Recoat: 4 hours.", "A24W8300 recoats after 24 hours.")
+        self.assertEqual(webread.answer_errors(bad, text, ("A24W08300", "A24W8300")),
+                         ["the statement has numbers the quote does not: 24"])
+
+    def test_a_range_is_one_figure(self):
+        self.assertEqual(webread.figures("issued 2-4 weeks, 350 – 400 sq ft, 1/2 in, 1,250.50"),
+                         {"2-4", "350-400", "1/2", "1,250.50"})
+        narrowed = answer("a1", "Permits will be issued 2-4 weeks", "Permits are issued in 4 weeks.")
+        self.assertEqual(webread.answer_errors(narrowed, self.TEXT), ["the statement has numbers the quote does not: 4"])
+        self.assertEqual(webread.figures("ESR-4143 and esr-4143x", ("ESR-4143",)), {"4143"})
 
     def test_a_long_answer_is_refused_by_itself(self):
         a = answer("a1", "Permits will be issued 2-4 weeks", "Permits take 2-4 weeks." + " x" * 250)
@@ -189,20 +207,16 @@ class AnswerCase(unittest.TestCase):
         self.assertEqual(webread.answer_errors(answer("a1", "Allow three weeks.", "Three weeks."), text), [])
         self.assertEqual(webread.answer_errors(answer("a1", "One coat.", "Apply one coat."), text), [])
 
-    def test_the_statement_may_name_a_number_from_the_url(self):
-        a = answer("a1", "Permits will be issued 2-4 weeks", "LX02W0050 permits take 2-4 weeks.")
-        self.assertEqual(webread.answer_errors(a, self.TEXT, "SW LX02 data sheet https://x.com/?p=LX02W0050"), [])
-
     def test_same_facts_needs_every_number_of_the_statement(self):
         self.assertTrue(webread.same_facts("ESR-4143 covers HY 270; reissued 2026", "ESR-4143 ... HY 270 ... 2026"))
         self.assertFalse(webread.same_facts("ESR-4143 covers HY 270; reissued 2026", "ESR-4143 ... HY 270"))
         self.assertFalse(webread.same_facts("Plans are required", "Plans are required"))
         self.assertFalse(webread.same_facts("", "1"))
         self.assertFalse(webread.same_facts("1", None))
-        self.assertTrue(webread.same_facts("Satin A89: 350-400 sq ft/gal", "350-400 sq. ft. per gallon",
-                                           "SW A89 data sheet ?prodno=A89W03151"))
+        self.assertTrue(webread.same_facts("Satin A89: 350-400 sq ft/gal", "350-400 sq. ft. per gallon", ("A89",)))
         self.assertFalse(webread.same_facts("Satin A89: 350-400 sq ft/gal", "350-400 sq. ft. per gallon"))
-        self.assertFalse(webread.same_facts("Satin A89", "A89", "A89"))
+        self.assertFalse(webread.same_facts("Satin A89", "A89", ("A89",)))
+        self.assertFalse(webread.same_facts("issued 2-4 weeks", "issued in 4 weeks"))
 
     def test_response_errors(self):
         s = source()
@@ -257,7 +271,7 @@ class AnswerCase(unittest.TestCase):
         self.assertEqual(webread._agree([good, good, close], a)[2], [TURNAROUND, close["a1"]])   # once each
         model = {"a1": answer("a1", "after submission. Fee", "Form 5 permits take 2-4 weeks.")}
         self.assertEqual(webread._agree([good, model], a)[0], None)                     # 5 is a figure here
-        self.assertEqual(webread._agree([good, model], a, about="Form 5")[0], TURNAROUND)  # not here
+        self.assertEqual(webread._agree([good, model], a, ids=("Form 5",))[0], TURNAROUND)  # not here
         # no figures on either side: the quotes must overlap
         plans = {"a1": PLANS}
         also = {"a1": answer("a1", "All applications REQUIRE PLANS", "Plans are needed.")}
@@ -473,6 +487,18 @@ class GateCase(unittest.TestCase):
         g = self.gate([{"answers": [other, PLANS]}] * 2, fixture=fixture)
         self.assertFalse(g.ok)
 
+    def test_a_statement_that_narrows_or_swaps_the_fixture_s_figures_fails(self):
+        fixture = {"J-C-001": {"id": "J-C-001", "statement": "Permits take 2-4 weeks",
+                               "quote": "Permits will be issued 2-4 weeks on average after submission"}}
+        narrowed = answer("a1", "Permits will be issued 2-4 weeks on average", "Permits are issued.")
+        g = self.gate([{"answers": [narrowed, PLANS]}] * 2, fixture=fixture)
+        self.assertEqual(g.failures, ["J-C-001: states 'Permits are issued.', the fixture states "
+                                      "'Permits take 2-4 weeks'"])
+        # a figure the fixture's statement adds from outside its quote is not asked of the run
+        fixture["J-C-001"]["statement"] = "Permits take 2-4 weeks (Table 9)"
+        g = self.gate([{"answers": [TURNAROUND, PLANS]}] * 2, fixture=fixture)
+        self.assertEqual((g.ok, g.failures), (True, []))
+
     def test_a_changed_or_dead_page_is_a_note(self):
         g = self.gate([{"answers": [TURNAROUND, PLANS]}] * 2, pages={URL: Resp(b"", status=500)})
         self.assertEqual((g.ok, g.compared, g.notes), (False, 0, [f"J-C-001: {URL} did not open (HTTP 500)"]))
@@ -506,7 +532,7 @@ class GoldenCase(unittest.TestCase):
             quotes = [data[a.fixture]["quote"].replace(" ... ", " ") for a in s.asks if a.fixture]
             pages[s.url] = Resp(("<p>" + "</p><p>".join(quotes or ["Nothing here."]) + "</p>").encode())
             answers[s.url] = {"answers": [
-                answer(a.id, data[a.fixture]["quote"], "The page says so.") if a.fixture else answer(a.id, found=False)
+                answer(a.id, data[a.fixture]["quote"], data[a.fixture]["quote"]) if a.fixture else answer(a.id, found=False)
                 for a in s.asks]}
         client = Fake(lambda unit: answers[unit.locator], lambda unit: copy.deepcopy(answers[unit.locator]))
         fetcher = web.Fetcher(tbl.named, opener=Sites(pages), clock=lambda: "2026-10-08", resolve=False)

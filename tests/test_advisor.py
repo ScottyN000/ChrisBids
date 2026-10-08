@@ -25,7 +25,8 @@ class CheckCase(unittest.TestCase):
                 self.assertFalse(f["demoted"])
 
     def test_a_blocking_finding_without_one_is_demoted(self):
-        for basis in (None, "", "seems off", "architecture", "rule:", "arch p."):
+        for basis in (None, "", "seems off", "architecture", "rule:", "arch p.", "rule: I just think so",
+                      "arch p.0", "arch p.18", "arch p.99"):
             with self.subTest(basis=basis):
                 [f] = advisor.check({"summary": "", "findings": [finding(severity="blocking", basis=basis)]})
                 self.assertEqual(f["severity"], "advice")
@@ -48,6 +49,19 @@ class CheckCase(unittest.TestCase):
         for review in bad:
             with self.subTest(review=review), self.assertRaises(ValueError):
                 advisor.check(review)
+
+
+class BasisCase(unittest.TestCase):
+    def test_every_rule_name_is_a_rule_in_the_brief(self):
+        brief = (Path(advisor.ROOT) / "docs" / "advisor.md").read_text()
+        for name in advisor.RULES:
+            self.assertIn(f"**{name}.**", brief)
+
+    def test_the_page_range_comes_from_the_architecture_text(self):
+        self.assertEqual(advisor.PAGES, 17)
+        self.assertTrue(advisor.has_basis("arch p.1"))
+        self.assertTrue(advisor.has_basis("arch p.17 build plan"))
+        self.assertTrue(advisor.has_basis("Rule: golden fixtures, both ledgers"))
 
 
 class RenderCase(unittest.TestCase):
@@ -98,6 +112,7 @@ class BriefCase(unittest.TestCase):
         root = Path(advisor.ROOT)
         brief = (root / "docs" / "advisor.md").read_text()
         workflow = (root / ".github" / "workflows" / "advisor.yml").read_text()
+        self.assertIn(f'startswith("{advisor.MARKER}")', workflow)
         for name in ("pr.md", "diff.patch", "files.txt"):
             self.assertIn(f".advisor/{name}", brief)
             self.assertIn(f".advisor/{name}", workflow)

@@ -8,17 +8,16 @@ name: advisor
 # model, decides the outcome: the check fails when any finding is blocking.
 #
 # It uses the repository secret ANTHROPIC_API_KEY, the same one the live gate
-# uses. Dependabot PRs get no secrets, so they are skipped. Each review's token
+# uses. Each review's token
 # use and cost go in the run log and at the foot of the PR comment.
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
-permissions:
-  contents: read
-  pull-requests: write   # the review comment, posted by the last step, not by the model
-  issues: read           # as in the documented review workflow
+# Each job gets its own permissions: the review job, where the model runs, can
+# only read; the post job, which runs no model, writes the one PR comment.
+permissions: {}
 
 # A newer push makes the older review moot.
 concurrency:
@@ -30,9 +29,20 @@ jobs:
     # Drafts are skipped: a build thread opens its PR as a draft and marks it
     # ready when it would ask for a merge, so the review runs on finished work
     # and on each fix after that, not on every work-in-progress push.
-    if: github.event.pull_request.draft == false && github.actor != 'dependabot[bot]'
+    # Dependabot and fork PRs get no secrets, so they are skipped too.
+    if: >
+      github.event.pull_request.draft == false
+      && github.actor != 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read         # as in the documented review workflow
+    outputs:
+      code: ${{ steps.gate.outputs.code }}
+      comment: ${{ steps.gate.outputs.comment }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,8 +71,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # The workflow's own token, held to the permissions above, rather
-          # than the Claude GitHub App's. The app sign-in refuses to run a
+          # The workflow's own token, read-only in this job, rather than the
+          # Claude GitHub App's. The app sign-in refuses to run a
           # workflow file that differs from main's, so a PR that changes this
           # file could never be reviewed, this one included. The model has no
           # GitHub tools either way.
@@ -88,15 +98,9 @@ jobs:
           set +e
           python tools/advisor.py .advisor/review.json --usage "$EXECUTION" --out .advisor/comment.md
           echo "code=$?" >> "$GITHUB_OUTPUT"
+          eof="EOF_$(openssl rand -hex 16)"   # the comment holds model text, so the delimiter must be unguessable
+          { echo "comment<<$eof"; cat .advisor/comment.md; echo "$eof"; } >> "$GITHUB_OUTPUT"
           cat .advisor/comment.md >> "$GITHUB_STEP_SUMMARY" || true
-
-      - name: Post the review on the PR
-        if: always() && steps.gate.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        # One advisor comment per PR, edited in place on each push.
-        run: gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --edit-last --create-if-none --body-file .advisor/comment.md
 
       - name: Fail when a finding blocks
         if: always() && steps.gate.outcome == 'success'
@@ -108,3 +112,27 @@ jobs:
             1) echo "blocking findings: see the advisor comment on the PR"; exit 1 ;;
             *) echo "the advisor's reply was unusable; see the Settle step"; exit 1 ;;
           esac
+
+  post:
+    needs: review
+    if: always() && needs.review.outputs.comment != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      # One advisor comment per PR, found by its marker and edited in place.
+      - name: Post the review on the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          COMMENT: ${{ needs.review.outputs.comment }}
+        run: |
+          printf '%s\n' "$COMMENT" > comment.md
+          id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- chrisbids-advisor -->"))) | .id' | tail -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@comment.md > /dev/null
+          else
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file comment.md
+          fi

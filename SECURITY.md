@@ -16,7 +16,7 @@ produces is treated as data: it can fill a schema field, never steer the code.
 | A crafted file name or register path reads outside the job | Symlinks skipped at intake; every register path is resolved inside the packet | `pipeline/guard.py` `inside` |
 | A crafted link reaches the host's own network | http(s) only, no credentials, no loopback, private or cloud-metadata address, redirects re-checked | `pipeline/guard.py` `public_url` |
 | A malformed PDF exploits poppler | Absolute paths (no option injection), timeouts, page caps, non-root container user | `pipeline/intake.py`, `Dockerfile` |
-| A PR's text or diff steers the advisor | Claude Code gets Read, Glob and Grep only, no network and no GitHub write; its reply must match `docs/advisor-schema.json`; code settles severity and posts the comment | `.github/workflows/advisor.yml`, `tools/advisor.py` |
+| A PR's text or diff steers the advisor | The model's tools are Read, Glob and Grep, with no network; its job holds a read-only token; its reply must match `docs/advisor-schema.json`; code settles severity, and a blocking finding must name a real architecture page, a standing rule or a failing input; a separate job with no model posts the comment | `.github/workflows/advisor.yml`, `tools/advisor.py` |
 | The API key leaks | Read only from the environment, named in `broker.SECRET_ENV`; `.env` is git-ignored; gitleaks scans every push | `pipeline/broker.py`, CI |
 
 ## What CI checks on every push

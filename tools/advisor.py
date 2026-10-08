@@ -24,9 +24,24 @@ sys.path.insert(0, str(ROOT))
 from pipeline.readers.validate import errors  # noqa: E402
 
 SCHEMA = json.loads((ROOT / "docs" / "advisor-schema.json").read_text())
-MARKER = "<!-- chrisbids-advisor -->"
-# "arch p.6", "rule: Determinism, ...", "input <X> gives <Y>, should be <Z>"
-BASIS = re.compile(r"^(arch p\.\d+|rule: \S|input \S.* gives \S)", re.IGNORECASE)
+MARKER = "<!-- chrisbids-advisor -->"  # the post job finds the comment to edit by this
+# The standing rules by the names docs/advisor.md gives them, and the page count
+# of the architecture doc, so a basis has to name a rule or a page that exists.
+RULES = ("Traceability", "Determinism", "Permissioning", "Frugality", "Customer rows", "Golden fixtures", "Every PR")
+PAGES = int(re.search(r"Page \d+ of (\d+)", (ROOT / "docs" / "architecture.txt").read_text()).group(1))
+_PAGE = re.compile(r"^arch p\.(\d+)\b", re.IGNORECASE)
+_RULE = re.compile(r"^rule: (" + "|".join(RULES) + r")\b", re.IGNORECASE)
+_INPUT = re.compile(r"^input \S.* gives \S", re.IGNORECASE)
+
+
+def has_basis(basis: str | None) -> bool:
+    """True when the basis is "arch p.N" for a real page, "rule: <a standing rule>",
+    or "input <X> gives <Y>, should be <Z>"."""
+    basis = basis or ""
+    page = _PAGE.match(basis)
+    if page:
+        return 1 <= int(page.group(1)) <= PAGES
+    return bool(_RULE.match(basis) or _INPUT.match(basis))
 
 
 def check(review: dict) -> list[dict]:
@@ -37,7 +52,7 @@ def check(review: dict) -> list[dict]:
     settled = []
     for f in review["findings"]:
         f = dict(f, demoted=False)
-        if f["severity"] == "blocking" and not BASIS.match(f["basis"] or ""):
+        if f["severity"] == "blocking" and not has_basis(f["basis"]):
             f.update(severity="advice", demoted=True)
         settled.append(f)
     return settled

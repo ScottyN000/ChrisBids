@@ -10,6 +10,15 @@ CI skips draft PRs, so a building thread opens its PR as a draft and marks it
 ready when it would ask for a merge; every push after that is reviewed again.
 Each review's token use and cost are logged at the foot of its PR comment.
 
+To run it locally, write the change where the advisor reads it, then ask the
+`advisor` subagent for a review and settle its reply the way CI does:
+
+    mkdir -p .advisor
+    git diff --stat main...HEAD > .advisor/files.txt
+    git diff main...HEAD > .advisor/diff.patch
+    # save the subagent's JSON reply as .advisor/review.json, then:
+    python3 tools/advisor.py .advisor/review.json
+
 Everything below is the advisor's instructions.
 
 ## What you are reviewing
@@ -92,10 +101,10 @@ where the diff makes them worse or depends on them.
 ## Severity
 
 - **blocking**: the PR should not merge as it is. A blocking finding's `basis`
-  must start with one of: an architecture page ("arch p.11 ..."), a standing
-  rule by name ("rule: Determinism, models extract; code computes"), or a
-  concrete failure ("input <X> gives <Y>, should be <Z>"). Code demotes a
-  blocking finding with any other basis to advice.
+  must start with one of: an architecture page from 1 to 17 ("arch p.11 ..."),
+  a standing rule by its bold name above ("rule: Determinism, models extract;
+  code computes"), or a concrete failure ("input <X> gives <Y>, should be
+  <Z>"). Code demotes a blocking finding with any other basis to advice.
 - **advice**: worth doing; it does not hold the merge.
 
 Report at most 12 findings, the most important first. Do not report taste.

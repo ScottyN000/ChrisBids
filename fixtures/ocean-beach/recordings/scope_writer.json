@@ -1,0 +1,1028 @@
+{
+ "reader": "scope_writer",
+ "model": "replay (fixture layout)",
+ "prompt_version": "scope_writer@05c28a7075b5",
+ "note": "Expected output: the fixture's hand-made proposal layout in the Scope Writer's schema. Both runs agree.",
+ "units": [
+  {
+   "unit_id": "OBV#scope",
+   "locator": "ledger rows and phrase library",
+   "runs": [
+    {
+     "header": {
+      "project": "OBV-H-001",
+      "address": "OBV-H-002",
+      "client": "OBV-F-001"
+     },
+     "sections": [
+      {
+       "division": "01",
+       "tasks": [
+        {
+         "title": "",
+         "items": [
+          {
+           "kind": "phrase",
+           "ref": "gc_site"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_harness"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_ppe"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_protect"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_hardware"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_vehicles"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_access"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_landscape"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-001"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-002"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-003"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-004"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-005"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-006"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-007"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-008"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-009"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_clear"
+          }
+         ],
+         "allowance": [],
+         "close": ""
+        }
+       ]
+      },
+      {
+       "division": "02",
+       "tasks": [
+        {
+         "title": "Pressure Washing",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-SP-020"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-021"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-Q-001"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-022"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-023"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-024"
+          },
+          {
+           "kind": "phrase",
+           "ref": "wash_2"
+          },
+          {
+           "kind": "phrase",
+           "ref": "wash_3"
+          },
+          {
+           "kind": "phrase",
+           "ref": "wash_4"
+          },
+          {
+           "kind": "phrase",
+           "ref": "wash_5"
+          }
+         ],
+         "allowance": [
+          "OBV-A-001"
+         ],
+         "close": ""
+        }
+       ]
+      },
+      {
+       "division": "07",
+       "tasks": [
+        {
+         "title": "Caulking, Sealants and Crack Repair",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-SP-030"
+          },
+          {
+           "kind": "phrase",
+           "ref": "seal_clean"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-031"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-032"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-033"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-034"
+          },
+          {
+           "kind": "phrase",
+           "ref": "seal_tool"
+          }
+         ],
+         "allowance": [
+          "OBV-A-002",
+          "OBV-A-003"
+         ],
+         "close": "concealed_preparation"
+        }
+       ]
+      },
+      {
+       "division": "09",
+       "tasks": [
+        {
+         "title": "Masonry, Stucco and Cementitious Surfaces",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-SP-040"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-041"
+          },
+          {
+           "kind": "phrase",
+           "ref": "coat_prep"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-042"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-043"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-044"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-046"
+          },
+          {
+           "kind": "phrase",
+           "ref": "coat_apply"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-045"
+          },
+          {
+           "kind": "phrase",
+           "ref": "coat_finish"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-047"
+          }
+         ],
+         "allowance": [
+          "OBV-A-004",
+          "OBV-A-005",
+          "OBV-A-006",
+          "OBV-A-007"
+         ],
+         "close": "concealed_preparation"
+        },
+        {
+         "title": "Doors",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-SP-050"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-051"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-052"
+          }
+         ],
+         "allowance": [
+          "OBV-A-008"
+         ],
+         "close": ""
+        },
+        {
+         "title": "Walkway, Stair and Landing Deck Coatings",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-OB-004"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-060"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-061"
+          }
+         ],
+         "allowance": [
+          "OBV-A-009"
+         ],
+         "close": "concealed_preparation"
+        },
+        {
+         "title": "Railings, Pool Fence and Balcony Steel Supports",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-OB-003"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-070"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-071"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-072"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-073"
+          }
+         ],
+         "allowance": [
+          "OBV-A-010"
+         ],
+         "close": ""
+        }
+       ]
+      },
+      {
+       "division": "ALT",
+       "tasks": [
+        {
+         "title": "Walkway Texture and Coating Spot Repair",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-001"
+          }
+         ],
+         "allowance": [
+          "OBV-A-011"
+         ],
+         "close": ""
+        },
+        {
+         "title": "Wall Spall Repair",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-002"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_spall_excavate"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebar"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_square"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebuild_spall"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_smooth"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-042"
+          }
+         ],
+         "allowance": [
+          "OBV-A-012"
+         ],
+         "close": "concealed_reinforcement"
+        },
+        {
+         "title": "Column Repair",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-003"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_excavate"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebar"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_bond"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_square"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebuild_column"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_smooth"
+          }
+         ],
+         "allowance": [
+          "OBV-A-013"
+         ],
+         "close": "concealed_reinforcement"
+        },
+        {
+         "title": "Grooved Stucco Removal and Replacement",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-004"
+          }
+         ],
+         "allowance": [
+          "OBV-A-014"
+         ],
+         "close": "concealed_preparation"
+        },
+        {
+         "title": "Top-Floor Balcony Soffit Replacement",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-OB-005"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-AL-005"
+          }
+         ],
+         "allowance": [
+          "OBV-A-015"
+         ],
+         "close": "concealed_preparation"
+        },
+        {
+         "title": "Pool Fence Post Pockets",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-006"
+          },
+          {
+           "kind": "phrase",
+           "ref": "pocket_chip"
+          },
+          {
+           "kind": "phrase",
+           "ref": "pocket_clean"
+          },
+          {
+           "kind": "phrase",
+           "ref": "pocket_prep"
+          },
+          {
+           "kind": "phrase",
+           "ref": "pocket_mortar"
+          }
+         ],
+         "allowance": [
+          "OBV-A-016"
+         ],
+         "close": "concealed_reinforcement"
+        },
+        {
+         "title": "Garage Doors",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-007"
+          }
+         ],
+         "allowance": [
+          "OBV-A-017"
+         ],
+         "close": ""
+        }
+       ]
+      }
+     ],
+     "exclusion_phrases": [
+      "excl_architectural",
+      "excl_concealed",
+      "excl_full_depth",
+      "excl_balcony_slab",
+      "excl_railing_coatings",
+      "excl_expansion",
+      "excl_electrical",
+      "excl_mep",
+      "excl_interior",
+      "excl_permits",
+      "excl_mold",
+      "excl_tenants",
+      "excl_engineering"
+     ],
+     "terms": [
+      "change_orders",
+      "costs",
+      "warranty",
+      "allowance_definition"
+     ]
+    },
+    {
+     "header": {
+      "project": "OBV-H-001",
+      "address": "OBV-H-002",
+      "client": "OBV-F-001"
+     },
+     "sections": [
+      {
+       "division": "01",
+       "tasks": [
+        {
+         "title": "",
+         "items": [
+          {
+           "kind": "phrase",
+           "ref": "gc_site"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_harness"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_ppe"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_protect"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_hardware"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_vehicles"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_access"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_landscape"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-001"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-002"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-003"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-004"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-005"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-006"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-007"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-008"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-009"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_clear"
+          }
+         ],
+         "allowance": [],
+         "close": ""
+        }
+       ]
+      },
+      {
+       "division": "02",
+       "tasks": [
+        {
+         "title": "Pressure Washing",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-SP-020"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-021"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-Q-001"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-022"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-023"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-024"
+          },
+          {
+           "kind": "phrase",
+           "ref": "wash_2"
+          },
+          {
+           "kind": "phrase",
+           "ref": "wash_3"
+          },
+          {
+           "kind": "phrase",
+           "ref": "wash_4"
+          },
+          {
+           "kind": "phrase",
+           "ref": "wash_5"
+          }
+         ],
+         "allowance": [
+          "OBV-A-001"
+         ],
+         "close": ""
+        }
+       ]
+      },
+      {
+       "division": "07",
+       "tasks": [
+        {
+         "title": "Caulking, Sealants and Crack Repair",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-SP-030"
+          },
+          {
+           "kind": "phrase",
+           "ref": "seal_clean"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-031"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-032"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-033"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-034"
+          },
+          {
+           "kind": "phrase",
+           "ref": "seal_tool"
+          }
+         ],
+         "allowance": [
+          "OBV-A-002",
+          "OBV-A-003"
+         ],
+         "close": "concealed_preparation"
+        }
+       ]
+      },
+      {
+       "division": "09",
+       "tasks": [
+        {
+         "title": "Masonry, Stucco and Cementitious Surfaces",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-SP-040"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-041"
+          },
+          {
+           "kind": "phrase",
+           "ref": "coat_prep"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-042"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-043"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-044"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-046"
+          },
+          {
+           "kind": "phrase",
+           "ref": "coat_apply"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-045"
+          },
+          {
+           "kind": "phrase",
+           "ref": "coat_finish"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-047"
+          }
+         ],
+         "allowance": [
+          "OBV-A-004",
+          "OBV-A-005",
+          "OBV-A-006",
+          "OBV-A-007"
+         ],
+         "close": "concealed_preparation"
+        },
+        {
+         "title": "Doors",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-SP-050"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-051"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-052"
+          }
+         ],
+         "allowance": [
+          "OBV-A-008"
+         ],
+         "close": ""
+        },
+        {
+         "title": "Walkway, Stair and Landing Deck Coatings",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-OB-004"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-060"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-061"
+          }
+         ],
+         "allowance": [
+          "OBV-A-009"
+         ],
+         "close": "concealed_preparation"
+        },
+        {
+         "title": "Railings, Pool Fence and Balcony Steel Supports",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-OB-003"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-070"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-071"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-072"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-073"
+          }
+         ],
+         "allowance": [
+          "OBV-A-010"
+         ],
+         "close": ""
+        }
+       ]
+      },
+      {
+       "division": "ALT",
+       "tasks": [
+        {
+         "title": "Walkway Texture and Coating Spot Repair",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-001"
+          }
+         ],
+         "allowance": [
+          "OBV-A-011"
+         ],
+         "close": ""
+        },
+        {
+         "title": "Wall Spall Repair",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-002"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_spall_excavate"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebar"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_square"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebuild_spall"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_smooth"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-SP-042"
+          }
+         ],
+         "allowance": [
+          "OBV-A-012"
+         ],
+         "close": "concealed_reinforcement"
+        },
+        {
+         "title": "Column Repair",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-003"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_excavate"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebar"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_bond"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_square"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebuild_column"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_smooth"
+          }
+         ],
+         "allowance": [
+          "OBV-A-013"
+         ],
+         "close": "concealed_reinforcement"
+        },
+        {
+         "title": "Grooved Stucco Removal and Replacement",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-004"
+          }
+         ],
+         "allowance": [
+          "OBV-A-014"
+         ],
+         "close": "concealed_preparation"
+        },
+        {
+         "title": "Top-Floor Balcony Soffit Replacement",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-OB-005"
+          },
+          {
+           "kind": "row",
+           "ref": "OBV-AL-005"
+          }
+         ],
+         "allowance": [
+          "OBV-A-015"
+         ],
+         "close": "concealed_preparation"
+        },
+        {
+         "title": "Pool Fence Post Pockets",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-006"
+          },
+          {
+           "kind": "phrase",
+           "ref": "pocket_chip"
+          },
+          {
+           "kind": "phrase",
+           "ref": "pocket_clean"
+          },
+          {
+           "kind": "phrase",
+           "ref": "pocket_prep"
+          },
+          {
+           "kind": "phrase",
+           "ref": "pocket_mortar"
+          }
+         ],
+         "allowance": [
+          "OBV-A-016"
+         ],
+         "close": "concealed_reinforcement"
+        },
+        {
+         "title": "Garage Doors",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "OBV-AL-007"
+          }
+         ],
+         "allowance": [
+          "OBV-A-017"
+         ],
+         "close": ""
+        }
+       ]
+      }
+     ],
+     "exclusion_phrases": [
+      "excl_architectural",
+      "excl_concealed",
+      "excl_full_depth",
+      "excl_balcony_slab",
+      "excl_railing_coatings",
+      "excl_expansion",
+      "excl_electrical",
+      "excl_mep",
+      "excl_interior",
+      "excl_permits",
+      "excl_mold",
+      "excl_tenants",
+      "excl_engineering"
+     ],
+     "terms": [
+      "change_orders",
+      "costs",
+      "warranty",
+      "allowance_definition"
+     ]
+    }
+   ]
+  }
+ ]
+}

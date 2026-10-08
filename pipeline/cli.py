@@ -10,6 +10,8 @@
     python3 -m pipeline live    fixtures/nantucket --out runs/nan-live [--packet fixtures/packet]
                                 [--model claude-haiku-5-5] [--effort high] [--repeats 2]
                                 [--takeoff-model claude-sonnet-5-5] [--takeoff-effort high]   (needs ANTHROPIC_API_KEY)
+    python3 -m pipeline scope   fixtures/nantucket --out runs/nan-scope [--repeats 2]
+                                [--live [--model claude-haiku-5-5] [--effort high]]           (--live needs ANTHROPIC_API_KEY)
 """
 from __future__ import annotations
 
@@ -156,6 +158,33 @@ def cmd_live(a) -> int:
     return 0 if comparison.exact_ok and not failed else 1
 
 
+def cmd_scope(a) -> int:
+    """Lay out a fixture's proposal from its own ledger and gate it against the fixture's layout."""
+    from . import scope_writer
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    client = None
+    if a.live:
+        from .readers import live
+        client = live.LiveClient(model=a.model, effort=a.effort or None, record=out / "recordings")
+    try:
+        broker, result, gate = scope_writer.golden(Path(a.fixture), out / "ledger.db", client, repeats=a.repeats)
+    except Exception as e:
+        if type(e).__name__ == "LiveRunError":
+            print(f"NOT RUN: {e}", file=sys.stderr)
+            return 3
+        raise
+    print(result.report())
+    print(gate.text())
+    if (out / "recordings" / "calls.jsonl").exists():
+        from .readers import live
+        print(live.usage_totals(out / "recordings" / "calls.jsonl"))
+    scope_writer.write(result, out)
+    (out / "gate.txt").write_text(result.report() + "\n" + gate.text() + "\n")
+    broker.close()
+    return 0 if gate.ok else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="pipeline", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -209,6 +238,17 @@ def main(argv=None) -> int:
     p.add_argument("--takeoff-effort", default="high", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
     p.set_defaults(func=cmd_live)
+
+    p = sub.add_parser("scope", help="lay out a fixture's proposal from its ledger and gate it against the fixture")
+    p.add_argument("fixture")
+    p.add_argument("--out", required=True)
+    p.add_argument("--repeats", type=int, default=2)
+    p.add_argument("--live", action="store_true", help="call the model instead of replaying the recording")
+    p.add_argument("--model", default="claude-haiku-5-5",
+                   help="the Scope Writer selects, it does not compose, so it runs on Haiku (architecture p.13)")
+    p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
+                   help="empty for the model default")
+    p.set_defaults(func=cmd_scope)
 
     a = ap.parse_args(argv)
     try:

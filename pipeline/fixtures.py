@@ -81,7 +81,7 @@ def load(job_dir: Path, ledger_path: Path) -> tuple[Broker, dict]:
     )
     intake_broker.ledger.set_meta(
         job_name=data["job_name"], original=data["original"],
-        status_line=data["status_line"], fixture=str(job_dir),
+        status_line=data["status_line"], codes_note=data.get("codes_note", ""), fixture=str(job_dir),
     )
     intake_broker.write_register(register)
     kinds = {r["source_id"]: r["kind"] for r in register}

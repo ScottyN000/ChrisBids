@@ -1,0 +1,440 @@
+{
+ "reader": "scope_writer",
+ "model": "replay (fixture layout)",
+ "prompt_version": "scope_writer@05c28a7075b5",
+ "note": "Expected output: the fixture's hand-made proposal layout in the Scope Writer's schema. Both runs agree.",
+ "units": [
+  {
+   "unit_id": "NAN#scope",
+   "locator": "ledger rows and phrase library",
+   "runs": [
+    {
+     "header": {
+      "project": "NAN-H-001",
+      "address": "NAN-H-002",
+      "client": "NAN-F-001"
+     },
+     "sections": [
+      {
+       "division": "01",
+       "tasks": [
+        {
+         "title": "",
+         "items": [
+          {
+           "kind": "phrase",
+           "ref": "gc_site"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_ppe"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-001"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-002"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-003"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-004"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-005"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-006"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-007"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-009"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_clear"
+          }
+         ],
+         "allowance": [],
+         "close": ""
+        }
+       ]
+      },
+      {
+       "division": "02",
+       "tasks": [
+        {
+         "title": "Plank Underside Removal",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "NAN-D-013"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-014"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-C-022"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebar"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_square"
+          }
+         ],
+         "allowance": [
+          "NAN-A-001"
+         ],
+         "close": "concealed_reinforcement"
+        }
+       ]
+      },
+      {
+       "division": "03",
+       "tasks": [
+        {
+         "title": "Plank Underside Rebuild",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "NAN-D-015"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-C-021"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_bond"
+          }
+         ],
+         "allowance": [
+          "NAN-A-002"
+         ],
+         "close": "concealed_reinforcement"
+        }
+       ]
+      },
+      {
+       "division": "05",
+       "tasks": [
+        {
+         "title": "Bracket Supports",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "NAN-Q-002"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-009"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-001"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-002"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-003"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-010"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-008"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-011"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-012"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-001"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-002"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-003"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-004"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-005"
+          }
+         ],
+         "allowance": [
+          "NAN-A-003",
+          "NAN-A-004",
+          "NAN-A-005",
+          "NAN-A-006"
+         ],
+         "close": ""
+        }
+       ]
+      }
+     ],
+     "exclusion_phrases": [
+      "excl_engineered",
+      "excl_concealed",
+      "excl_full_depth",
+      "excl_electrical",
+      "excl_mep",
+      "excl_mold",
+      "excl_tenants"
+     ],
+     "terms": [
+      "change_orders",
+      "costs",
+      "warranty",
+      "allowance_definition"
+     ]
+    },
+    {
+     "header": {
+      "project": "NAN-H-001",
+      "address": "NAN-H-002",
+      "client": "NAN-F-001"
+     },
+     "sections": [
+      {
+       "division": "01",
+       "tasks": [
+        {
+         "title": "",
+         "items": [
+          {
+           "kind": "phrase",
+           "ref": "gc_site"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_ppe"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-001"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-002"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-003"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-004"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-005"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-006"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-007"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-009"
+          },
+          {
+           "kind": "phrase",
+           "ref": "gc_clear"
+          }
+         ],
+         "allowance": [],
+         "close": ""
+        }
+       ]
+      },
+      {
+       "division": "02",
+       "tasks": [
+        {
+         "title": "Plank Underside Removal",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "NAN-D-013"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-014"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-C-022"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_rebar"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_square"
+          }
+         ],
+         "allowance": [
+          "NAN-A-001"
+         ],
+         "close": "concealed_reinforcement"
+        }
+       ]
+      },
+      {
+       "division": "03",
+       "tasks": [
+        {
+         "title": "Plank Underside Rebuild",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "NAN-D-015"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-C-021"
+          },
+          {
+           "kind": "phrase",
+           "ref": "conc_bond"
+          }
+         ],
+         "allowance": [
+          "NAN-A-002"
+         ],
+         "close": "concealed_reinforcement"
+        }
+       ]
+      },
+      {
+       "division": "05",
+       "tasks": [
+        {
+         "title": "Bracket Supports",
+         "items": [
+          {
+           "kind": "row",
+           "ref": "NAN-Q-002"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-009"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-001"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-002"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-003"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-010"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-G-008"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-011"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-D-012"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-001"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-002"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-003"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-004"
+          },
+          {
+           "kind": "row",
+           "ref": "NAN-N-005"
+          }
+         ],
+         "allowance": [
+          "NAN-A-003",
+          "NAN-A-004",
+          "NAN-A-005",
+          "NAN-A-006"
+         ],
+         "close": ""
+        }
+       ]
+      }
+     ],
+     "exclusion_phrases": [
+      "excl_engineered",
+      "excl_concealed",
+      "excl_full_depth",
+      "excl_electrical",
+      "excl_mep",
+      "excl_mold",
+      "excl_tenants"
+     ],
+     "terms": [
+      "change_orders",
+      "costs",
+      "warranty",
+      "allowance_definition"
+     ]
+    }
+   ]
+  }
+ ]
+}

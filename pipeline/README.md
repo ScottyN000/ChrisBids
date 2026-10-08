@@ -87,6 +87,50 @@ is the one place the audit could be made to pass by looking away.
 ## After Phase 1
 
 The readers are in [`readers/`](readers/README.md) and write through this broker
-unchanged, and so does Takeoff ([`takeoff.py`](takeoff.py), Phase 3). Customer
-Requirements, the Scope Writer, Codes & Regulations, Materials and Pricing are
-still to come; `roles.py` already carries their principals and write scopes.
+unchanged, and so does Takeoff ([`takeoff.py`](takeoff.py), Phase 3). The Scope
+Writer is below. Customer Requirements, Codes & Regulations, Materials and
+Pricing are still to come; `roles.py` already carries their principals and write
+scopes.
+
+## Scope Writer (Phase 3)
+
+[`scope_writer.py`](scope_writer.py) lays out the proposal; [`proposal.py`](proposal.py)
+renders it. The renderer is the one `tools/build_fixture.py` already used for the
+fixtures, moved here, so a fixture's layout rendered from its ledger file is
+byte-identical to its committed `proposal.md` (a test checks both jobs).
+
+The model (Haiku, architecture p.13) is shown the ledger rows (ID, role, division,
+part, method, statement; never a figure or a price) and the selectable phrases of
+the phrase library. It returns a layout: sections by division plus Alternates,
+tasks of rows and phrases, each task's allowance rows and concealed-conditions
+close, the exclusions and the terms. It writes no sentence. Task titles are its
+only words, and the schema refuses one with a digit; code numbers the tasks.
+
+Code then refuses a layout that:
+
+- names a row or phrase that does not exist, or a header slot that is not a header row;
+- puts a row outside its own division, alternate work outside Alternates, or base-bid work under it;
+- lists an exclusion, question, material or allowance row as a task item (code prints those itself);
+- uses an exclusion, terms or concealed-conditions phrase in the wrong place, or lists anything twice.
+
+Two reads must agree on what goes where (order and titles aside), or nothing is
+rendered. Scope and allowance rows left out are reported as unplaced, and the
+Auditor's orphan check runs on the rendered text. `proposal.md` and `xref.csv`
+are written to the run folder; the Scope Writer writes no ledger row.
+
+```
+python3 -m pipeline scope fixtures/nantucket --out runs/nan-scope           # replay
+python3 -m pipeline scope fixtures/nantucket --out runs/nan-scope --live    # Haiku, needs the API key
+```
+
+The golden gate runs on each fixture's own ledger and compares with its
+hand-made layout. It fails on a different header, a scope or allowance row
+missing, or one placed in a section the fixture does not use (a base row may
+also sit in its own division), and on any orphan figure. Which phrases,
+exclusions, closes, quantity rows and code rows the model adds is reported but
+not gated: the fixture's choice there is one reasonable layout among several.
+
+Section titles come from the Proposal Format Example and the two test bids
+(divisions 01, 02, 03, 05, 07 and 09). A row in any other division is reported
+unplaced until Chris's template names that division (architecture p.17 asks him
+for the template file).

@@ -47,8 +47,12 @@ pages:
     - md
   asks:
   - id: a1
-    ask: Which licenses Ocean City requires for repair of residential buildings, and whether condominiums are included
+    ask: 'Which licenses Ocean City requires for repair of residential buildings; choice: whether condominiums are
+      included'
     fixture: NAN-C-004
+    options:
+    - 'yes'
+    - 'no'
 - url: https://mgaleg.maryland.gov/2026RS/Statute_Web/gbr/8-101.pdf
   title: MD Bus. Reg. § 8-101
   ids:
@@ -62,6 +66,9 @@ pages:
   - id: a1
     ask: 'Whether "home improvement" includes work on the commonly owned areas of condominiums (§ #(g)(#)(vi))'
     fixture: NAN-C-005
+    options:
+    - 'yes'
+    - 'no'
 - url: https://labor.maryland.gov/license/oplinks.shtml
   title: MD Labor licensing
   agent: codes
@@ -115,8 +122,12 @@ pages:
     - md
   asks:
   - id: a1
-    ask: 'The status of Maryland''s adoption of the # IBC (proposed, adopted or effective)'
+    ask: 'The status of Maryland''s adoption of the # IBC'
     fixture: NAN-C-010
+    options:
+    - proposed
+    - adopted
+    - effective
 - url: https://oceancitymd.gov/oc/departments/planning-community-development/building-code/
   title: Ocean City building code
   agent: codes
@@ -128,6 +139,10 @@ pages:
   - id: a1
     ask: Which IBC (#) and IEBC (#) editions Ocean City lists, and their status
     fixture: NAN-C-011
+    options:
+    - proposed
+    - adopted
+    - effective
 - url: https://codes.iccsafe.org/content/IBC2021P2/chapter-17-special-inspections-and-tests
   title: ICC IBC 2021 Ch. 17
   agent: codes
@@ -160,9 +175,13 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'What the letter says about HIT-HY # (its status), which product it names in its place in masonry (HIT-HY
-      #), and its date (Jan #, #)'
+    ask: 'The status the letter gives HIT-HY #, which product it names in its place in masonry (HIT-HY #), and its
+      date: #'
     fixture: NAN-C-014
+    options:
+    - available
+    - being phased out
+    - discontinued
 - url: https://icc-es.org/wp-content/uploads/report-directory/ESR-4143.pdf
   title: ICC-ES ESR-4143 (Hilti HIT-HY 270)
   ids:
@@ -182,6 +201,9 @@ pages:
   - id: a2
     ask: 'Whether a screen tube is required for HY # in ungrouted CMU'
     fixture: NAN-C-018
+    options:
+    - 'yes'
+    - 'no'
 - url: https://icc-es.org/report-listing/esr-2682/
   title: ICC-ES ESR-2682 (Hilti HY 70 in CMU)
   ids:
@@ -195,7 +217,7 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'The report''s status and product, and when it expires: #'
+    ask: 'The report''s product, and when it expires: #'
 - url: https://icc-es.org/report-listing/esr-3342/
   title: ICC-ES ESR-3342 (Hilti HY 70 in URM)
   ids:
@@ -209,7 +231,7 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'The report''s status and product, and when it expires: #'
+    ask: 'The report''s product, and when it expires: #'
 - url: https://hilti.com/content/dam/urgent-folder/w1/pdf/anchors/hit-hy-270/Technical-information-ASSET-DOC-LOC-8942443.pdf
   title: Hilti HY 270 masonry bulletin
   ids:
@@ -237,7 +259,7 @@ pages:
     - hilti
   asks:
   - id: a1
-    ask: 'Which cartridge sizes HIT-HY # is listed in: # fl oz, # fl oz'
+    ask: 'Which cartridge sizes HIT-HY # is listed in (fl oz): #'
     fixture: NAN-C-020
 - url: https://usa.sika.com/en/construction/concrete-repair/mortars/vertical-overhead/sikaquick-voh.html
   title: SikaQuick VOH product page
@@ -276,7 +298,7 @@ pages:
     - aws
   asks:
   - id: a1
-    ask: Which edition of AWS D#/D#M (:#) the page announces, and its status
+    ask: Which edition of AWS D#/D#M (:#) the page announces
     fixture: NAN-C-024
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-M/section-1926.501
   title: 29 CFR 1926.501
@@ -346,6 +368,9 @@ pages:
   - id: a1
     ask: Whether the permit list includes facia work, fences, external handrails and balcony restoration
     fixture: OBV-C-001
+    options:
+    - 'yes'
+    - 'no'
   - id: a2
     ask: The projects the page lists as needing a permit
   - id: a3
@@ -362,6 +387,9 @@ pages:
   - id: a1
     ask: Whether contractors must pay the city business tax to work in Cocoa Beach, and for what
     fixture: OBV-C-004
+    options:
+    - 'yes'
+    - 'no'
 - url: https://www.floridabuilding.org/c/default.aspx
   title: Florida Building Commission
   agent: codes
@@ -427,6 +455,9 @@ pages:
   - id: a1
     ask: Whether the CCCL rules apply to repair of an existing structure within its existing foundation
     fixture: OBV-C-011
+    options:
+    - 'yes'
+    - 'no'
 - url: https://www.flrules.org/gateway/ruleNo.asp?id=62B-33.004
   title: Rule 62B-33.004
   ids:

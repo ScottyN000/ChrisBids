@@ -62,6 +62,8 @@ OVERLAP = 0.6
 ANSWERED = 0.8
 # Most spare runs a page gets when answers are refused (see run()).
 SPARES = 2
+# The choice for a closed ask whose page says something none of its options fit.
+OTHER = "other"
 # A figure, with a range ("2-4", "350 – 400") as one figure, so a statement
 # cannot narrow a range to one end and still match the quote.
 NUMBER = re.compile(r"\d+(?:[.,/]\d+)*(?:\s*[-–]\s*\d+(?:[.,/]\d+)*)?")
@@ -76,13 +78,17 @@ SCHEMA = {
     "properties": {
         "answers": {"type": "array", "maxItems": 20, "items": {
             "type": "object", "additionalProperties": False,
-            "required": ["ask", "found", "quote", "figures", "statement"],
+            "required": ["ask", "found", "quote", "figures", "choice", "statement"],
             "properties": {
                 "ask": {"type": "string", "maxLength": 20, "pattern": r"^[a-z0-9]+$"},
                 "found": {"type": "boolean"},
                 # The figures the ask's # marks stand for, in order, as the
                 # quote writes them. The runs are compared on these.
                 "figures": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 40}},
+                # For an ask with a closed answer (`options` in the table: yes/no,
+                # proposed/adopted/effective), the option the quote supports;
+                # "" for an ask with none. The runs are compared on this too.
+                "choice": {"type": "string", "maxLength": 40},
                 # Lengths are checked per answer (answer_errors), so one long
                 # answer does not cost the run its other answers.
                 "quote": {"type": "string"},
@@ -98,6 +104,9 @@ class Ask:
     id: str
     ask: str
     fixture: str = ""           # the golden row this ask is gated against, if any
+    # A closed answer's options (yes/no, a status): the model picks one, or
+    # OTHER, and the runs must pick the same one. Free text is never compared.
+    options: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -128,7 +137,7 @@ def load(path: Path = SOURCES) -> Table:
         pages.append(Source(
             url=p["url"], title=p["title"], agent=p["agent"],
             when=tuple(tuple(t.lower() for t in g) for g in p["when"]),
-            asks=tuple(Ask(a["id"], a["ask"], a.get("fixture", "")) for a in p["asks"]),
+            asks=tuple(Ask(a["id"], a["ask"], a.get("fixture", ""), tuple(a.get("options", ()))) for a in p["asks"]),
             ids=tuple(p.get("ids", ())),
         ))
     return Table(named=frozenset(data["named_domains"]), pages=pages)
@@ -166,7 +175,21 @@ def schema_for(source: Source) -> dict:
     answers = out["properties"]["answers"]
     answers["maxItems"] = len(source.asks)
     answers["items"]["properties"]["ask"] = {"enum": [a.id for a in source.asks]}
+    options = sorted({o for a in source.asks for o in a.options})
+    answers["items"]["properties"]["choice"] = {"enum": ["", *options, OTHER] if options else [""]}
     return out
+
+
+def choice_errors(answer: dict, ask: Ask) -> list[str]:
+    """The choice must be one of this ask's options (or OTHER), and empty for an ask with none."""
+    if not answer["found"]:
+        return []
+    got = answer.get("choice", "")
+    if ask.options and got not in (*ask.options, OTHER):
+        return [f"the choice {got!r} is not one of {', '.join(ask.options)}, {OTHER}"]
+    if not ask.options and got:
+        return [f"the ask has no options, but the choice is {got!r}"]
+    return []
 
 
 def brief(source: Source) -> str:
@@ -174,7 +197,8 @@ def brief(source: Source) -> str:
     if source.ids:
         lines.append(f"Its identifiers: {', '.join(source.ids)}")
     lines.append("Answer each ask from the page:")
-    lines += [f"{a.id}: {a.ask}" for a in source.asks]
+    lines += [f"{a.id}: {a.ask}" + (f" [choice: {' | '.join((*a.options, OTHER))}]" if a.options else "")
+              for a in source.asks]
     return "\n".join(lines)
 
 
@@ -184,6 +208,11 @@ def unit_for(job: str, n: int, source: Source, page: web.Page) -> tuple[Unit, bo
         text = text[:MAX_CHARS]
     return Unit(unit_id=f"{job}#web{n}", source_id=SOURCE_ID, locator=source.url, tag=source.title,
                 text=text, brief=brief(source)), cut
+
+
+def on_page(ids: tuple[str, ...], page_text: str) -> tuple[str, ...]:
+    """The identifiers the page carries. Only these count (run, answer_errors and the gate alike)."""
+    return tuple(i for i in ids if web.quote_in(i, page_text))
 
 
 def figures(text: str, ids: tuple[str, ...] = ()) -> set[str]:
@@ -216,7 +245,7 @@ def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = ()) -> li
         return []
     # an identifier stands in for a figure only if the page carries it: a
     # product name the model recalled (HY 70 -> HY 270, p.7) gets no pass
-    ids = tuple(i for i in ids if web.quote_in(i, page_text))
+    ids = on_page(ids, page_text)
     errs = []
     if len(answer["quote"]) > QUOTE_MAX:
         errs.append(f"the quote is longer than {QUOTE_MAX} characters")
@@ -332,6 +361,8 @@ def _same_reading(a: dict, b: dict, ids: tuple[str, ...] = ()) -> bool:
     the two must fill them exactly alike. (The kept statement gives those
     figures and may give others, but only ones its quote carries.) Answers
     with no figure must also give the same figures in their statements."""
+    if a.get("choice", "") != b.get("choice", "") or a.get("choice") == OTHER:
+        return False        # a closed answer: the same option, and one of the ask's own
     x, y = slots(a, ids), slots(b, ids)
     if any(x) or any(y):
         # the same figures from different passages may still be different
@@ -427,7 +458,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                   source.agent)
             continue
         unit, cut = unit_for(job, i, source, page)
-        ids = tuple(x for x in source.ids if web.quote_in(x, unit.text))     # only those on the page
+        ids = on_page(source.ids, unit.text)
         if cut:
             result.notes.append(f"{source.url}: page cut to its first {MAX_CHARS} characters")
         schema = schema_for(source)
@@ -452,8 +483,9 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                 result.discarded.append(f"{unit.unit_id} run {r + 1}: {'; '.join(errs[:3])}")
                 continue
             kept = {}
+            by_id = {x.id: x for x in source.asks}
             for a in data["answers"]:
-                why = answer_errors(a, unit.text, ids)
+                why = answer_errors(a, unit.text, ids) + choice_errors(a, by_id[a["ask"]])
                 if why:
                     result.discarded.append(f"{unit.unit_id} run {r + 1} {a['ask']}: {'; '.join(why)}")
                 else:
@@ -478,7 +510,8 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                     write(_gap(job, next_id(), source, page, ask, why), source.agent)
                 continue
             write(_row(job, next_id(), source, page, confidence="exact", quote=agreed["quote"].strip(),
-                       statement=agreed["statement"].strip(), locator=f"ask {ask.id}"),
+                       statement=agreed["statement"].strip(), value=agreed.get("choice", ""),
+                       locator=f"ask {ask.id}"),
                   source.agent)
     return result
 
@@ -547,12 +580,13 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict]) -> Gate
                 notes.append(f"{a.fixture}: the page no longer carries the fixture's quote")
                 continue
             compared += 1
+            ids = on_page(s.ids, page.text[:MAX_CHARS])
             got = by_ask.get((s.url, a.id))
             if got is None:
                 misses.append(f"{a.fixture}: no row for {a.id} ({a.ask})")
-            elif covered(f["quote"], got.quote) < OVERLAP and not same_facts(f.get("statement", ""), got.quote, s.ids):
+            elif covered(f["quote"], got.quote) < OVERLAP and not same_facts(f.get("statement", ""), got.quote, ids):
                 failures.append(f"{a.fixture}: quoted {got.quote[:120]!r}, the fixture quotes {f['quote'][:120]!r}")
-            elif not _states(f, got.statement, s.ids):
+            elif not _states(f, got.statement, ids):
                 failures.append(f"{a.fixture}: states {got.statement[:120]!r}, the fixture states "
                                 f"{f['statement'][:120]!r}")
     ok = not failures and compared > 0 and compared - len(misses) >= ANSWERED * compared

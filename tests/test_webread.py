@@ -25,12 +25,12 @@ def table(*pages):
     return webread.Table(named=frozenset({"example.com"}), pages=list(pages) or [source()])
 
 
-def answer(ask, quote="", statement="", found=None, figures=None):
+def answer(ask, quote="", statement="", found=None, figures=None, choice=""):
     """An answer; its `figures` default to the figures its statement gives, in order."""
     if figures is None:
         figures = [n for n in webread.NUMBER.findall(statement)]
     return {"ask": ask, "found": bool(quote) if found is None else found, "quote": quote, "figures": figures,
-            "statement": statement}
+            "choice": choice, "statement": statement}
 
 
 TURNAROUND = answer("a1", "Permits will be issued 2-4 weeks on average", "Permits take 2-4 weeks.")
@@ -148,6 +148,13 @@ class TableCase(unittest.TestCase):
         self.assertEqual(webread.brief(source(ids=("F-1",))).splitlines()[1], "Its identifiers: F-1")
         self.assertEqual(webread.brief(s), "The page: OC permits\nAnswer each ask from the page:\na1: Permit turnaround # weeks\n"
                                            "a2: Plans required")
+        self.assertEqual(answers["items"]["properties"]["choice"], {"enum": [""]})
+        # a closed ask lists its options; the schema offers them (and other), code checks them per ask
+        yn = source(asks=(webread.Ask("a1", "Whether plans are required", options=("yes", "no")),
+                          webread.Ask("a2", "Status", options=("adopted", "proposed"))))
+        self.assertEqual(webread.schema_for(yn)["properties"]["answers"]["items"]["properties"]["choice"],
+                         {"enum": ["", "adopted", "no", "proposed", "yes", "other"]})
+        self.assertIn("a1: Whether plans are required [choice: yes | no | other]", webread.brief(yn))
         page = web.Page(URL, text="x" * (webread.MAX_CHARS + 5))
         unit, cut = webread.unit_for("J", 3, s, page)
         self.assertTrue(cut)
@@ -220,6 +227,18 @@ class AnswerCase(unittest.TestCase):
         # an ask that wants a date has a # for it (the ESR asks), so runs are compared on it
         asks = [a for p in webread.load().pages for a in p.asks if "expir" in a.ask]
         self.assertTrue(asks and all("#" in a.ask for a in asks))
+
+    def test_a_choice_must_be_one_of_the_ask_s_options(self):
+        yn = webread.Ask("a2", "Whether plans are required", options=("yes", "no"))
+        self.assertEqual(webread.choice_errors(answer("a2", "q", "s", choice="yes"), yn), [])
+        self.assertEqual(webread.choice_errors(answer("a2", "q", "s", choice="other"), yn), [])
+        self.assertEqual(webread.choice_errors(answer("a2", "q", "s", choice="maybe"), yn),
+                         ["the choice 'maybe' is not one of yes, no, other"])
+        self.assertEqual(webread.choice_errors(answer("a2", "q", "s"), yn), ["the choice '' is not one of yes, no, other"])
+        self.assertEqual(webread.choice_errors(answer("a2", found=False), yn), [])
+        free = webread.Ask("a2", "Plans required")
+        self.assertEqual(webread.choice_errors(answer("a2", "q", "s", choice="yes"), free),
+                         ["the ask has no options, but the choice is 'yes'"])
 
     def test_a_figure_may_come_from_the_page_s_identifier(self):
         a = answer("a1", "Permits will be issued 2-4 weeks", "ESR-4143: 2-4 weeks.", figures=["4143", "2-4"])
@@ -338,6 +357,13 @@ class AnswerCase(unittest.TestCase):
         self.assertEqual(webread._agree([plans, also], a), (PLANS, "", []))
         other = {"a1": answer("a1", "Permits will be", "Permits exist.")}
         self.assertEqual(webread._agree([plans, other], a), (*differ, [PLANS, other["a1"]]))
+        # a closed answer: the same passage with opposite choices is two readings; "other" never agrees
+        yes = {"a1": answer("a1", "All applications REQUIRE PLANS", "Plans are required.", choice="yes")}
+        no = {"a1": answer("a1", "All applications REQUIRE PLANS", "Plans are not required.", choice="no")}
+        self.assertEqual(webread._agree([yes, no], a), (*differ, [yes["a1"], no["a1"]]))
+        self.assertEqual(webread._agree([yes, copy.deepcopy(yes)], a)[0], yes["a1"])
+        odd = {"a1": answer("a1", "All applications REQUIRE PLANS", "Plans are needed.", choice="other")}
+        self.assertEqual(webread._agree([odd, copy.deepcopy(odd)], a)[:2], differ)
         # ...and their statements give the same figures
         dated = {"a1": answer("a1", "All applications REQUIRE PLANS", "Plans are needed (2 sets).", figures=[])}
         self.assertEqual(webread._agree([plans, dated], a)[:2], differ)
@@ -380,6 +406,15 @@ class RunCase(unittest.TestCase):
         self.assertEqual(res.text().splitlines()[0],
                          "web_reader: 1 pages (1 opened), 2 calls, 2 rows, 0 asks unanswered, "
                          "0 answers or runs discarded")
+
+    def test_an_agreed_choice_is_the_row_s_value(self):
+        tbl = table(source(asks=(webread.Ask("a2", "Whether plans are required", options=("yes", "no")),)))
+        yes = answer("a2", "All applications REQUIRE PLANS OR DRAWINGS.", "Plans are required.", choice="yes")
+        _, res = run(Fake({"answers": [yes]}, {"answers": [yes]}), tbl=tbl)
+        self.assertEqual([(c.value, c.confidence, c.flag) for c in res.rows], [("yes", "exact", "")])
+        bad = dict(yes, choice="")
+        _, res = run(Fake({"answers": [bad]}, {"answers": [bad]}, {"answers": [bad]}, {"answers": [bad]}), tbl=tbl)
+        self.assertIn("J#web1 run 1 a2: the choice '' is not one of yes, no, other", res.discarded)
 
     def test_materials_pages_are_written_as_materials(self):
         client = Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [TURNAROUND, PLANS]})
@@ -612,7 +647,8 @@ class GoldenCase(unittest.TestCase):
             quotes = [data[a.fixture]["quote"].replace(" ... ", " ") for a in s.asks if a.fixture]
             pages[s.url] = Resp(("<p>" + "</p><p>".join(quotes or ["Nothing here."]) + "</p>").encode())
             answers[s.url] = {"answers": [
-                answer(a.id, data[a.fixture]["quote"], data[a.fixture]["quote"]) if a.fixture else answer(a.id, found=False)
+                answer(a.id, data[a.fixture]["quote"], data[a.fixture]["quote"], choice=(a.options or ("",))[0])
+                if a.fixture else answer(a.id, found=False)
                 for a in s.asks]}
         client = Fake(lambda unit: answers[unit.locator], lambda unit: copy.deepcopy(answers[unit.locator]))
         fetcher = web.Fetcher(tbl.named, opener=Sites(pages), clock=lambda: "2026-10-08", resolve=False)

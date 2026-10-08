@@ -232,6 +232,11 @@ answer only if all three hold:
   sentences give the same figures. The same figure from two passages is two
   readings, since one passage may say "proposed" and the other "adopted".
 
+An ask whose answer is a word rather than a figure (yes/no, proposed/adopted/effective)
+lists its `options` in the table. Each run picks one (or "other"), code checks it
+is one of them, and the runs must pick the same one, so a status is never read
+from free text. The agreed option is the row's value.
+
 When the runs find differing readings on the page (different passages and
 figures, or one run finds it and one does not), code does not pick one. Each
 reading is written as its own row, flagged unverified, for Chris to settle.
@@ -260,5 +265,6 @@ reported and left out, because the page changed rather than the agent failing:
 The gate runs in `live.yml` (`part: web`).
 
 Not built yet: order quantities from spread rates (a `material` row may not be
-`fetched`, p.6), the cold-cache search, and the 90-day cache for federal
-regulations (p.8).
+`fetched`, p.6), the cold-cache search, the 90-day cache for federal
+regulations, and the edition, effective-date, discontinuation and ESR-expiry
+comparisons between bids (p.8). The page hash is in the fetch log, not on the row.

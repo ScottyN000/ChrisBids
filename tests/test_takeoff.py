@@ -148,11 +148,12 @@ class DerivationCase(unittest.TestCase):
     def test_a_derived_row_some_runs_missed_or_resting_on_a_flagged_row(self):
         rows = dict(BY_ID)
         rows[END] = reader_row(END, 11, "in", "End distance", flag="unverified", source="S-1 + IMG_1")
+        rows[SPACING] = reader_row(SPACING, 32, "in", "Spacing", flag="unverified")
         c = takeoff.derived_claim("NAN-TK-Q-01", it("Spaces", SPACES, 5, "spaces"), 1, 3, rows)
         self.assertEqual((c.flag, c.derivation, c.source_id), (
-            "unverified", f"(182 - 2 x 11) / 32 = 5; seen in 1 of 3 runs; uses flagged {END}", "S-1 + IMG_1"))
+            "unverified", f"(182 - 2 x 11) / 32 = 5; seen in 1 of 3 runs; uses flagged {END}, {SPACING}", "S-1 + IMG_1"))
         c = takeoff.derived_claim("NAN-TK-Q-01", it("Spaces", SPACES, 5, "spaces"), 3, 3, rows)
-        self.assertEqual((c.flag, c.derivation), ("unverified", f"(182 - 2 x 11) / 32 = 5; uses flagged {END}"))
+        self.assertEqual((c.flag, c.derivation), ("unverified", f"(182 - 2 x 11) / 32 = 5; uses flagged {END}, {SPACING}"))
 
 
 class InputsCase(unittest.TestCase):
@@ -245,6 +246,16 @@ class RunCase(LedgerCase):
         details = [r["detail"] for r in self.broker.ledger.log() if r["action"] == "model-call"]
         self.assertTrue(details[0].endswith("run 1; discarded: not JSON: Expecting value: line 1 column 1 (char 0)"))
         self.assertTrue(details[2].endswith("run 3; valid"))
+
+    def test_field_rows_carry_the_job_and_calls_are_logged_by_unit(self):
+        self.write("drawing_reader", Claim(claim_id="NAN-DR-S", statement="leg, scaled", source_id="S-1",
+                                           method="scaled", role="note", confidence="scaled", value="1'-8\""))
+        many = {"items": [{"label": "x"}, {"label": "y"}]}   # six schema errors; three are reported
+        res = takeoff.run(self.broker, "NAN", Fake([many]), repeats=1)
+        self.assertEqual([c.claim_id for c in res.rows], ["NAN-TK-F-01"])
+        self.assertEqual(res.discarded[0].count("$.items"), 3)
+        (call,) = [r for r in self.broker.ledger.log() if r["action"] == "model-call"]
+        self.assertEqual(call["subject"], "NAN#takeoff")
 
     def test_no_valid_run_leaves_the_unit_unread_and_writes_no_figure(self):
         res = takeoff.run(self.broker, "NAN", Fake(["x", "y"]), repeats=2)

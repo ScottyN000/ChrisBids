@@ -92,6 +92,9 @@ class TableCase(unittest.TestCase):
         # the table is the cache for every job: an ask says what to look for, never a test bid's job-specific notes
         for a in (a for p in t.pages for a in p.asks):
             self.assertNotRegex(a.ask, r"NAN-|OBV-|FIELD|owner flag|spec p\.|unverified|only the title", a.ask)
+        # a # mark stands for a figure the answer's quote must carry, never a section or table locator
+        for a in (a for p in t.pages for a in p.asks):
+            self.assertNotRegex(a.ask, r"§ #|Table #|\(#\)\(", a.ask)
         # a title is the row's citation in the proposal: it names the page, never an edition, date,
         # sub-paragraph or status the test bid found there (p.7), which today's page may not carry
         for p in t.pages:

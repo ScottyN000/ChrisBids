@@ -64,7 +64,7 @@ pages:
     - md
   asks:
   - id: a1
-    ask: 'Whether "home improvement" includes work on the commonly owned areas of condominiums (§ #(g)(#)(vi))'
+    ask: 'Whether "home improvement" includes work on the commonly owned areas of condominiums'
     fixture: NAN-C-005
     options:
     - 'yes'
@@ -157,7 +157,7 @@ pages:
   - - ibc
   asks:
   - id: a1
-    ask: 'What the IBC (§ #) requires for special inspection of post-installed anchors'
+    ask: 'What the IBC requires for special inspection of post-installed anchors'
 - url: https://maa.maryland.gov/wp-content/uploads/2022/02/MAA-Special-Inspections-Matrix.pdf
   title: MAA special inspections matrix
   agent: codes
@@ -333,10 +333,10 @@ pages:
     - cmu
   asks:
   - id: a1
-    ask: 'What Table # entry x requires for chipping concrete (engineering controls)'
+    ask: 'What the silica control table requires for chipping concrete (engineering controls)'
     fixture: NAN-C-026
   - id: a2
-    ask: 'What Table # entry vii requires for drilling holes in concrete (engineering controls)'
+    ask: 'What the silica control table requires for drilling holes in concrete (engineering controls)'
     fixture: NAN-C-027
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-X/section-1926.1053
   title: 29 CFR 1926.1053

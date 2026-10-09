@@ -459,7 +459,7 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.symbol_notes(it("Anchors", f"{{{ANCH}}} * {{{other.claim_id}}}", 21), rows), [])
 
     def test_a_dimension_the_runs_labelled_differently_flags_the_item_unless_the_symbols_confirm_it(self):
-        worded = reader_row(END, 11, "in", "Top wall segment / First bracket from the wall face")
+        worded = reader_row(END, 11, "in", "Top wall segment | First bracket from the wall face")
         worded = Claim(**{**worded.__dict__, "derivation": "11\" dimension string = 11 in; runs word the label differently"})
         rows = dict(BY_ID, **{END: worded})
         c = takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, rows)
@@ -472,6 +472,11 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, {**rows, six.claim_id: six}).flag, "")
         self.assertEqual(len(takeoff.label_notes(self.ANCHORS, {**rows, self.SYMBOLS.claim_id: self.SYMBOLS})), 1)
         self.assertEqual(takeoff.label_notes(self.ANCHORS, BY_ID), [])
+        # A label the vote let a count through on flags the item even when the symbols agree.
+        counted = Claim(**{**reader_row(END, 11, "in", "Wall face to first bracket (2 PLACES)").__dict__,
+                           "derivation": "11\" dimension string = 11 in; the label carries a count with no counted row"})
+        self.assertEqual(takeoff.label_notes(self.ANCHORS, {**BY_ID, END: counted, six.claim_id: six}),
+                         [f"uses {END}, whose label carries a count with no counted row"])
         bolts = reader_row("NAN-DR-DET-02", 3, "per bracket", "Bolts (TYP.)", method="counted")
         summed = it("All fasteners", f"{{{ANCH}}} * ({SPACES} + 1) + {{{bolts.claim_id}}} * ({SPACES} + 1)", 36)
         with_six = {**rows, six.claim_id: six, bolts.claim_id: bolts}

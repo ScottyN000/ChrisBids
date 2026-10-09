@@ -147,6 +147,7 @@ def _base(claim_id: str, src: Unit, **kw) -> Claim:
 
 
 DIFFERING_LABELS = "runs word the label differently"
+COUNT_IN_LABEL = "the label carries a count with no counted row"
 
 
 def _drawing(claim_id: str, unit: Unit, v: Voted, flag: str, note: str) -> Claim:
@@ -156,6 +157,8 @@ def _drawing(claim_id: str, unit: Unit, v: Voted, flag: str, note: str) -> Claim
         label = v.label or label
         if len(v.labels) > 1:
             note = "; ".join(filter(None, [note, DIFFERING_LABELS]))
+        if v.counted_label:
+            note = "; ".join(filter(None, [note, COUNT_IN_LABEL]))
         texts = v.readings.get("text")
         if texts:
             return _base(claim_id, unit, statement=f"{label}: {_readings(texts)}", method="dimensioned",

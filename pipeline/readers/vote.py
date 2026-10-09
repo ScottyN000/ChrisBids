@@ -46,6 +46,7 @@ class Voted:
     runs: int                                   # runs made
     readings: dict[str, list] = field(default_factory=dict)  # field -> distinct values, if they differ
     labels: list[str] = field(default_factory=list)  # a drawing dimension's label from every run, first seen first
+    counted_label: bool = False                 # every wording carried a count the string lacks; the first is kept as printed
 
     @property
     def label(self) -> str:
@@ -97,39 +98,26 @@ def bare_counts(label: str) -> list[str]:
     return out
 
 
-def without_counts(label: str) -> str:
-    """The label with its bare counts taken out; `5 spaces at` becomes `spaces at`."""
-    out = []
-    pos = 0
-    for m in BARE_COUNT.finditer(label):
-        before = re.findall(r"[A-Za-z]+", label[: m.start()])
-        if before and before[-1].lower() in REFERENCE_WORDS:
-            continue
-        out.append(label[pos: m.start()].rstrip())
-        pos = m.end()
-    out.append(label[pos:])
-    return re.sub(r"\(\s+", "(", re.sub(r"\s+", " ", " ".join(out))).strip()
-
-
-def dimension_labels(items: list[dict]) -> list[str]:
-    """Every run's wording of a dimension's label, first seen first. Wordings that differ
-    only in case or trailing punctuation are one. A wording carrying a bare count the
-    dimension string lacks (`printed 5 times`) is a count with no counted row behind it
-    (traceability), so it is dropped; when no wording survives, the first is kept with
-    those counts taken out. Sheet and detail references (`REF. DET. 1/S-1`) are kept."""
+def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
+    """Every run's wording of a dimension's label, first seen first, and whether a count
+    had to be let through. Wordings that differ only in case or trailing punctuation are
+    one. A wording carrying a bare count the dimension string lacks (`printed 5 times`)
+    is a count with no counted row behind it (traceability), so it is dropped while
+    another wording survives; when none does, the first is kept as printed, never
+    rewritten, and the second value is True so the row can say so. Sheet and detail
+    references (`REF. DET. 1/S-1`) are not counts."""
     printed = set(re.findall(r"\d+", items[0].get("text") or ""))
-    labels, seen, stripped = [], set(), []
+    labels, seen, counted = [], set(), []
     for it in items:
         label = (it.get("label") or "").strip()
         wording = re.sub(r"[\s.,;:]+$", "", label).lower()
         if not wording or wording in seen:
             continue
         seen.add(wording)
-        if set(bare_counts(label)) <= printed:
-            labels.append(label)
-        else:
-            stripped.append(without_counts(label))
-    return labels or stripped[:1]
+        (labels if set(bare_counts(label)) <= printed else counted).append(label)
+    if labels:
+        return labels, False
+    return counted[:1], bool(counted)
 
 
 def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
@@ -160,8 +148,9 @@ def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
                     values.append(v)
             if len(values) > 1:
                 readings[f] = values
-        labels = []
+        labels, counted_label = [], False
         if reader == "drawing" and items[0].get("kind") == "dimension":
-            labels = dimension_labels(items)
-        out.append(Voted(item=items[0], seen=len(items), runs=len(runs), readings=readings, labels=labels))
+            labels, counted_label = dimension_labels(items)
+        out.append(Voted(item=items[0], seen=len(items), runs=len(runs), readings=readings, labels=labels,
+                         counted_label=counted_label))
     return out

@@ -33,7 +33,7 @@ from . import schema
 from .broker import Broker
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
-from .readers.rows import DIFFERING_LABELS, Unit
+from .readers.rows import COUNT_IN_LABEL, DIFFERING_LABELS, Unit
 from .schema import Claim, LedgerError
 
 NAME = "takeoff"
@@ -256,19 +256,24 @@ def symbol_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
 
 def label_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
     """A note when the item rests on a dimension whose runs worded the label differently,
-    since the model then chose which wording to follow; none when a symbol row on the
-    view agrees with the number the dimensions give, which confirms the choice.
+    since the model then chose which wording to follow, or whose label carries a count
+    with no counted row behind it; none for the first when a symbol row on the view
+    agrees with the number the dimensions give, which confirms the choice.
 
-    The row says so with `rows.DIFFERING_LABELS` in its derivation, the one place a
-    ledger row records what the vote saw; the constant is shared, never retyped.
+    The row says so with `rows.DIFFERING_LABELS` or `rows.COUNT_IN_LABEL` in its
+    derivation, the one place a ledger row records what the vote saw; the constants are
+    shared, never retyped.
     """
     used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
+    notes = []
     differing = [c.claim_id for c in used if DIFFERING_LABELS in c.derivation]
-    if not differing:
-        return []
-    if assemblies(item, by_id) is not None and symbol_rows(item, by_id) and not symbol_notes(item, by_id):
-        return []
-    return [f"uses {', '.join(differing)}, whose label the runs word differently"]
+    if differing and not (assemblies(item, by_id) is not None and symbol_rows(item, by_id)
+                          and not symbol_notes(item, by_id)):
+        notes.append(f"uses {', '.join(differing)}, whose label the runs word differently")
+    counted = [c.claim_id for c in used if COUNT_IN_LABEL in c.derivation]
+    if counted:
+        notes.append(f"uses {', '.join(counted)}, whose label carries a count with no counted row")
+    return notes
 
 
 def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str, Claim]) -> Claim:

@@ -50,7 +50,7 @@ STATION_OF_PRINCIPAL = {n.principal: n.id for n in dag.NODES if n.principal} | O
 TIER = re.compile(r"\((?:for prompts )?(up to|over) ([\d,]+) tokens\)")
 RUN = re.compile(r"run (\d+)")
 SNAPSHOT = r"-\d{8}"   # a dated id (`claude-haiku-5-5-20260301`) is the model it is a snapshot of; any other suffix is another model
-OFF_LIST = re.compile(r"^not fetched: \S+ is not on the allowlist(;|$)")   # web.allowed's refusal, as web.Fetcher logs it
+OFF_LIST = re.compile(r"^not fetched: \S+ is not on the allowlist$")   # web.allowed's refusal, as web.Fetcher logs it (a refusal carries no `served by`)
 HOST_IN = re.compile(r"^not fetched: (\S+) (?:is not on the allowlist|is the local machine|is a non-public address|resolves to non-public address|does not resolve)")
 CREATED = "%Y-%m-%dT%H:%M:%SZ"   # the ledger's created_at, as Broker.open_job writes it
 
@@ -114,7 +114,7 @@ def refused_host(action: str, detail: str) -> str:
     m = HOST_IN.match(note)
     if m:
         return m.group(1)
-    return note[len("not fetched: "):].split("; served by")[0] if note.startswith("not fetched: ") else ""
+    return note[len("not fetched: "):] if note.startswith("not fetched: ") else ""
 
 
 def this_runs(path: Path, created_at: str | None) -> bool:

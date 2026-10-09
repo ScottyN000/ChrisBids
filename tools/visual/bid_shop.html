@@ -120,7 +120,7 @@ footer a { color: var(--ink); }
       </div>
     </aside>
   </main>
-  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) and goes back to his post, and the estimator walks the finished bid out by hand. The bid is there only when every Scope Writer run was valid, the draft is in the run folder, the audited rows include no fail and, on a whole bid, bid.txt says OK (the auditor's orphan-figure and source-hash checks are not in the log, and the caption says so); the exporter works that out from the log and the folder (a proposal.md or bid.txt older than the ledger was left by an earlier run and does not count), and any other run ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call the exporter could not price is counted, not priced, and the meter gives the reason instead of a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) then picks up the finished bid and walks it out the door, which is this show's ending by the owner's ruling (2026-10-09). The bid is there only when every Scope Writer run was valid, the draft is in the run folder, the audited rows include no fail and, on a whole bid, bid.txt says OK (the auditor's orphan-figure and source-hash checks are not in the log, and the caption says so); the exporter works that out from the log and the folder (a proposal.md or bid.txt older than the ledger was left by an earlier run and does not count), and any other run ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call the exporter could not price is counted, not priced, and the meter gives the reason instead of a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
 </div>
 
 <script id="runs" type="application/json">__RUNS__</script>
@@ -154,7 +154,7 @@ footer a { color: var(--ink); }
     ships:         { x: 920, y: 530, kind: 'door' },
   };
   // the cast that is not a station: no log row is theirs, they only react
-  const EXTRAS = { owner: { x: 880, y: 390 }, estimator: { x: 835, y: 482 }, broker: { x: 420, y: 505 }, cat: { x: 500, y: 540 }, bid: { x: 500, y: 514 }, pile: { x: 452, y: 546 } };
+  const EXTRAS = { owner: { x: 880, y: 390 }, broker: { x: 420, y: 505 }, cat: { x: 500, y: 540 }, bid: { x: 500, y: 514 }, pile: { x: 452, y: 546 } };
   const stationOf = st => (run && run._st && run._st[st]) || { id: st, label: st, status: '', input: '' };
   const nameOf = st => stationOf(st).label || st;
   const HAT = { yellow: '#f2c200', white: '#f4f4f4', orange: null, blue: '#3b7dd8', green: '#3fa66a' };   // null: the accent colour
@@ -259,30 +259,26 @@ footer a { color: var(--ink); }
       replay: ["Recorded answers. Free. Keep going.", "Replay run. Not a penny. Beautiful.", "Zero dollars. My favourite number."],
       denied: ["Good. Bounce it.", "That's what the broker is for."],
       backlog: ["Who's backed up? Them. Again.", "Why is there a pile? Why is there always a pile?"],
-      finale: {   // the last scene: the owner walks over with a bag of money, drops it at the bouncer, and goes back to his post
+      finale: {   // the last scene: the owner walks over with a bag of money, drops it at the bouncer, then walks the bid out the door when there is one (and is gone), or goes back to his post when there is none
         walk: ["Right. Let's see the damage.", "Done? Good. Nobody touch it.", "Out of my way. Bag coming through."],
         pay: ["One bag of money. Don't count it.", "Here. That's the whole budget.", "Paid. In cash. Like a gentleman."],
         leave: ["Back to work, all of you.", "Don't spend anything else today.", "Ladies. Gentlemen. Cat."],
-      },
-    },
-    est: {   // the estimator, the one person who releases a bid: takes it from the bouncer and walks it out by hand
-      take: ["Mine now. By hand, like the sign says.", "Thanks for the bag. I'll take the bid."],
-      leave: ["Off to the customer.", "Back by lunch."],
-      none: {   // by why there is no bid (run._end.why)
-        noDraft: ["Nothing to release yet.", "No draft, no bid."],
-        other: ["Not this one. Not yet.", "Nothing leaves until it's right."],
+        none: {   // no bid to take out, by why (the export's `drafted`)
+          noDraft: ["Nothing to take out. Back to my post.", "No draft, no bid, no walk."],
+          other: ["Not this one. Not yet.", "Nothing leaves until it's right."],
+        },
       },
     },
     broker: {   // by whether the bag was counted and whether a bid goes out
       paid: { counted: ["Counted. On the pile.", "Another one for the pile."], uncounted: ["Bag's here. Can't count what isn't priced.", "On the pile, uncounted."] },
-      ship: ["Bid goes with the estimator.", "Sign it out. By hand."],
+      ship: ["Bid goes with the boss.", "Sign it out. By hand."],
     },
     bid: { waiting: ["Waiting to be released.", "By hand. The sign says so."], taken: ["Finally.", "Mind the bow tie."], leaving: ["Bye, everyone.", "Don't wait up."] },
   };
   const pick = (lines, seq) => lines[seq % lines.length];
   const owner = { say: '', until: 0 };            // the owner, pacing by the door with a stopwatch
-  // the finale, in floor ms from the moment the last row lands: the owner walks to the bouncer (the estimator to the bid, when there is one),
-  // the bag goes down and the estimator takes the bid, the estimator walks it out while the owner goes back to his post, the door shuts
+  // the finale, in floor ms from the moment the last row lands: the owner walks to the bouncer, the bag goes down, the owner picks up
+  // the bid (when there is one) and walks it out the door, which shuts behind him; with no bid he goes back to his post
   const FINALE = { walk: 2400, pay: 1800, exit: 3200, close: 800 }; FINALE.total = FINALE.walk + FINALE.pay + FINALE.exit + FINALE.close;
   let finale = null;                              // { t0, dropped } once the run is done; null before
   const today = new Date(), DAY = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`, BAGS_KEY = 'bidshop.bags.' + DAY;
@@ -386,7 +382,7 @@ footer a { color: var(--ink); }
         finale.dropped = true; bagDropped(); broker.nod = clock + 900; broker.until = clock + FINALE.pay * 0.45;
         broker.say = pick(unpricedCalls ? LINES.broker.paid.uncounted : LINES.broker.paid.counted, events.length);
       }
-      if (clock >= finale.t0 + FINALE.total) $('caption').textContent += ` The owner dropped the bag at the bouncer${run._end.ships ? ' and the estimator walked the bid out by hand' : ''} (staged: no row records this). ${bags} run${bags === 1 ? '' : 's'} finished here today.`;
+      if (clock >= finale.t0 + FINALE.total) $('caption').textContent += ` The owner dropped the bag at the bouncer${run._end.ships ? ' and walked the bid out the door' : ''} (staged: no row records this). ${bags} run${bags === 1 ? '' : 's'} finished here today.`;
     }
     draw();
     requestAnimationFrame(tick);
@@ -395,42 +391,39 @@ footer a { color: var(--ink); }
   // where everyone is in the finale at this floor clock; null before the run is done
   function finaleState(s) {
     if (!finale) return null;
-    const o = pos('owner'), e0 = pos('estimator'), d = pos('ships'), b = pos('bid'), ft = clock - finale.t0, n = events.length;
+    const o = pos('owner'), d = pos('ships'), b = pos('bid'), ft = clock - finale.t0, n = events.length;
     const payAt = { x: b.x + 40 * s, y: b.y + 1 };                                    // the owner's spot beside the bouncer
-    const takeAt = { x: b.x - 36 * s, y: b.y + 1 };                                   // the estimator's spot, the other side of the bid
-    const f = { owner: { x: payAt.x, y: payAt.y, walking: false, bag: true, dropped: false, say: '', sub: '' },
-                est: { x: e0.x, y: e0.y, walking: false, alpha: 1, gone: false, say: '' },
+    const f = { owner: { x: payAt.x, y: payAt.y, walking: false, bag: true, dropped: false, alpha: 1, gone: false, say: '', sub: '' },
                 bid: run._end.ships ? { x: b.x, y: b.y, walking: false, happy: false, say: '', sub: '' } : null, door: 0 };
     if (ft < FINALE.walk) {
       const k = ease(ft / FINALE.walk); f.owner.walking = true; f.owner.x = o.x + (payAt.x - o.x) * k; f.owner.y = o.y + (payAt.y - o.y) * k;
       if (k < 0.5) f.owner.say = pick(LINES.owner.finale.walk, n);                   // one voice at a time
-      if (f.bid) { f.est.walking = true; f.est.x = e0.x + (takeAt.x - e0.x) * k; f.est.y = e0.y + (takeAt.y - e0.y) * k; [f.bid.say, f.bid.sub] = LINES.bid.waiting; }
-      else if (k >= 0.5) f.est.say = pick(run._end.drafted ? LINES.est.none.other : LINES.est.none.noDraft, n);
+      if (f.bid) { [f.bid.say, f.bid.sub] = k < 0.5 ? LINES.bid.waiting : LINES.bid.taken; f.bid.happy = k >= 0.5; }
     } else if (ft < FINALE.walk + FINALE.pay) {
-      // the bag goes down at the bouncer's feet and the bouncer counts it; then the owner says what the bag held and the estimator takes the bid
+      // the bag goes down at the bouncer's feet and the bouncer counts it; then the owner says what the bag held
       f.owner.bag = false; f.owner.dropped = true;
-      if (f.bid) { f.est.x = takeAt.x; f.est.y = takeAt.y; f.bid.happy = true; [f.bid.say, f.bid.sub] = LINES.bid.taken; }
-      if (ft >= FINALE.walk + FINALE.pay * 0.45) {
-        f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine();
-        if (f.bid) { f.bid.say = ''; f.bid.sub = ''; f.est.say = pick(LINES.est.take, n); }
-      }
+      if (f.bid) f.bid.happy = true;
+      if (ft >= FINALE.walk + FINALE.pay * 0.45) { f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine(); }
       if (f.bid && ft >= FINALE.walk + FINALE.pay * 0.45 && broker.until <= clock) { broker.say = pick(LINES.broker.ship, n); broker.until = clock + 1; }
     } else if (ft < FINALE.walk + FINALE.pay + FINALE.exit) {
       const k = (ft - FINALE.walk - FINALE.pay) / FINALE.exit, far = d.x + 30 * s;
-      f.owner.bag = false; f.owner.dropped = true; f.owner.walking = true;            // the owner goes back to his post
-      f.owner.x = payAt.x + (o.x - payAt.x) * ease(k); f.owner.y = payAt.y + (o.y - payAt.y) * ease(k);
-      if (k < 0.2) { f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine(); } else if (k < 0.5) f.owner.say = pick(LINES.owner.finale.leave, n);
-      if (f.bid) {                                                                     // the estimator walks the bid out through the door
-        f.est.walking = true; f.bid.walking = true; f.bid.happy = true;
-        f.est.x = takeAt.x + (far - takeAt.x) * k; f.est.y = takeAt.y + (d.y + 1 - takeAt.y) * k;
-        f.bid.x = f.est.x - 34 * s; f.bid.y = f.est.y - 1;                             // the bid walks at the estimator's side
-        f.door = clamp((f.est.x - (d.x - 150 * s)) / (90 * s)); f.est.alpha = clamp(1 - (f.est.x - (d.x - 6 * s)) / (28 * s));
-        if (k >= 0.3 && k < 0.6) f.est.say = pick(LINES.est.leave, n);
+      f.owner.bag = false; f.owner.dropped = true; f.owner.walking = true;
+      if (f.bid) {                                                                     // the owner walks the bid out through the door
+        f.bid.walking = true; f.bid.happy = true;
+        f.owner.x = payAt.x + (far - payAt.x) * k; f.owner.y = payAt.y + (d.y + 1 - payAt.y) * k;
+        f.bid.x = f.owner.x - 34 * s; f.bid.y = f.owner.y - 1;                         // the bid walks at the owner's side
+        f.door = clamp((f.owner.x - (d.x - 150 * s)) / (90 * s)); f.owner.alpha = clamp(1 - (f.owner.x - (d.x - 6 * s)) / (28 * s));
+        if (k < 0.2) { f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine(); } else if (k < 0.5) f.owner.say = pick(LINES.owner.finale.leave, n);
         if (k >= 0.5 && k < 0.75) f.bid.say = pick(LINES.bid.leaving, n);
+      } else {                                                                         // no bid to take out: back to his post
+        f.owner.x = payAt.x + (o.x - payAt.x) * ease(k); f.owner.y = payAt.y + (o.y - payAt.y) * ease(k);
+        if (k < 0.2) { f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine(); }
+        else if (k < 0.6) f.owner.say = pick(run._end.drafted ? LINES.owner.finale.none.other : LINES.owner.finale.none.noDraft, n);
       }
     } else {
-      f.owner.x = o.x; f.owner.y = o.y; f.owner.bag = false; f.owner.dropped = true;
-      if (f.bid) { f.bid = null; f.est.gone = true; f.est.alpha = 0; f.door = Math.max(0, 1 - (ft - FINALE.walk - FINALE.pay - FINALE.exit) / FINALE.close); }
+      f.owner.bag = false; f.owner.dropped = true;
+      if (f.bid) { f.bid = null; f.owner.gone = true; f.owner.alpha = 0; f.door = Math.max(0, 1 - (ft - FINALE.walk - FINALE.pay - FINALE.exit) / FINALE.close); }
+      else { f.owner.x = o.x; f.owner.y = o.y; }
     }
     return f;
   }
@@ -442,7 +435,7 @@ footer a { color: var(--ink); }
     const parts = [flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.'];
     parts.push(r.scope_runs ? `Scope Writer ran: ${r.valid} of ${r.scope_runs} run${r.scope_runs === 1 ? '' : 's'} valid; draft in the run folder: ${r.draft ? 'yes' : 'no'}.` : 'The Scope Writer did not run.');
     parts.push(r.audits ? `Ledger rows audited: ${r.passed} pass, ${r.unverified} unverified, ${r.failed} fail (the auditor's orphan-figure and source-hash checks are not in the log${r.verdict === 'missing' ? '; no verdict in bid.txt' : r.verdict ? `; bid.txt says ${r.verdict}` : ''}).` : 'No audit rows.');
-    parts.push(r.ships ? 'The estimator takes the bid out by hand.' : `No bid on the floor: ${r.why}.`);
+    parts.push(r.ships ? 'The owner takes the bid out the door.' : `No bid on the floor: ${r.why}.`);
     return parts.join(' ');
   }
 
@@ -579,23 +572,21 @@ footer a { color: var(--ink); }
       items.push({ y: q.y, fn: () => drawStation(st, p, q, s, w, busy, flash) });
       if (busy || flash) items.push({ y: 1e9, fn: () => { if (w.bubble || flash) bubble(q.x, q.y - (p.kind === 'bench' ? 96 : 92) * s, s, flash ? (w.refusal || 'REFUSED by the broker') : w.bubble, flash, flash ? '' : w.quip); } });
     }
-    const ownerAt = fs ? fs.owner : pos('owner'), estAt = fs ? fs.est : { ...pos('estimator'), alpha: 1, walking: false }, brokerAt = pos('broker'), catAt = pos('cat'), pileAt = pos('pile');
-    items.push({ y: ownerAt.y, fn: () => drawOwner(ownerAt.x, ownerAt.y, s, fs && fs.owner) });
-    if (!estAt.gone) items.push({ y: estAt.y, fn: () => drawEstimator(estAt.x, estAt.y, s, estAt) });
+    const ownerAt = fs ? fs.owner : pos('owner'), brokerAt = pos('broker'), catAt = pos('cat'), pileAt = pos('pile');
+    if (!ownerAt.gone) items.push({ y: ownerAt.y, fn: () => drawOwner(ownerAt.x, ownerAt.y, s, fs && fs.owner) });
     items.push({ y: brokerAt.y, fn: () => drawBroker(brokerAt.x, brokerAt.y, s) });
     items.push({ y: catAt.y + 40 * s, fn: () => drawCat(catAt.y + 40 * s, s) });
     if (fs) {
-      if (fs.owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, fs.owner.say, false, fs.owner.sub) });
-      if (fs.est.say && fs.est.alpha > 0.3) items.push({ y: 1e9, fn: () => bubble(estAt.x, estAt.y - 78 * s, s, fs.est.say, false) });
+      if (fs.owner.say && fs.owner.alpha > 0.3) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, fs.owner.say, false, fs.owner.sub) });
     } else if (owner.until > clock && owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, owner.say, false) });
     if (broker.until > clock && broker.say) items.push({ y: 1e9, fn: () => bubble(brokerAt.x, brokerAt.y - 84 * s, s, broker.say, true) });
     if (bags > 0) items.push({ y: pileAt.y, fn: () => drawPile(pileAt.x, pileAt.y, s, bags) });   // the day's bags, at the bouncer's feet
-    // the finished bid waits at the bouncer only when the export's ending says the run got that far (every Scope Writer run valid, a draft, an audit with no fail, bid.txt OK on a whole bid); then the estimator takes it out
+    // the finished bid waits at the bouncer only when the export's ending says the run got that far (every Scope Writer run valid, a draft, an audit with no fail, bid.txt OK on a whole bid); then the owner takes it out
     const bidUp = run._end.ships && (fs ? !!fs.bid : (cursor >= events.length && events.length > 0));
     if (bidUp) {
       const b = fs ? fs.bid : { ...pos('bid'), walking: false, happy: false, say: LINES.bid.waiting[0], sub: LINES.bid.waiting[1] };
-      items.push({ y: b.y, fn: () => drawBid(b.x, b.y, s, b.happy, b.walking, fs ? fs.est.alpha : 1) });
-      if (b.say && (!fs || fs.est.alpha > 0.3)) items.push({ y: 1e9, fn: () => bubble(b.x, b.y - 70 * s, s, b.say, false, b.sub) });
+      items.push({ y: b.y, fn: () => drawBid(b.x, b.y, s, b.happy, b.walking, fs ? fs.owner.alpha : 1) });
+      if (b.say && (!fs || fs.owner.alpha > 0.3)) items.push({ y: 1e9, fn: () => bubble(b.x, b.y - 70 * s, s, b.say, false, b.sub) });
     }
     for (let i = slips.length - 1; i >= 0; i--) {
       const sl = slips[i]; const t = (clock - sl.t0) / (sl.t1 - sl.t0);
@@ -765,11 +756,13 @@ footer a { color: var(--ink); }
   }
 
   // the owner: no hard hat, a tie, a stopwatch, and a foot that taps faster the more is spent.
-  // In the finale (`f`) he walks over with the bag of money, drops it at the bouncer, and goes back to his post.
-  // The finale is the one staged scene: no audit-log row records a release (the estimator does that by hand, off the floor).
+  // In the finale (`f`) he walks over with the bag of money, drops it at the bouncer, then walks the bid out the door when there is one (and is gone),
+  // or goes back to his post when there is none.
+  // The finale is the one staged scene: no audit-log row records a release (in the real process the estimator does that by hand,
+  // off the floor; in this show the owner walks the bid out, by the owner's ruling of 2026-10-09).
   function drawOwner(x, y, s, f) {
     const tap = Math.sin(clock / (spend > 0 ? 90 : 260)), step = f && f.walking ? Math.sin(clock / 80) : 0;
-    ctx.save();
+    ctx.save(); ctx.globalAlpha = f && f.alpha != null ? f.alpha : 1;                  // fades out through the door
     shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
     ctx.translate(x, y);
     ctx.strokeStyle = '#3a3f47'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
@@ -796,31 +789,6 @@ footer a { color: var(--ink); }
     ctx.translate(-x, -y);
     if (!(f && f.walking)) label('THE OWNER', x, y + 8 * s, s, false);
     ctx.restore();
-  }
-
-  // the estimator: the one person who releases a bid (the ships station's principal). Flannel shirt, a cap, a tape measure on
-  // the belt and a pencil behind the ear; stands by the door until a bid is ready, then walks it out by hand.
-  function drawEstimator(x, y, s, f) {
-    const step = f && f.walking ? Math.sin(clock / 80) : 0, idle = Math.sin(clock / 700) * 0.6 * s;
-    ctx.save(); ctx.globalAlpha = f && f.alpha != null ? f.alpha : 1;
-    shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
-    ctx.translate(x, y + (f && f.walking ? 0 : idle));
-    ctx.strokeStyle = '#3b4a63'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round'; ctx.beginPath();                      // jeans
-    ctx.moveTo(-4 * s, -10 * s); ctx.lineTo(-5 * s + step * 5 * s, 0); ctx.moveTo(4 * s, -10 * s); ctx.lineTo(6 * s - step * 5 * s, 0); ctx.stroke();
-    ctx.fillStyle = '#9b3b3b'; roundRect(-11 * s, -32 * s, 22 * s, 24 * s, 4 * s); ctx.fill();                      // flannel shirt
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.beginPath();
-    for (let i = -8; i <= 8; i += 5) { ctx.moveTo(i * s, -32 * s); ctx.lineTo(i * s, -8 * s); } for (let j = -29; j <= -10; j += 5) { ctx.moveTo(-11 * s, j * s); ctx.lineTo(11 * s, j * s); } ctx.stroke();   // the check
-    ctx.strokeStyle = '#9b3b3b'; ctx.lineWidth = 4.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -27 * s); ctx.lineTo(-15 * s, -15 * s); ctx.moveTo(9 * s, -27 * s); ctx.lineTo(15 * s, -16 * s); ctx.stroke();   // arms
-    ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(-15 * s, -14 * s, 2.8 * s, 0, 7); ctx.arc(15 * s, -15 * s, 2.8 * s, 0, 7); ctx.fill();   // hands
-    ctx.fillStyle = '#4a3b2a'; ctx.fillRect(-11 * s, -11 * s, 22 * s, 3 * s);                                         // belt
-    ctx.fillStyle = '#f2c200'; roundRect(6 * s, -13 * s, 7 * s, 7 * s, 1.5 * s); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.strokeRect(6 * s, -13 * s, 7 * s, 7 * s);   // the tape measure
-    ctx.fillStyle = C.skin; ctx.fillRect(-3 * s, -37 * s, 6 * s, 6 * s); ctx.beginPath(); ctx.arc(0, -44 * s, 9 * s, 0, 7); ctx.fill();   // neck, head
-    ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(-3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.arc(3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.fill();   // eyes
-    ctx.strokeStyle = shade(C.skin, -0.4); ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.arc(0, -41 * s, 3 * s, 0.2, Math.PI - 0.2); ctx.stroke();   // an easy smile
-    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(0, -46 * s, 9.5 * s, Math.PI, 0); ctx.fill(); ctx.fillRect(-2 * s, -47 * s, 14 * s, 2.5 * s);   // cap and brim, facing the door
-    ctx.strokeStyle = '#f2c200'; ctx.lineWidth = 1.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -45 * s); ctx.lineTo(-7 * s, -38 * s); ctx.stroke();   // pencil behind the ear
-    ctx.restore();
-    if (!(f && f.walking)) label('THE ESTIMATOR', x, y + 8 * s, s, false);
   }
 
   // the bag of money: burlap, a tied neck and a dollar sign. What is in it is the meter's total, said out loud when it is set down.
@@ -861,7 +829,7 @@ footer a { color: var(--ink); }
     ctx.fillText(`${n} run${n === 1 ? '' : 's'} finished here today`, x, y + 6 * s);
   }
 
-  // the finished bid, waiting at the bouncer: the pipeline never releases it, the estimator walks it out (staged; no row records this)
+  // the finished bid, waiting at the bouncer: the pipeline never releases it; the owner walks it out (staged; no row records this)
   function drawBid(x, y, s, happy, walking, alpha) {
     const tap = Math.max(0, Math.sin(clock / 120)), step = walking ? Math.sin(clock / 80) : 0;
     ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha;

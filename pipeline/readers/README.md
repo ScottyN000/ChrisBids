@@ -113,6 +113,9 @@ dimension", so Takeoff had no way to know it was the end offset and wrote only t
 reported `counted | derived | 5 | spaces` missing. The drawing prompt now requires a dimension's label to say
 what the string runs between, and its Foundation Plan example carries the spacing and end-offset strings
 with the labels the golden recording uses, so the vote keys ("kind", "label") line up across runs.
+The first run on that change (37937707097) produced the spaces row from the dimensions in one run and as
+`6 - 1` from the bracket count in the other, and counted the detail's steel angle as a part; both prompts now
+say so: spaces come from the dimension strings only, and a detail's members are not counts.
 
 ## The ruling still open
 

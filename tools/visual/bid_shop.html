@@ -120,7 +120,7 @@ footer a { color: var(--ink); }
       </div>
     </aside>
   </main>
-  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) then picks up the finished bid and walks it out the door, which is this show's ending by the owner's ruling (2026-10-09); in the real process the estimator releases a bid by hand, as the sign over the door says. The bid is there only when every Scope Writer run was valid, the draft is in the run folder, the audited rows include no fail and, on a whole bid, bid.txt says OK (the auditor's orphan-figure and source-hash checks are not in the log, and the caption says so); the exporter works that out from the log and the folder (a proposal.md or bid.txt older than the ledger was left by an earlier run and does not count), and any other run ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call the exporter could not price is counted, not priced, and the meter gives the reason instead of a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) then picks up the finished bid and walks it out the door, which is this show's ending by the owner's ruling (2026-10-09). The bid is there only when every Scope Writer run was valid, the draft is in the run folder, the audited rows include no fail and, on a whole bid, bid.txt says OK (the auditor's orphan-figure and source-hash checks are not in the log, and the caption says so); the exporter works that out from the log and the folder (a proposal.md or bid.txt older than the ledger was left by an earlier run and does not count), and any other run ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call the exporter could not price is counted, not priced, and the meter gives the reason instead of a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
 </div>
 
 <script id="runs" type="application/json">__RUNS__</script>
@@ -259,7 +259,7 @@ footer a { color: var(--ink); }
       replay: ["Recorded answers. Free. Keep going.", "Replay run. Not a penny. Beautiful.", "Zero dollars. My favourite number."],
       denied: ["Good. Bounce it.", "That's what the broker is for."],
       backlog: ["Who's backed up? Them. Again.", "Why is there a pile? Why is there always a pile?"],
-      finale: {   // the last scene: the owner walks over with a bag of money, drops it at the bouncer, and goes back to his post
+      finale: {   // the last scene: the owner walks over with a bag of money, drops it at the bouncer, then walks the bid out the door when there is one (and is gone), or goes back to his post when there is none
         walk: ["Right. Let's see the damage.", "Done? Good. Nobody touch it.", "Out of my way. Bag coming through."],
         pay: ["One bag of money. Don't count it.", "Here. That's the whole budget.", "Paid. In cash. Like a gentleman."],
         leave: ["Back to work, all of you.", "Don't spend anything else today.", "Ladies. Gentlemen. Cat."],
@@ -756,7 +756,8 @@ footer a { color: var(--ink); }
   }
 
   // the owner: no hard hat, a tie, a stopwatch, and a foot that taps faster the more is spent.
-  // In the finale (`f`) he walks over with the bag of money, drops it at the bouncer, and goes back to his post.
+  // In the finale (`f`) he walks over with the bag of money, drops it at the bouncer, then walks the bid out the door when there is one (and is gone),
+  // or goes back to his post when there is none.
   // The finale is the one staged scene: no audit-log row records a release (in the real process the estimator does that by hand,
   // off the floor; in this show the owner walks the bid out, by the owner's ruling of 2026-10-09).
   function drawOwner(x, y, s, f) {

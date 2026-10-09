@@ -167,6 +167,7 @@ class ExportCase(unittest.TestCase):
                 ("spec_reader", "model-call", "SW#1", "claude-haiku-5-5; spec@1; run 1"),                      # the usage line names another model
                 ("codes", "denied", "fetch", "http://127.0.0.1/x: 127.0.0.1 is a non-public address"),          # the broker's address guard
                 ("codes", "fetch", "https://example.com/x", "2026-10-09; not fetched: example.com is not on the allowlist"),
+                ("codes", "fetch", "https://codes.example.gov/a", "2026-10-09; not fetched: vendor.example.com is not on the allowlist"),   # refused at a redirect hop: the host named is the hop's, not the page's
                 ("materials", "fetch", "https://sweets.construction.com/p", "2026-10-09; sha256 ab12"),
                 ("auditor", "audit", "NAN-001", "pass: found on S-1 p.1"),
             ])
@@ -193,10 +194,10 @@ class ExportCase(unittest.TestCase):
                              [(None, "no usage line in calls.jsonl"), (None, None), (None, "no price row for claude-opus-5-5"),
                               (None, "2 usage lines for this call"), (None, "the ledger says claude-haiku-5-5, calls.jsonl says claude-sonnet-5-5")])
             self.assertEqual([(e["action"], e["subject"], e["station"]) for e in data["events"]][6:],
-                             [("denied", "fetch", "codes"), ("fetch", "https://example.com/x", "codes"),
+                             [("denied", "fetch", "codes"), ("fetch", "https://example.com/x", "codes"), ("fetch", "https://codes.example.gov/a", "codes"),
                               ("fetch", "https://sweets.construction.com/p", "materials"), ("audit", "NAN-001", "auditor")])
             self.assertEqual([(e.get("fetch"), e.get("fetch_host")) for e in data["events"]][5:],
-                             [(None, None), ("unsafe", "127.0.0.1"), ("off-list", "example.com"), ("read", ""), (None, None)])
+                             [(None, None), ("unsafe", "127.0.0.1"), ("off-list", "example.com"), ("off-list", "vendor.example.com"), ("read", ""), (None, None)])
             self.assertEqual((data["job"], data["run_id"]), ("X", "r1"))
             # with no price table every live row is unpriced for that reason; the replay row stays silent
             table_less = [e["unpriced"] for e in export_run.export(run_dir)["events"] if e["action"] == "model-call"]
@@ -206,11 +207,10 @@ class ExportCase(unittest.TestCase):
 
     def test_a_fetch_row_is_read_as_the_fetcher_or_the_broker_wrote_it(self):
         # each form of message pipeline/web.py and pipeline/guard.py write (copied by hand), with how the floor shows it
-        # and which host it names (on a redirect the fetcher checks every hop, so the refused host is the hop's)
+        # and which host it names (a refusal at a redirect hop, where the host named is not the page's, is in the export test)
         cases = [
             ("fetch", "2026-10-09; sha256 ab12; served by https://example.gov/final", "read", ""),
             ("fetch", "2026-10-09; not fetched: example.com is not on the allowlist", "off-list", "example.com"),
-            ("fetch", "2026-10-09; not fetched: vendor.example.com is not on the allowlist", "off-list", "vendor.example.com"),   # a redirect hop: no `served by`, the fetcher stops before reading
             ("fetch", "2026-10-09; not fetched: localhost is the local machine", "unsafe", "localhost"),
             ("fetch", "2026-10-09; not fetched: 127.0.0.1 is a non-public address", "unsafe", "127.0.0.1"),
             ("fetch", "2026-10-09; not fetched: only http(s) URLs are fetched, not 'file'", "unsafe", "only http(s) URLs are fetched, not 'file'"),

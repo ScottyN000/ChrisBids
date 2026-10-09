@@ -474,7 +474,7 @@ pages:
     - fl
   asks:
   - id: a1
-    ask: 'Rule 62B-33.004 exemptions and the date the rule was last amended'
+    ask: 'Rule 62B-33.004 exemptions, and the date the rule was last amended: #'
 - url: https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-62B-33-004
   title: Rule 62B-33.004 (Cornell LII copy)
   ids:
@@ -710,7 +710,7 @@ pages:
     - loxon s1
   asks:
   - id: a1
-    ask: 'Loxon S1 joint size limits (#" wide, #" deep) and any yield per linear foot'
+    ask: 'Loxon S1 joint size limits (#" wide, #" deep)'
     fixture: OBV-C-031
 - url: https://www.sherwin-williams.com/painting-contractors/the-loxon-family/equipment-supplies/patching-repair
   title: SW patching and repair

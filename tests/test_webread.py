@@ -108,6 +108,28 @@ class TableCase(unittest.TestCase):
         for p in t.pages:
             self.assertNotRegex(p.title, r"(?<![.\d])(19|20)\d\d(?![.\d])|\d/\d|\d\([a-z0-9]+\)|transition|phase", p.title)
 
+    def test_the_prompt_example_is_no_test_bid_s_answer(self):
+        # every bid sends the prompt, so its worked example must carry no job's evidence (p.7), and the
+        # gate must test the model, not what it can copy from its instructions
+        text = (ROOT / "pipeline" / "readers" / "prompts" / "web_reader.md").read_text()
+        example = text[text.index("## Example"):]
+        answers = json.loads(example[example.index("{"):example.rindex("}") + 1])["answers"]
+        quoted = [a[k] for a in answers for k in ("quote", "statement") if a[k]]
+        asks = re.findall(r"`a\d+: ([^`]+)`", example)
+        self.assertEqual(len(asks), len(answers))
+        norm = lambda s: " ".join(re.findall(r"\w+", s.lower()))
+        fixtures = norm(" ".join((ROOT / "fixtures" / j / "ledger.yaml").read_text()
+                                 for j in ("nantucket", "ocean-beach")))
+        table = {norm(a.ask) for p in webread.load().pages for a in p.asks}
+        for s in quoted:
+            self.assertNotIn(norm(s), fixtures, s)
+        for a in asks:
+            self.assertNotIn(norm(a), table, a)
+            self.assertNotIn(norm(a), fixtures, a)
+        for a in answers:
+            for f in a["figures"]:
+                self.assertNotRegex(fixtures, rf"\b{re.escape(f)}\b", f)
+
     def test_a_page_for_an_unknown_agent_is_refused(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "t.yaml"

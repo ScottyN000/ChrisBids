@@ -121,7 +121,9 @@ say so: spaces come from the dimension strings only, and a detail's members are 
 3 x 6 symbols in one run and 3 x the spaced brackets in the other: two flagged rows where the fixture has
 one, which the gate rightly reports. The Takeoff prompt now fixes the route: a per-assembly total
 multiplies by the number the dimensions give (spaces + 1), never by the symbol count when a run and
-spacing are listed.
+spacing are listed. Run 37939750700 then agreed on all four quantities by that route, unflagged, and failed
+only because one reader run fused the `8"` and `11"` strings at the bottom corner of the plan into a
+`8'-11"` that is not printed; the drawing prompt now says two inch strings end to end are two dimensions.
 
 ## The ruling still open
 

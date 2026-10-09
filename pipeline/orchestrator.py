@@ -31,7 +31,7 @@ from .readers import tiles
 from .readers.clients import ModelClient
 
 PRINCIPAL = "orchestrator"
-STATUS_LINE = "Draft rendered from the claim ledger. Not priced. Not released: only Chris releases a bid."
+STATUS_LINE = "Draft rendered from the claim ledger. Not priced. Not released: only the estimator releases a bid."
 
 # Which reader opens which kind of source. Intake writes "correspondence";
 # the fixtures' registers call a missing email a "message".
@@ -44,7 +44,7 @@ READER_FOR_KIND = {
 }
 # Kinds no reader opens, and why. Each still appears in the plan.
 NOT_READ = {
-    "proposal-template": "the Mersco template; its paragraphs are the phrase library, kept by hand",
+    "proposal-template": "the Contractor Co. template; its paragraphs are the phrase library, kept by hand",
     "prior-bid": "a past bid is a regression fixture, not a source for this bid",
     "design": "a design document about the pipeline, not about the job",
     "spreadsheet": "no reader for spreadsheets yet",
@@ -145,7 +145,7 @@ def plan(job: str, register: list[dict], *, web: bool = True) -> Plan:
     steps += [
         Step("takeoff", True, "derives quantities from the drawing rows and writes FIELD rows"
              if read_any else "no drawing or photo rows; writes nothing"),
-        Step("customer", False, "not built yet; it waits on Chris's Oct 6 email to be tested"),
+        Step("customer", False, "not built yet; it waits on the estimator's Oct 6 email to be tested"),
         Step("codes", web, "fetches the code, permit and licensing pages the page table matches to the job"
              if web else NO_WEB),
         Step("materials", web, "fetches the product data sheets the page table matches to the job"

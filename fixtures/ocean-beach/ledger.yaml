@@ -4,7 +4,7 @@
 # tools/build_fixture.py and are never edited by hand.
 #
 # The `audit` field is blank on every row: only the Auditor sets it.
-# Chris's Oct 6 email and 67 of the 72 photos are not in the packet, so every
+# The estimator's Oct 6 email and 67 of the 72 photos are not in the packet, so every
 # row that leans on them is flagged unverified.
 
 job: OBV
@@ -13,7 +13,7 @@ original: source/ocean-beach-villas-repaint_scope-and-materials_2026-10-07.pdf
 agent: hand-fixture (Claude, project thread)
 timestamp: 2026-10-07T19:00Z
 codes_note: 'Pages were read through a fetch tool that returns an extract, so quotes may differ from the page in punctuation or spacing ("..." marks where the tool shortened text); the Auditor re-fetches and character-checks each one.'
-status_line: 'Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only Chris releases a bid. No drawings exist for this job, so every allowance is FIELD.'
+status_line: 'Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only the estimator releases a bid. No drawings exist for this job, so every allowance is FIELD.'
 
 rows:
   # ---------- Header ----------
@@ -22,23 +22,23 @@ rows:
   - {id: OBV-H-002, role: header, method: clause, confidence: exact, source: SW, locator: p.1, tag: SW p.1,
      statement: '2515 Hwy A1A, Cocoa Beach, Florida 32931'}
   - {id: OBV-H-003, role: header, method: clause, confidence: exact, source: SW, locator: p.1 and p.18, tag: SW p.1,
-     statement: 'Specification: Sherwin-Williams Paint Specifications by Shawn Gooden, Professional Coatings Representative, 321-403-9305, shawn.k.gooden@sherwin.com, dated 9/25/2026'}
+     statement: 'Specification: Sherwin-Williams Paint Specifications by SW Rep, Professional Coatings Representative, 555-555-0101, rep@example.com (the stand-ins this copy of the spec prints in place of the rep''s name and contacts), dated 9/25/2026'}
   - {id: OBV-F-001, role: header, method: FIELD, confidence: missing, source: SW, locator: p.1 logo, tag: SW p.1,
      statement: 'Client: the spec cover carries a Property Advantage logo but names no owner or association. Confirm who the proposal is addressed to'}
 
-  # ---------- Customer rows (Chris, Oct 6 email: NOT in the packet) ----------
+  # ---------- Customer rows (the estimator, Oct 6 email: NOT in the packet) ----------
   - {id: OBV-CU-001, role: note, method: customer, confidence: inferred, source: CT + OBV-TB, locator: 'email 2026-10-06, as transcribed in OBV-TB p.3', tag: CT 2026-10-06,
      flag: unverified, question: OBV-OQ-09,
-     quote: 'OBV-TB p.3: "Six line items, matching Chris''s base bid list (CT)" (pressure washing, caulking, masonry/stucco paint, doors, walkway deck coatings, railings)',
+     quote: 'OBV-TB p.3: "Six line items, matching the estimator''s base bid list (CT)" (pressure washing, caulking, masonry/stucco paint, doors, walkway deck coatings, railings)',
      statement: 'Base bid is six items: pressure washing, caulking and sealants, masonry and stucco painting, doors, walkway/stair deck coatings, railings'}
   - {id: OBV-CU-002, role: note, method: customer, confidence: inferred, source: CT + OBV-TB, locator: 'email 2026-10-06, as transcribed in OBV-TB p.6-8', tag: CT 2026-10-06,
      flag: unverified, question: OBV-OQ-09,
-     quote: 'OBV-TB p.6: "Order follows Chris''s list (CT)": A.1 walkway texture spot repair, A.2 wall spall repair, A.3 column repair, A.4 grooved stucco replacement, A.5 top-floor soffit replacement, A.6 pool fence grout pockets',
-     statement: 'Alternates in Chris''s order: walkway texture spot repair, wall spall repair, column repair, grooved stucco replacement, top-floor soffit replacement, pool fence grout pockets'}
+     quote: 'OBV-TB p.6: "Order follows the estimator''s list (CT)": A.1 walkway texture spot repair, A.2 wall spall repair, A.3 column repair, A.4 grooved stucco replacement, A.5 top-floor soffit replacement, A.6 pool fence grout pockets',
+     statement: 'Alternates in the estimator''s order: walkway texture spot repair, wall spall repair, column repair, grooved stucco replacement, top-floor soffit replacement, pool fence grout pockets'}
   - {id: OBV-CU-003, role: note, method: customer, confidence: inferred, source: CT + OBV-TB, locator: 'email 2026-10-06, as transcribed in OBV-TB p.7 and p.12', tag: CT 2026-10-06,
      flag: unverified, question: OBV-OQ-11,
-     quote: 'OBV-TB p.12: "Chris reads it as wood furring on the roof slab"',
-     statement: 'Chris reads the top-floor soffit as metal panels on wood furring fastened to the roof slab'}
+     quote: 'OBV-TB p.12: "The estimator reads it as wood furring on the roof slab"',
+     statement: 'The estimator reads the top-floor soffit as metal panels on wood furring fastened to the roof slab'}
 
   # ---------- Observed (5 photos present; condition and location words only) ----------
   - {id: OBV-OB-001, role: note, method: observed, confidence: inferred, source: IMG_8316, tag: IMG_8316,
@@ -173,7 +173,7 @@ rows:
      value: '320-400', unit: sq ft/gal,
      statement: 'Pro Industrial WB Urethane Alkyd Enamel B53 coverage (4.0-5.0 wet / 1.4-1.7 dry mils). The semi-gloss data sheet shows 320-389 (OBV-C-029); the spec''s own figure governs'}
 
-  # ---------- Alternates (Chris's list, unverified until the email arrives) ----------
+  # ---------- Alternates (the estimator's list, unverified until the email arrives) ----------
   - {id: OBV-AL-001, role: scope, method: customer, confidence: inferred, source: CT + OBV-TB, locator: OBV-TB p.6 A.1, tag: CT 2026-10-06, division: '09', part: alternate,
      flag: unverified, question: OBV-OQ-02, quote: 'OBV-TB p.6 "A.1 Walkway texture and coating spot repair"',
      statement: 'Spot repair of walkway texture and coating where the deck coating has delaminated to bare concrete, before the base-bid deck coating; patch product must suit the deck system (not yet named)'}
@@ -196,7 +196,7 @@ rows:
   - {id: OBV-AL-007, role: scope, method: clause, confidence: exact, source: SW, locator: p.17 Garage Doors, tag: SW p.17, division: '09', part: alternate,
      question: OBV-OQ-08,
      supersedes: 'OBV-TB p.5 9.2 "Garage doors, 4 bays" in the base bid',
-     reason: 'Garage doors are not in the A.3 scope list (p.7) or Chris''s six items as transcribed, so the base-bid-simple rule moves them to an alternate; the count came from photos and is now FIELD',
+     reason: 'Garage doors are not in the A.3 scope list (p.7) or the estimator''s six items as transcribed, so the base-bid-simple rule moves them to an alternate; the count came from photos and is now FIELD',
      statement: 'Garage doors: wire brush or power tool clean rust (SSPC-SP2/SP3, p.11 K.1), B50 primer as needed for rust, then 1 coat B53'}
 
   # ---------- FIELD takeoff ----------
@@ -232,7 +232,7 @@ rows:
 
   # ---------- Allowances (all FIELD: no drawings) ----------
   - {id: OBV-A-001, role: allowance, method: FIELD, confidence: missing, source: none, tag: OBV-F-002 to F-005, unit: SF, division: '02', part: base,
-     supersedes: 'OBV-TB p.3-4 "(Mersco allowance of FIELD SF ... Any concealed deterioration found during washing ...)"',
+     supersedes: 'OBV-TB p.3-4 "(Contractor Co. allowance of FIELD SF ... Any concealed deterioration found during washing ...)"',
      reason: 'Kept as FIELD; concealed-damage sentence now rendered verbatim from the phrase library (PFE p.2)',
      statement: 'pressure washing exterior wall, ceiling, walkway, perimeter wall and garage surfaces'}
   - {id: OBV-A-002, role: allowance, method: FIELD, confidence: missing, source: none, tag: OBV-F-006, unit: LF, division: '07', part: base, statement: 'joint sealant'}
@@ -298,29 +298,29 @@ rows:
 
   # ---------- Open questions ----------
   - {id: OBV-OQ-01, role: question, method: clause, confidence: exact, source: SW, locator: p.10 I.6; p.15; p.8 E.1, tag: SW p.10 + p.15,
-     statement: 'Crack repair: p.10 I.6 (break at 1/4", Brush/Trowel Grade Elastomeric Patch) and p.15 (break at 1/16", Conseal Brush Grade, then Loxon S1) disagree. E.1 (p.8) says ask before starting. Ask Shawn Gooden which governs'}
+     statement: 'Crack repair: p.10 I.6 (break at 1/4", Brush/Trowel Grade Elastomeric Patch) and p.15 (break at 1/16", Conseal Brush Grade, then Loxon S1) disagree. E.1 (p.8) says ask before starting. Ask the SW rep which governs'}
   - {id: OBV-OQ-02, role: question, method: clause, confidence: missing, source: SW + PFE, locator: p.7 A.3; p.15-18; PFE p.16, tag: SW p.7 + p.15-18,
-     statement: 'Walkway deck coating: walkways are in scope (p.7) but no deck system is named (p.15-18). Ask Shawn Gooden for the product, coats and warranty. Mersco''s standard exclusion of "traffic-bearing systems" (PFE p.16) is left out of this bid because it would exclude a base item'}
+     statement: 'Walkway deck coating: walkways are in scope (p.7) but no deck system is named (p.15-18). Ask the SW rep for the product, coats and warranty. Contractor Co.''s standard exclusion of "traffic-bearing systems" (PFE p.16) is left out of this bid because it would exclude a base item'}
   - {id: OBV-OQ-03, role: question, method: clause, confidence: exact, source: SW, locator: p.7 A.3; p.13 M.6, tag: SW p.7 A.3 + p.13 M.6,
      statement: 'p.7 A.3 puts walkways in the painting scope, while p.13 M.6 lists walkways among substrates "designated not to receive paint coatings". Confirm with Sherwin-Williams'}
   - {id: OBV-OQ-04, role: question, method: clause, confidence: exact, source: SW + WEB, locator: 'p.10, p.15, p.16', tag: OBV-C-025 + C-032 + C-034,
-     statement: 'Product names that did not match SW''s current catalog: "C1100A" caulk (not found), "Conseal" patch (not found), "A24 series" Loxon Conditioner (current sheets are LX03/LX02), "Trowel Grade" Elastomeric Patch (SW lists Brush and Knife grades). Ask Shawn Gooden for the intended products and their data sheets'}
+     statement: 'Product names that did not match SW''s current catalog: "C1100A" caulk (not found), "Conseal" patch (not found), "A24 series" Loxon Conditioner (current sheets are LX03/LX02), "Trowel Grade" Elastomeric Patch (SW lists Brush and Knife grades). Ask the SW rep for the intended products and their data sheets'}
   - {id: OBV-OQ-05, role: question, method: clause, confidence: exact, source: SW, locator: p.15, tag: SW p.15,
      statement: 'Surface cleaner printed as "A-1 Beach". Confirm the intended product (possibly bleach); not corrected here'}
   - {id: OBV-OQ-06, role: question, method: clause, confidence: exact, source: SW, locator: p.16; p.14 P.1, tag: SW p.16 + p.14 P.1,
-     statement: 'Owner chooses the 7-year (SuperPaint A89) or 10-year (Latitude K62) system, or Mersco prices both. The A89 coat count is not stated'}
+     statement: 'Owner chooses the 7-year (SuperPaint A89) or 10-year (Latitude K62) system, or Contractor Co. prices both. The A89 coat count is not stated'}
   - {id: OBV-OQ-07, role: question, method: clause, confidence: missing, source: SW, locator: p.15-18, tag: SW p.15-18,
      statement: 'Aluminum railings: the spec gives a washing step (I.8) but no coating system. Which rails are aluminum and what goes on them?'}
   - {id: OBV-OQ-08, role: question, method: clause, confidence: exact, source: SW + CT, locator: p.7 A.3; p.17, tag: SW p.7 A.3 + p.17, flag: unverified,
-     statement: 'Garage doors have a coating system (p.17) but are not in the p.7 scope list or Chris''s six base items as transcribed, so they are Alternate A.7 here. Chris to confirm'}
+     statement: 'Garage doors have a coating system (p.17) but are not in the p.7 scope list or the estimator''s six base items as transcribed, so they are Alternate A.7 here. The estimator to confirm'}
   - {id: OBV-OQ-09, role: question, method: customer, confidence: missing, source: CT, locator: email 2026-10-06, tag: CT 2026-10-06, flag: unverified,
      quote: 'not in packet',
-     statement: 'Chris''s Oct 6 email is not in the packet. The base/alternate split and the alternate list come from the hand bid''s summary. Upload the email so the customer rows can be quoted'}
+     statement: 'The estimator''s Oct 6 email is not in the packet. The base/alternate split and the alternate list come from the hand bid''s summary. Upload the email so the customer rows can be quoted'}
   - {id: OBV-OQ-10, role: question, method: FIELD, confidence: missing, source: IMG-OTHER, tag: IMG_8303-8374, flag: unverified,
      statement: '67 of the 72 photos are not uploaded. Every location the hand bid tied to them is FIELD until they arrive'}
   - {id: OBV-OQ-11, role: question, method: customer, confidence: inferred, source: CT + IMG_8356, locator: OBV-TB p.12, tag: CT + IMG_8356, flag: unverified,
-     quote: 'OBV-TB p.12: "Chris reads it as wood furring on the roof slab"',
-     statement: 'Soffit attachment for A.5: Chris reads it as wood furring on the roof slab. Open one hatch to confirm before pricing'}
+     quote: 'OBV-TB p.12: "The estimator reads it as wood furring on the roof slab"',
+     statement: 'Soffit attachment for A.5: the estimator reads it as wood furring on the roof slab. Open one hatch to confirm before pricing'}
   - {id: OBV-OQ-12, role: question, method: clause, confidence: exact, source: WEB, locator: Cocoa Beach Building, tag: OBV-C-001 + C-002,
      statement: 'Permits: Cocoa Beach lists fences, external handrails, facia work and balcony restoration as permit items (OBV-C-001); painting, stucco and soffit do not appear on that list. Ask the Building Division which items need permits (railing work, A.1, A.2, A.5, A.6)'}
   - {id: OBV-OQ-13, role: question, method: clause, confidence: exact, source: WEB, locator: FDEP CCCL; F.S. 161.053, tag: OBV-C-010 + C-011 + C-014,
@@ -332,7 +332,7 @@ rows:
   - {id: OBV-OQ-16, role: question, method: observed, confidence: inferred, source: SW, locator: p.1 cover photo, tag: SW p.1,
      statement: 'Building lettering appears on the stucco wall in the spec cover photo. Paint around it, or remove and reinstall? The hand bid excluded it'}
   - {id: OBV-OQ-17, role: question, method: clause, confidence: exact, source: SW + PFE, locator: p.7 A.3; PFE p.16, tag: SW p.7 A.3 + PFE p.16,
-     statement: 'Mersco''s standard exclusion "Ceiling soffit coatings" (PFE p.16) conflicts with the spec''s soffit painting (p.7 A.3, p.18), so it is left out. Chris to confirm'}
+     statement: 'Contractor Co.''s standard exclusion "Ceiling soffit coatings" (PFE p.16) conflicts with the spec''s soffit painting (p.7 A.3, p.18), so it is left out. The estimator to confirm'}
 
   # ---------- Codes, permits, standards, product data (fetched 2026-10-07) ----------
   - {id: OBV-C-001, role: code, method: fetched, confidence: exact, source: WEB, tag: Cocoa Beach Building Division, retrieved: 2026-10-07,

@@ -1,6 +1,6 @@
 ---
 name: advisor
-description: Independent design and code review of the current branch against the architecture doc and Scott's standing rules. Use before pushing a PR or asking for a merge, after writing .advisor/diff.patch and .advisor/files.txt as docs/advisor.md shows.
+description: Independent design and code review of the current branch against the architecture doc and the owner's standing rules. Use before pushing a PR or asking for a merge, after writing .advisor/diff.patch and .advisor/files.txt as docs/advisor.md shows.
 tools: Read, Glob, Grep
 model: opus
 ---

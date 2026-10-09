@@ -11,7 +11,7 @@ name: live
 # and so no fork, can trigger it.
 #
 # It needs the repository secret ANTHROPIC_API_KEY. The source files the two
-# jobs read are committed under fixtures/packet/ (Scott, 2026-10-08), and every
+# jobs read are committed under fixtures/packet/ (owner, 2026-10-08), and every
 # one is checked against its register hash before any call.
 
 on:

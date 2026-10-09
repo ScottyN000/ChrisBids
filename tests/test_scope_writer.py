@@ -119,7 +119,7 @@ class RenderCase(FixtureCase):
             text, _ = sw.render(sw.from_fixture_layout(data["proposal"]), claims, PHRASES, broker)
         finally:
             broker.ledger.set_meta(status_line=saved)
-        self.assertIn("\n_Draft rendered from the claim ledger. Not priced. Not released: only Chris releases a bid._\n",
+        self.assertIn("\n_Draft rendered from the claim ledger. Not priced. Not released: only the estimator releases a bid._\n",
                       text)
 
     def test_row_of_maps_every_field_the_renderer_reads(self):
@@ -488,7 +488,7 @@ class RunCase(RunBase):
         self.assertTrue(res.ok)
         self.assertIn("### 7.1 Deck Joint Sealants\n", res.text)
         self.assertIn("- statement of J-S-001 (S-1 X)\n", res.text)
-        self.assertIn("_(Mersco allowance of FIELD for statement of J-A-001 (S-1 X). ", res.text)
+        self.assertIn("_(Contractor Co. allowance of FIELD for statement of J-A-001 (S-1 X). ", res.text)
         self.assertEqual(res.text, sw.render(layout(), sw.current(self.broker), PHRASES, self.broker)[0])
         self.assertEqual([c[0] for c in client.calls], ["scope_writer", "scope_writer"])
         self.assertEqual([c[4] for c in client.calls], [0, 1])
@@ -798,7 +798,7 @@ class RendererCase(unittest.TestCase):
     }
     PHRASES = {"license_line": {"text": "LIC", "loc": "p.1"}, "contractor_block": {"text": "M\nN", "loc": "p.1"},
                "greeting": {"text": "Hello {client}.", "loc": "p.1"},
-               "allowance": {"text": "Mersco allowance of {qty} {unit} for {what}.", "loc": "p.2"}}
+               "allowance": {"text": "Contractor Co. allowance of {qty} {unit} for {what}.", "loc": "p.2"}}
     REGISTER = {"S-1": {"title": "Sheet", "status": "present"}, "W": {"title": "Web", "status": "missing"}}
 
     def test_a_sparse_layout_renders_exactly(self):
@@ -807,12 +807,12 @@ class RendererCase(unittest.TestCase):
         self.assertEqual(text, (
             "# Job\n\n_S._\n\nLIC\n\nJob Address:  \nAddr (S-1 tb)\n\nM  \nN\n\nHello Acme.\n\n"
             "**Scope of Work:**\n\n## Division 05 Metals\n\n## Division 07 Thermal & Moisture Protection\n\n\n"
-            "_(Mersco allowance of 12 for joints (S-1).)_\n\n- Do work (S-1)\n\n## Exclusions\n\n\n"
-            "## Open questions for Chris before pricing\n\nNothing below is resolved in this bid. Where two readings "
+            "_(Contractor Co. allowance of 12 for joints (S-1).)_\n\n- Do work (S-1)\n\n## Exclusions\n\n\n"
+            "## Open questions for the estimator before pricing\n\nNothing below is resolved in this bid. Where two readings "
             "exist both are shown and the figure stays unverified.\n\n\n## Field takeoff (FIELD rows)\n\n"
             "Not in any source document. Each must be measured or answered before the allowance is priced.\n\n\n"
             "## Materials (no pricing)\n\nOrder quantities are printed only where the ledger has a dimensioned or "
-            "counted value; spares and stock-length rounding are Mersco purchasing decisions and are not in the "
+            "counted value; spares and stock-length rounding are Contractor Co. purchasing decisions and are not in the "
             "sources.\n\n| Claim | Material | Qty | Unit | Source | Method |\n|---|---|---|---|---|---|\n"
             "| M1 | Sealant | 3 |  | S-1 | counted |\n\n## Codes, permits and standards\n\nEvery row was fetched on "
             "the date shown. Rows marked unverified did not open or did not show the quoted text and must not be "

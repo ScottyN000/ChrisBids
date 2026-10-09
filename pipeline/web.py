@@ -40,7 +40,7 @@ STATE_PORTAL = re.compile(r"(?:^|\.)state\.[a-z]{2}\.us$")
 MAX_BYTES = 8_000_000
 MAX_REDIRECTS = 5
 TIMEOUT = 30
-USER_AGENT = "ChrisBids/0.1 (Mersco bid pipeline; reads code and product pages)"
+USER_AGENT = "ChrisBids/0.1 (Contractor Co. bid pipeline; reads code and product pages)"
 # Words HTML puts in elements that are not page text.
 SKIP_TAGS = {"script", "style", "noscript", "svg", "template", "head"}
 BLOCK_TAGS = {"p", "div", "br", "li", "tr", "td", "th", "h1", "h2", "h3", "h4", "h5", "h6",

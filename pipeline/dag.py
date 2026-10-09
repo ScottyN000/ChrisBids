@@ -64,10 +64,10 @@ NODES: tuple[Node, ...] = (
          module="pipeline/broker.py"),
     Node("scope_writer", "Scope Writer", "reads the ledger only", BUILT, principal="scope_writer",
          module="pipeline/scope_writer.py", phase=3),
-    Node("draft", "Proposal draft", "Mersco division format", DATA),
+    Node("draft", "Proposal draft", "Contractor Co. division format", DATA),
     Node("auditor", "Auditor", "opens every cited source", BUILT,
          principal="auditor", module="pipeline/auditor.py", phase=1),
-    Node("ships", "Bid ships", "with ledger and audit log; Chris releases by hand", HUMAN, principal="chris"),
+    Node("ships", "Bid ships", "with ledger and audit log; the estimator releases by hand", HUMAN, principal="estimator"),
 )
 
 # (from, to, label). Read-only flows are edges too: the Scope Writer reads the

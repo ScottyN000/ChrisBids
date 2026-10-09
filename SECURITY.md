@@ -1,6 +1,6 @@
 # Security
 
-The pipeline reads documents, photos and emails that someone outside Mersco
+The pipeline reads documents, photos and emails that someone outside Contractor Co.
 wrote, and a bid it gets wrong costs money. So everything a document or a model
 produces is treated as data: it can fill a schema field, never steer the code.
 
@@ -36,15 +36,21 @@ produces is treated as data: it can fill a schema field, never steer the code.
   bugs and model output, not against code that constructs its own `Broker`.
   The hosting plan (per-role containers, broker as the only process holding the
   ledger and the key) closes this.
-- The repository is public (Scott, 2026-10-08). The job documents under
-  `fixtures/packet/` and the fixtures' ledgers (contact names, phone numbers,
-  emails) are readable by anyone, in history too, and so are Actions logs and
-  the live run's artifact (gate results, the model's answers, and in
-  `recordings/` the text of each unit the model read, which for the readers is
-  the packet's own text and for the web agents is public pages; `units/` is no
-  longer uploaded). Neither workflow that
-  holds `ANTHROPIC_API_KEY` runs for a fork: the advisor skips fork PRs and
-  live runs only when started by hand by someone with write access.
+- Real names are kept out of the repository (owner, 2026-10-09). The
+  contractor, its staff, the paint rep and the engineer appear only as
+  stand-ins ("Contractor Co.", "the estimator", "SW Rep", 555 numbers); the
+  engineer's title block and seal and the rep's contact lines are redacted in
+  the packet PDFs; `tests/test_no_real_names.py` checks every tracked file,
+  PDF text and PDF metadata against hashed names. Commits before 2026-10-09
+  still carry the real names, and the repository has been public since
+  2026-10-08, so they remain readable in its history. The job sites' names and addresses
+  remain, since the code and permit lookups depend on them. Neither workflow
+  that holds `ANTHROPIC_API_KEY` runs for a fork: the advisor skips fork PRs
+  and live runs only when started by hand by someone with write access.
+- The wider `named_domains` list (code publishers and ICC-ES, a city site on
+  .com, Florida's rules site, a legal mirror and one product aggregator) goes
+  beyond the architecture's manufacturer domains (p.11); the owner approved it
+  on 2026-10-09.
 - The Auditor's link check (`auditor.link_live`) follows redirects through `guard.public_url` only, not the domain allowlist; it sends a HEAD request and reads no body.
 - The per-domain allowlist for fetched pages is enforced in code
   (`pipeline/web.py`), in the same process as everything else; the network
@@ -60,6 +66,6 @@ produces is treated as data: it can fill a schema field, never steer the code.
   their own container.
 - An email's sender is what the message says. Until intake reads sender and
   date from the message headers, a forwarded or spoofed message can produce a
-  `customer` row; the Auditor and Chris's release are the check.
+  `customer` row; the Auditor and the estimator's release are the check.
 
-Report a problem to Scott Turner (GitHub `ScottyN000`).
+Report a problem to the repository owner.

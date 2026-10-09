@@ -33,8 +33,8 @@ SECRET_ENV = ("CHRISBIDS_RATE_BOOK", "CHRISBIDS_API_KEY", "ANTHROPIC_API_KEY")
 # A secret may also arrive under another name, read only when its own is unset.
 # The cloud environment does not pass ANTHROPIC_API_KEY through to sessions (it
 # is the name Claude Code itself authenticates with), so the pipeline's key is
-# stored as MERSCO_ANTHROPIC_API_KEY there.
-SECRET_FALLBACK = {"ANTHROPIC_API_KEY": ("MERSCO_ANTHROPIC_API_KEY",)}
+# stored as BIDS_ANTHROPIC_API_KEY there.
+SECRET_FALLBACK = {"ANTHROPIC_API_KEY": ("BIDS_ANTHROPIC_API_KEY",)}
 
 
 def utcnow() -> str:

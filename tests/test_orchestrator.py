@@ -47,7 +47,7 @@ class PlanCase(unittest.TestCase):
             "IMG_1: photo reader, 1 units",
             "MSG: correspondence reader, 1 units",
             "CT: missing; not read, and rows that need it stay FIELD or unverified",
-            "PFE: not read (the Mersco template; its paragraphs are the phrase library, kept by hand)",
+            "PFE: not read (the Contractor Co. template; its paragraphs are the phrase library, kept by hand)",
             "TB: not read (a past bid is a regression fixture, not a source for this bid)",
             "ARCH: not read (a design document about the pipeline, not about the job)",
             "XL: not read (no reader for spreadsheets yet)",
@@ -84,13 +84,13 @@ class PlanCase(unittest.TestCase):
             "  skip photo: no photo source present",
             "  skip correspondence: no correspondence source present",
             "  run  takeoff: no drawing or photo rows; writes nothing",
-            "  skip customer: not built yet; it waits on Chris's Oct 6 email to be tested",
+            "  skip customer: not built yet; it waits on the estimator's Oct 6 email to be tested",
             "  run  codes: fetches the code, permit and licensing pages the page table matches to the job",
             "  run  materials: fetches the product data sheets the page table matches to the job",
             "  run  scope_writer: lays out the proposal from the ledger",
             "  run  auditor: re-hashes the sources, checks every row and traces every figure in the proposal",
             "sources:",
-            "  PFE: not read (the Mersco template; its paragraphs are the phrase library, kept by hand)",
+            "  PFE: not read (the Contractor Co. template; its paragraphs are the phrase library, kept by hand)",
         ]))
 
     def test_a_photo_alone_still_runs_takeoff_for_its_field_rows(self):
@@ -162,7 +162,7 @@ class Fake:
                                "description": "crack in the wall"}]}
         if reader == "correspondence":
             first = next(line.strip() for line in unit.text.splitlines() if line.strip())
-            return {"items": [{"sender": "Chris", "date": "2026-10-06", "instruction": first}]}
+            return {"items": [{"sender": "Estimator", "date": "2026-10-06", "instruction": first}]}
         if reader == "drawing":
             if unit.unit_id.endswith("r1c1"):
                 return {"items": [{"kind": "dimension", "label": "Wall run", "text": "10'-0\"", "count": None,
@@ -194,7 +194,7 @@ def make_packet(root: Path, *, drawing: bool = True) -> Path:
     if drawing:
         write_pdf(packet / "sheet-plans.pdf", ["GENERAL NOTES"])
     write_png(packet / "IMG_0001.png")
-    (packet / "email-from-chris.txt").write_text("Keep the base bid simple\n")
+    (packet / "email-from-estimator.txt").write_text("Keep the base bid simple\n")
     write_pdf(packet / "proposal-format-example.pdf", ["Template"])
     return packet
 

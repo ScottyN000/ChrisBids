@@ -37,7 +37,7 @@ METHODS = {"dimensioned", "counted", "scaled", "clause", "observed", "fetched", 
 CONFIDENCE = {"exact", "scaled", "inferred", "missing"}
 FLAGS = {"", "unverified", "conflict"}
 ROLES = {"header", "scope", "quantity", "allowance", "material", "code", "exclusion", "question", "note"}
-# Methods that may feed a Mersco allowance or an order quantity (architecture p.6).
+# Methods that may feed a Contractor Co. allowance or an order quantity (architecture p.6).
 ALLOWANCE_OK = {"dimensioned", "counted", "clause", "FIELD"}
 
 LEDGER_FIELDS = [

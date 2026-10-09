@@ -10,7 +10,7 @@ from pipeline.schema import Claim
 REGISTER = [
     {"source_id": "S-1", "title": "Drawing S-1", "file": "s1.pdf", "sha256": "", "pages": "1",
      "kind": "drawing", "status": "present"},
-    {"source_id": "CT", "title": "Chris email, Oct 6", "file": "", "sha256": "", "pages": "",
+    {"source_id": "CT", "title": "Estimator email, Oct 6", "file": "", "sha256": "", "pages": "",
      "kind": "correspondence", "status": "missing"},
 ]
 
@@ -24,7 +24,7 @@ class FiguresCase(unittest.TestCase):
     def test_page_cites_claim_ids_codes_and_dates_are_not_figures(self):
         for text in ("see p.17 for the system", "NAN-Q-003 carries the count",
                      "IBC 2021 Chapter 17 special inspection", "rev 10/06/26 For Construction",
-                     "Berlin MD 21811", "302.841.4671", "SuperPaint A89 one coat",
+                     "Example MD 00000", "555.555.0102", "555-555-0101", "SuperPaint A89 one coat",
                      "F.S. 489.105 definitions", "### 3.1 Plank Underside Rebuild",
                      "1. Remove the loose coating"):
             self.assertEqual(auditor.extract_figures(text), [], text)

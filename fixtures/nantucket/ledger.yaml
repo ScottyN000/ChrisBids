@@ -12,7 +12,7 @@ original: source/nantucket-condo-plank-repair_scope-and-materials_2026-10-07.pdf
 agent: hand-fixture (Claude, project thread)
 timestamp: 2026-10-07T19:00Z
 codes_note: 'Pages were read through a fetch tool that returns an extract, so quotes may differ from the page in punctuation or spacing; the Auditor re-fetches and character-checks each one.'
-status_line: 'Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only Chris releases a bid.'
+status_line: 'Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only the estimator releases a bid.'
 
 rows:
   # ---------- Header (S-1 title block) ----------
@@ -21,7 +21,7 @@ rows:
   - {id: NAN-H-002, role: header, method: clause, confidence: exact, source: S-1, locator: title block, tag: S-1 TB,
      statement: '12503 Wight Street, Ocean City, Maryland'}
   - {id: NAN-H-003, role: header, method: clause, confidence: exact, source: S-1, locator: title block, tag: S-1 TB,
-     statement: 'Engineer of record: NTDesigns Structural Engineering, Berlin MD 21811, 302.841.4671'}
+     statement: 'Engineer of record: a Maryland structural engineer (name, contact and license number redacted from this copy of S-1)'}
   - {id: NAN-H-004, role: header, method: clause, confidence: exact, source: S-1, locator: title block and revision table, tag: S-1 TB,
      statement: 'Sheet S-1 "Plans and Detail", revision 10/06/26 "For Construction", sealed by a Maryland professional engineer, seal dated 06 OCT 26'}
   - {id: NAN-H-005, role: header, method: clause, confidence: exact, source: S-1, locator: Design Loads, tag: S-1 DL,
@@ -105,7 +105,7 @@ rows:
      statement: 'Install all specialty bolts, including expansion and epoxy type anchors, in strict accordance with the manufacturer''s printed instructions'}
   - {id: NAN-G-009, role: scope, method: clause, confidence: exact, source: S-1, locator: General Notes, tag: S-1 GN, division: '01',
      flag: conflict, question: NAN-OQ-05,
-     statement: 'S-1 makes the contractor responsible for the costs of all building permitting and all soils, concrete and metal structure testing and inspections required during construction. Mersco''s standard exclusions list "Permits, fees, inspections, or third-party testing" (PFE p.16)'}
+     statement: 'S-1 makes the contractor responsible for the costs of all building permitting and all soils, concrete and metal structure testing and inspections required during construction. Contractor Co.''s standard exclusions list "Permits, fees, inspections, or third-party testing" (PFE p.16)'}
 
   # ---------- Structural Steel Framing notes (clause) ----------
   - {id: NAN-N-001, role: scope, method: clause, confidence: exact, source: S-1, locator: Structural Steel Framing, tag: S-1 SN, division: '05',
@@ -140,13 +140,13 @@ rows:
   - {id: NAN-F-002, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1 (undimensioned), tag: S-1 Det 1 + SN,
      supersedes: 'NAN-TB p.4-5 "Angle total ~28 LF net, order 40 LF (2 x 20'' sticks)"',
      reason: 'Order quantity was built from scaled legs; the architecture (p.6) forbids that. Fabricator field survey is required by S-1 SN',
-     statement: 'Angle leg and kicker cut lengths and total L3x3x1/4 footage: fabricator field survey (S-1 SN), or dimensions from NTDesigns'}
+     statement: 'Angle leg and kicker cut lengths and total L3x3x1/4 footage: fabricator field survey (S-1 SN), or dimensions from the engineer'}
   - {id: NAN-F-003, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: S-1 Det 1,
      supersedes: 'NAN-TB p.5 "Galvanized deck 15''-2" x ~1''-2" strip; order 1 sheet 36" x 16''-0""',
      reason: 'Deck width was scaled and the length is not dimensioned (the 15''-2" string locates brackets, not deck)',
      statement: 'Galvanized deck length along the wall and width out from the wall'}
   - {id: NAN-F-004, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1 note "as required", tag: S-1 Det 1,
-     supersedes: 'NAN-TB p.3 "(Mersco allowance of 15 LF of plank underside repair)"',
+     supersedes: 'NAN-TB p.3 "(Contractor Co. allowance of 15 LF of plank underside repair)"',
      reason: 'S-1 says repair "as required"; 15 LF was the 15''-2" bracket run rounded down, which is neither stated nor dimensioned for the repair',
      statement: 'Length of plank underside repair (hammer-sound survey)'}
   - {id: NAN-F-005, role: quantity, method: FIELD, confidence: missing, source: S-1, locator: Det 1 note "down to sound material", tag: S-1 Det 1,
@@ -190,7 +190,7 @@ rows:
      statement: '1/2" dia adhesive anchors into CMU'}
   - {id: NAN-A-005, role: allowance, method: counted, confidence: exact, source: S-1, locator: Det 1 x Fnd, tag: S-1 Det 1 + Fnd,
      value: 18, unit: each, calc: '{NAN-Q-004}', division: '05', part: base, question: NAN-OQ-03,
-     supersedes: 'NAN-TB p.3 "(Mersco allowance of 6 bracket supports, 18 adhesive anchors, 18 A325 bolts, 16 LF of galvanized deck)"',
+     supersedes: 'NAN-TB p.3 "(Contractor Co. allowance of 6 bracket supports, 18 adhesive anchors, 18 A325 bolts, 16 LF of galvanized deck)"',
      reason: 'Counts kept; 16 LF of deck dropped because it rounded a scaled/inferred length into an allowance',
      statement: '5/8" dia A325 bolts'}
   - {id: NAN-A-006, role: allowance, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: NAN-F-003, unit: LF, division: '05', part: base,
@@ -235,17 +235,17 @@ rows:
 
   # ---------- Open questions ----------
   - {id: NAN-OQ-01, role: question, method: clause, confidence: exact, source: S-1 + WEB, locator: Det 1; Hilti letter; ESR-4143, tag: S-1 Det 1 + NAN-C-014,
-     statement: 'S-1 specifies Hilti HIT HY 70, which Hilti set to phase-out and names HIT-HY 270 as its direct replacement in masonry (NAN-C-014; ESR-4143 per NAN-C-015). Ask NTDesigns to approve a substitute in writing. Do not order HY 70, and do not order HY 270 before approval'}
+     statement: 'S-1 specifies Hilti HIT HY 70, which Hilti set to phase-out and names HIT-HY 270 as its direct replacement in masonry (NAN-C-014; ESR-4143 per NAN-C-015). Ask the engineer to approve a substitute in writing. Do not order HY 70, and do not order HY 270 before approval'}
   - {id: NAN-OQ-02, role: question, method: FIELD, confidence: missing, source: S-1, locator: Det 1, tag: S-1 Det 1,
      statement: 'Repair depth and extent on the plank underside (NAN-F-004, NAN-F-005): S-1 gives "down to sound material" with no dimension'}
   - {id: NAN-OQ-03, role: question, method: counted, confidence: exact, source: S-1, locator: Det 1, tag: S-1 Det 1,
-     statement: 'Confirm with NTDesigns: 3 anchors and 3 bolts per bracket are counted from the drawing; the callouts say (TYP.) without a number'}
+     statement: 'Confirm with the engineer: 3 anchors and 3 bolts per bracket are counted from the drawing; the callouts say (TYP.) without a number'}
   - {id: NAN-OQ-04, role: question, method: scaled, confidence: scaled, source: S-1, locator: Det 1, tag: S-1 Det 1,
-     statement: 'Angle leg lengths exist only as scale on an undimensioned detail, and two scalings disagree (NAN-S-001 to NAN-S-003). Ask NTDesigns for dimensions or rely on the fabricator survey'}
+     statement: 'Angle leg lengths exist only as scale on an undimensioned detail, and two scalings disagree (NAN-S-001 to NAN-S-003). Ask the engineer for dimensions or rely on the fabricator survey'}
   - {id: NAN-OQ-05, role: question, method: clause, confidence: exact, source: S-1 + PFE, locator: GN; PFE p.16, tag: S-1 GN + PFE p.16,
      supersedes: 'NAN-TB p.7 listed permits, fees and inspections as an exclusion',
-     reason: 'S-1 GN assigns these costs to the contractor, so excluding them conflicts with the drawing. Both readings shown; Chris decides',
-     statement: 'Permits, testing and inspections: S-1 GN assigns their cost to the contractor; Mersco''s standard proposal excludes them. Carry an allowance, or exclude with the owner''s written acceptance?'}
+     reason: 'S-1 GN assigns these costs to the contractor, so excluding them conflicts with the drawing. Both readings shown; the estimator decides',
+     statement: 'Permits, testing and inspections: S-1 GN assigns their cost to the contractor; Contractor Co.''s standard proposal excludes them. Carry an allowance, or exclude with the owner''s written acceptance?'}
   - {id: NAN-OQ-06, role: question, method: clause, confidence: exact, source: WEB, locator: Bus. Reg. 8-101; Ocean City forms, tag: NAN-C-004 + NAN-C-005,
      statement: 'Licensing: Ocean City requires MHIC and an Ocean City Business License for condominium repair (NAN-C-004), while the state MHIC definition excludes condominium common areas (NAN-C-005) and Maryland issues construction licenses for commercial work through the Circuit Court clerks (NAN-C-006). Ask the Ocean City permit desk and the Worcester County Clerk which licenses apply'}
   - {id: NAN-OQ-07, role: question, method: clause, confidence: exact, source: WEB, locator: ICC; MAA matrix, tag: NAN-C-012 + NAN-C-013,
@@ -375,7 +375,7 @@ rows:
      statement: 'Excavation rules apply only if the wall is reached by excavation (NAN-F-011)'}
 
 dropped:
-  - {was: 'NAN-TB p.6 "SikaTop Armatec 110 EpoCem or equal, 1 kit"', why: 'Not on S-1 and not required by the fetched Sika data; add back only if NTDesigns or the mortar data sheet calls for it'}
+  - {was: 'NAN-TB p.6 "SikaTop Armatec 110 EpoCem or equal, 1 kit"', why: 'Not on S-1 and not required by the fetched Sika data; add back only if the engineer or the mortar data sheet calls for it'}
   - {was: 'NAN-TB p.6 "9/16" or 5/8" SDS bit, hole brush, blow-out pump"', why: 'Bit sizes had no source; drilling consumables follow the approved adhesive''s instructions'}
   - {was: 'NAN-TB p.1-10 codes table without URLs', why: 'Replaced by NAN-C-001 to NAN-C-029, each with URL, date and quote'}
 

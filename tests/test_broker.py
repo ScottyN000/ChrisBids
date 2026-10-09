@@ -12,7 +12,7 @@ REGISTER = [
      "kind": "drawing", "status": "present"},
     {"source_id": "SW", "title": "SW spec", "file": "sw.pdf", "sha256": "def", "pages": "18",
      "kind": "spec", "status": "present"},
-    {"source_id": "CT", "title": "Chris email, Oct 6", "file": "", "sha256": "", "pages": "",
+    {"source_id": "CT", "title": "Estimator email, Oct 6", "file": "", "sha256": "", "pages": "",
      "kind": "correspondence", "status": "missing"},
 ]
 
@@ -59,7 +59,7 @@ class BrokerCase(unittest.TestCase):
         self.assertIn("never a number", str(e.exception))
 
     def test_orchestrator_and_scope_writer_write_no_rows(self):
-        for principal in ("orchestrator", "scope_writer", "chris"):
+        for principal in ("orchestrator", "scope_writer", "estimator"):
             with self.assertRaises(LedgerError):
                 self.who(principal).append(claim(claim_id=f"O-{principal}"))
 

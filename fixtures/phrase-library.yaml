@@ -1,23 +1,24 @@
-# Mersco phrase library, transcribed from the Proposal Format Example
-# (source/mersco_proposal-format-example.pdf, sha256 c0e99ac8...4484).
+# Contractor Co. phrase library, transcribed from the Proposal Format Example
+# (source/contractor_proposal-format-example.pdf, sha256 c0e99ac8...4484).
 # The PDF text layer is garbled, so every phrase below was read from the
 # rendered page image. Only the narrative pages (p.1-7) and the terms pages
 # (p.15 bottom - p.17) were used; the priced export (p.8-15) was not.
 # Quantities in the example belong to another job and are NOT carried here:
 # allowance slots are filled from a job's ledger only.
-# Wording is verbatim, including the example's own typos.
+# Wording is verbatim, including the example's own typos, except that names, addresses,
+# phone, email and license numbers are stand-ins for the PDF's text (owner, 2026-10-09).
 
 source: PFE
 phrases:
   greeting:
     loc: p.1
-    text: "Hello {client}, thank you for considering Mersco Inc. The purpose of this document is to define the deliverables, description of materials, quality, grade, and schedule of work."
+    text: "Hello {client}, thank you for considering Contractor Co. The purpose of this document is to define the deliverables, description of materials, quality, grade, and schedule of work."
   contractor_block:
     loc: p.1
-    text: "Mersco Inc.\nAddress: 2805 Philadelphia Ave. Ocean City MD 21842\nPh: 1-855-227-2505\nEmail: info@mersconow.com"
+    text: "Contractor Co.\nAddress: 100 Example Ave. Ocean City MD 21842\nPh: 1-555-555-0100\nEmail: info@example.com"
   license_line:
     loc: p.1
-    text: "FL CGC. License# CGC1532923 MHIC#110254 DE#2015604245 • Mailing Address: 772 Bantry Ct, Merritt Island FL 32953"
+    text: "FL CGC. License# CGC0000000 MHIC#000000 DE#0000000000 • Mailing Address: 100 Example Ct, Example FL 00000"
 
   # Division 01, p.1-2. The example is one paragraph; it is split into
   # sentences here so a job selects only the sentences that apply.
@@ -38,16 +39,16 @@ phrases:
     text: "Remove and protect hardware, accessories, device plates, lighting fixtures, factory finished work and similar items or provide ample in-place protection. Upon completion of each space, carefully replace all removed items. Cover all electrical panel box covers and doors before painting walls."
   gc_vehicles:
     loc: p.1
-    text: "While painting in areas near parking lots, we request that all vehicles be removed from the area to prevent and overspray from damaging the vehicle. In the event that vehicles are left in the area, we will attempt to protect them with plastic but, Mersco will not be held liable for vehicles left in range of potential overspray."
+    text: "While painting in areas near parking lots, we request that all vehicles be removed from the area to prevent and overspray from damaging the vehicle. In the event that vehicles are left in the area, we will attempt to protect them with plastic but, Contractor Co. will not be held liable for vehicles left in range of potential overspray."
   gc_access:
     loc: p.1
     text: "Shear walls and balconies will be accessed by swing stage, man lift scaffolding or other means. The man lift will be stored daily in the upright position for safety purposes in a location on site approved by the association."
   gc_landscape:
     loc: p.1-2
-    text: "*Mersco will take precautions to protect the landscape. We will use tread mats and plywood under the tires while moving the lift in the grassy areas. However, there is still a chance that some damage can occur. Mersco can facilitate a professional landscaping crew to conduct repairs after the job is completed at an additional cost if requested by the association."
+    text: "*Contractor Co. will take precautions to protect the landscape. We will use tread mats and plywood under the tires while moving the lift in the grassy areas. However, there is still a chance that some damage can occur. Contractor Co. can facilitate a professional landscaping crew to conduct repairs after the job is completed at an additional cost if requested by the association."
   gc_clear:
     loc: p.2
-    text: "Mersco will ensure that the site is cleared of all equipment, tools, work trailers, rental equipment and materials."
+    text: "Contractor Co. will ensure that the site is cleared of all equipment, tools, work trailers, rental equipment and materials."
 
   # Division 02, 2.1 Powerwashing, p.2
   wash_1:
@@ -132,7 +133,7 @@ phrases:
   # Allowance parentheticals, p.2-5. {qty} {unit} {what} are ledger slots.
   allowance:
     loc: p.2
-    text: "Mersco allowance of {qty} {unit} for {what}."
+    text: "Contractor Co. allowance of {qty} {unit} for {what}."
   concealed_excavation:
     loc: p.2
     text: "Any concealed deterioration or structural deficiencies discovered during excavation will be documented and brought to the Owner's attention, with corrective work handled as a change order if required."
@@ -202,10 +203,10 @@ phrases:
     text: "Alternate pricing provides costs for optional work or materials not included in the base scope of the project. Each alternate is priced separately and is not in the base contract total unless approved in writing."
   change_orders:
     loc: p.16
-    text: "Change orders: Adjustments can be made to the initial contract and scope of the project to account for changing needs that are mutually agreed upon by Mersco Restoration & Renovations and you, the customer. These adjustments are called change orders and must be written as a document and added to the contract."
+    text: "Change orders: Adjustments can be made to the initial contract and scope of the project to account for changing needs that are mutually agreed upon by Contractor Co. Restoration & Renovations and you, the customer. These adjustments are called change orders and must be written as a document and added to the contract."
   costs:
     loc: p.16
-    text: "Costs: The customer is responsible for accessibility to areas of the building and utilities. Prompt payment at key milestones. Mersco Restoration & Renovations is responsible for management of materials, labor, schedule, job site quality and scope of work."
+    text: "Costs: The customer is responsible for accessibility to areas of the building and utilities. Prompt payment at key milestones. Contractor Co. Restoration & Renovations is responsible for management of materials, labor, schedule, job site quality and scope of work."
   warranty:
     loc: p.16
     text: "Warranty: A 1-year workmanship warranty period will begin at completion of the job."

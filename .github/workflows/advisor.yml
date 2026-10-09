@@ -1,8 +1,8 @@
 name: advisor
 
-# An independent design and code review of every pull request, before Scott is
+# An independent design and code review of every pull request, before the owner is
 # asked to merge it. The brief is docs/advisor.md: the architecture doc
-# (docs/architecture.txt), Scott's standing rules, and clarity, simplicity and
+# (docs/architecture.txt), the owner's standing rules, and clarity, simplicity and
 # correctness. Claude Code runs with read-only file tools and no network, and
 # returns JSON matching docs/advisor-schema.json. tools/advisor.py, not the
 # model, decides the outcome: the check fails when any finding is blocking.

@@ -1,18 +1,18 @@
 # Concrete Floor Plank Remediation, Nantucket Condominium, Unit #1
 
-_Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only Chris releases a bid._
+_Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only the estimator releases a bid._
 
-FL CGC. License# CGC1532923 MHIC#110254 DE#2015604245 • Mailing Address: 772 Bantry Ct, Merritt Island FL 32953
+FL CGC. License# CGC0000000 MHIC#000000 DE#0000000000 • Mailing Address: 100 Example Ct, Example FL 00000
 
 Job Address:  
 12503 Wight Street, Ocean City, Maryland (S-1 TB)
 
-Mersco Inc.  
-Address: 2805 Philadelphia Ave. Ocean City MD 21842  
-Ph: 1-855-227-2505  
-Email: info@mersconow.com
+Contractor Co.  
+Address: 100 Example Ave. Ocean City MD 21842  
+Ph: 1-555-555-0100  
+Email: info@example.com
 
-Hello FIELD, thank you for considering Mersco Inc. The purpose of this document is to define the deliverables, description of materials, quality, grade, and schedule of work. [client: see NAN-F-001]
+Hello FIELD, thank you for considering Contractor Co. The purpose of this document is to define the deliverables, description of materials, quality, grade, and schedule of work. [client: see NAN-F-001]
 
 **Scope of Work:**
 
@@ -27,8 +27,8 @@ Hello FIELD, thank you for considering Mersco Inc. The purpose of this document 
 7. Remove demolished materials from the site and provide proper and legal disposal (S-1 GN)
 8. Notify the architect and engineer when materials and assemblies are ready for observation, with sufficient notice to schedule (S-1 GN)
 9. Provide and maintain barricades, warning signs, flashing lights and traffic control devices; coordinate sequencing with the owner to keep the existing facility in operation (S-1 GN)
-10. S-1 makes the contractor responsible for the costs of all building permitting and all soils, concrete and metal structure testing and inspections required during construction. Mersco's standard exclusions list "Permits, fees, inspections, or third-party testing" (PFE p.16) (S-1 GN) [conflict; see NAN-OQ-05]
-11. Mersco will ensure that the site is cleared of all equipment, tools, work trailers, rental equipment and materials. (PFE p.2)
+10. S-1 makes the contractor responsible for the costs of all building permitting and all soils, concrete and metal structure testing and inspections required during construction. Contractor Co.'s standard exclusions list "Permits, fees, inspections, or third-party testing" (PFE p.16) (S-1 GN) [conflict; see NAN-OQ-05]
+11. Contractor Co. will ensure that the site is cleared of all equipment, tools, work trailers, rental equipment and materials. (PFE p.2)
 
 ## Division 02 Site Construction
 
@@ -40,7 +40,7 @@ Hello FIELD, thank you for considering Mersco Inc. The purpose of this document 
 - Expose reinforcing steel where present and clean to bright metal using mechanical methods. (PFE p.3)
 - Square repair edges to establish defined boundaries and eliminate feathering. (PFE p.3)
 
-_(Mersco allowance of FIELD LF for plank underside concrete removal, one plank, length per field survey (NAN-F-004). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD LF for plank underside concrete removal, one plank, length per field survey (NAN-F-004). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ## Division 03 Concrete
 
@@ -50,7 +50,7 @@ _(Mersco allowance of FIELD LF for plank underside concrete removal, one plank, 
 - SikaQuick VOH: overhead lifts 1/8" to 2"; 44 lb bag yields 0.44 cu ft (SikaQuick VOH product page)
 - Treat exposed rebar with a corrosion-inhibiting bonding agent to ensure proper adhesion and long-term durability. (PFE p.3)
 
-_(Mersco allowance of FIELD CF for overhead/vertical repair mortar, volume per field survey (NAN-F-006). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD CF for overhead/vertical repair mortar, volume per field survey (NAN-F-006). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ## Division 05 Metals
 
@@ -71,7 +71,7 @@ _(Mersco allowance of FIELD CF for overhead/vertical repair mortar, volume per f
 - The steel fabricator is solely responsible for field surveying and verifying existing conditions, including the location, elevation and dimensions of existing walls and framing (S-1 SN)
 - No field cutting of structural steel members for the work of other trades without prior approval of the design professional (S-1 SN)
 
-_(Mersco allowance of 6 each for steel bracket supports (S-1 Fnd + Frm). Mersco allowance of 18 each for 1/2" dia adhesive anchors into CMU (S-1 Det 1 + Fnd) [see NAN-OQ-03]. Mersco allowance of 18 each for 5/8" dia A325 bolts (S-1 Det 1 + Fnd) [see NAN-OQ-03]. Mersco allowance of FIELD LF for 1-1/2" 20 ga Type B galvanized deck, length per field survey (NAN-F-003).)_
+_(Contractor Co. allowance of 6 each for steel bracket supports (S-1 Fnd + Frm). Contractor Co. allowance of 18 each for 1/2" dia adhesive anchors into CMU (S-1 Det 1 + Fnd) [see NAN-OQ-03]. Contractor Co. allowance of 18 each for 5/8" dia A325 bolts (S-1 Det 1 + Fnd) [see NAN-OQ-03]. Contractor Co. allowance of FIELD LF for 1-1/2" 20 ga Type B galvanized deck, length per field survey (NAN-F-003).)_
 
 ## Exclusions
 
@@ -86,15 +86,15 @@ _(Mersco allowance of 6 each for steel bracket supports (S-1 Fnd + Frm). Mersco 
 - Excavation, dewatering or interior finish removal to reach the underside of the plank, until access is confirmed (NAN-F-011)
 - Paint, drywall, ceiling or flooring restoration above or below the work area (FIELD)
 
-## Open questions for Chris before pricing
+## Open questions for the estimator before pricing
 
 Nothing below is resolved in this bid. Where two readings exist both are shown and the figure stays unverified.
 
-- **NAN-OQ-01** S-1 specifies Hilti HIT HY 70, which Hilti set to phase-out and names HIT-HY 270 as its direct replacement in masonry (NAN-C-014; ESR-4143 per NAN-C-015). Ask NTDesigns to approve a substitute in writing. Do not order HY 70, and do not order HY 270 before approval (S-1 Det 1 + NAN-C-014)
+- **NAN-OQ-01** S-1 specifies Hilti HIT HY 70, which Hilti set to phase-out and names HIT-HY 270 as its direct replacement in masonry (NAN-C-014; ESR-4143 per NAN-C-015). Ask the engineer to approve a substitute in writing. Do not order HY 70, and do not order HY 270 before approval (S-1 Det 1 + NAN-C-014)
 - **NAN-OQ-02** Repair depth and extent on the plank underside (NAN-F-004, NAN-F-005): S-1 gives "down to sound material" with no dimension (S-1 Det 1)
-- **NAN-OQ-03** Confirm with NTDesigns: 3 anchors and 3 bolts per bracket are counted from the drawing; the callouts say (TYP.) without a number (S-1 Det 1)
-- **NAN-OQ-04** Angle leg lengths exist only as scale on an undimensioned detail, and two scalings disagree (NAN-S-001 to NAN-S-003). Ask NTDesigns for dimensions or rely on the fabricator survey (S-1 Det 1) [scaled, FIELD verify]
-- **NAN-OQ-05** Permits, testing and inspections: S-1 GN assigns their cost to the contractor; Mersco's standard proposal excludes them. Carry an allowance, or exclude with the owner's written acceptance? (S-1 GN + PFE p.16)
+- **NAN-OQ-03** Confirm with the engineer: 3 anchors and 3 bolts per bracket are counted from the drawing; the callouts say (TYP.) without a number (S-1 Det 1)
+- **NAN-OQ-04** Angle leg lengths exist only as scale on an undimensioned detail, and two scalings disagree (NAN-S-001 to NAN-S-003). Ask the engineer for dimensions or rely on the fabricator survey (S-1 Det 1) [scaled, FIELD verify]
+- **NAN-OQ-05** Permits, testing and inspections: S-1 GN assigns their cost to the contractor; Contractor Co.'s standard proposal excludes them. Carry an allowance, or exclude with the owner's written acceptance? (S-1 GN + PFE p.16)
 - **NAN-OQ-06** Licensing: Ocean City requires MHIC and an Ocean City Business License for condominium repair (NAN-C-004), while the state MHIC definition excludes condominium common areas (NAN-C-005) and Maryland issues construction licenses for commercial work through the Circuit Court clerks (NAN-C-006). Ask the Ocean City permit desk and the Worcester County Clerk which licenses apply (NAN-C-004 + NAN-C-005)
 - **NAN-OQ-07** Special inspection of the adhesive anchors: the IBC 2021 Chapter 17 text could not be opened (NAN-C-012). Ask the Ocean City building official whether it is required and who performs it (NAN-C-012 + NAN-C-013)
 - **NAN-OQ-08** Maryland has proposed adopting the 2024 IBC (NAN-C-010). Confirm the code edition in force when the permit is filed (NAN-C-010)
@@ -104,7 +104,7 @@ Nothing below is resolved in this bid. Where two readings exist both are shown a
 Not in any source document. Each must be measured or answered before the allowance is priced.
 
 - **NAN-F-001** Client: S-1 names the building, not the owner or association. Confirm who the proposal is addressed to (FIELD)
-- **NAN-F-002** Angle leg and kicker cut lengths and total L3x3x1/4 footage: fabricator field survey (S-1 SN), or dimensions from NTDesigns (S-1 Det 1 + SN)
+- **NAN-F-002** Angle leg and kicker cut lengths and total L3x3x1/4 footage: fabricator field survey (S-1 SN), or dimensions from the engineer (S-1 Det 1 + SN)
 - **NAN-F-003** Galvanized deck length along the wall and width out from the wall (S-1 Det 1)
 - **NAN-F-004** Length of plank underside repair (hammer-sound survey) (S-1 Det 1)
 - **NAN-F-005** Depth of unsound concrete on the plank underside, and repair width (S-1 Det 1)
@@ -119,7 +119,7 @@ Not in any source document. Each must be measured or answered before the allowan
 
 ## Materials (no pricing)
 
-Order quantities are printed only where the ledger has a dimensioned or counted value; spares and stock-length rounding are Mersco purchasing decisions and are not in the sources.
+Order quantities are printed only where the ledger has a dimensioned or counted value; spares and stock-length rounding are Contractor Co. purchasing decisions and are not in the sources.
 
 | Claim | Material | Qty | Unit | Source | Method |
 |---|---|---|---|---|---|
@@ -170,9 +170,9 @@ Every row was fetched on the date shown. Rows marked unverified did not open or 
 
 ## Terms
 
-Change orders: Adjustments can be made to the initial contract and scope of the project to account for changing needs that are mutually agreed upon by Mersco Restoration & Renovations and you, the customer. These adjustments are called change orders and must be written as a document and added to the contract. (PFE p.16)
+Change orders: Adjustments can be made to the initial contract and scope of the project to account for changing needs that are mutually agreed upon by Contractor Co. Restoration & Renovations and you, the customer. These adjustments are called change orders and must be written as a document and added to the contract. (PFE p.16)
 
-Costs: The customer is responsible for accessibility to areas of the building and utilities. Prompt payment at key milestones. Mersco Restoration & Renovations is responsible for management of materials, labor, schedule, job site quality and scope of work. (PFE p.16)
+Costs: The customer is responsible for accessibility to areas of the building and utilities. Prompt payment at key milestones. Contractor Co. Restoration & Renovations is responsible for management of materials, labor, schedule, job site quality and scope of work. (PFE p.16)
 
 Warranty: A 1-year workmanship warranty period will begin at completion of the job. (PFE p.16)
 
@@ -181,8 +181,8 @@ Allowance is the quantity of unit pricing included in the base bid. (PFE p.16)
 ---
 
 _Source tags_  
-_S-1_ = Drawing S-1 Plans and Detail, NTDesigns, rev 10/06/26 For Construction  
-_PFE_ = Mersco Proposal Format Example (2MOC Quality Inn Oceanfront)  
+_S-1_ = Drawing S-1 Plans and Detail, engineer's name redacted, rev 10/06/26 For Construction  
+_PFE_ = Contractor Co. Proposal Format Example (Example Hotel Oceanfront)  
 _ARCH_ = Bid Pipeline Agent Team Architecture, 2026-10-07  
 _NAN-TB_ = Hand-made Nantucket test bid (superseded by this ledger)  
 _WEB_ = Fetched web pages (URL and retrieval date on each row)

@@ -169,14 +169,14 @@ class OtherReadersCase(unittest.TestCase):
         self.assertEqual(c.flag, "conflict")
 
     def test_correspondence_with_and_without_a_date(self):
-        v = Voted({"sender": "Chris Turner", "date": "2026-10-06",
+        v = Voted({"sender": "Estimator", "date": "2026-10-06",
                    "instruction": "Keep the base bid simple"}, seen=3, runs=3)
         self.assertEqual(one("correspondence", self.MAIL, v), Claim(
-            claim_id="NAN-CO-CT1-01", source_id="CT", locator="email, Chris Turner, 2026-10-06", tag="CT",
+            claim_id="NAN-CO-CT1-01", source_id="CT", locator="email, Estimator, 2026-10-06", tag="CT",
             statement="Keep the base bid simple", method="customer", role="note", confidence="exact",
             quote="Keep the base bid simple", flag="", derivation=""))
         v.item["date"] = None
-        self.assertEqual(one("correspondence", self.MAIL, v).locator, "email, Chris Turner, date not stated")
+        self.assertEqual(one("correspondence", self.MAIL, v).locator, "email, Estimator, date not stated")
 
 
 if __name__ == "__main__":

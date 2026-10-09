@@ -1,12 +1,12 @@
 para,section,claims,phrases,text
-1,header,,license_line,"FL CGC. License# CGC1532923 MHIC#110254 DE#2015604245 • Mailing Address: 772 Bantry Ct, Merritt Island FL 32953"
+1,header,,license_line,"FL CGC. License# CGC0000000 MHIC#000000 DE#0000000000 • Mailing Address: 100 Example Ct, Example FL 00000"
 2,header,NAN-H-002,,"Job Address:  
 12503 Wight Street, Ocean City, Maryland (S-1 TB)"
-3,header,,contractor_block,"Mersco Inc.  
-Address: 2805 Philadelphia Ave. Ocean City MD 21842  
-Ph: 1-855-227-2505  
-Email: info@mersconow.com"
-4,header,NAN-F-001,greeting,"Hello FIELD, thank you for considering Mersco Inc. The purpose of this document is to define the deliverables, descripti"
+3,header,,contractor_block,"Contractor Co.  
+Address: 100 Example Ave. Ocean City MD 21842  
+Ph: 1-555-555-0100  
+Email: info@example.com"
+4,header,NAN-F-001,greeting,"Hello FIELD, thank you for considering Contractor Co. The purpose of this document is to define the deliverables, descri"
 5,Division 01 General Conditions,,gc_site,1. Prepare the site for the project. Set up work trailer and/or equipment needed to complete the project. The work site 
 6,Division 01 General Conditions,,gc_ppe,"2. Safety glasses, hard hats and masks will be worn. Work areas will have signs posted and will be caution taped off. (P"
 7,Division 01 General Conditions,NAN-G-001,,3. Field verify all dimensions and field conditions on the drawings and in the field prior to starting construction and 
@@ -17,17 +17,17 @@ Email: info@mersconow.com"
 12,Division 01 General Conditions,NAN-G-006,,"8. Notify the architect and engineer when materials and assemblies are ready for observation, with sufficient notice to "
 13,Division 01 General Conditions,NAN-G-007,,"9. Provide and maintain barricades, warning signs, flashing lights and traffic control devices; coordinate sequencing wi"
 14,Division 01 General Conditions,NAN-G-009,,"10. S-1 makes the contractor responsible for the costs of all building permitting and all soils, concrete and metal stru"
-15,Division 01 General Conditions,,gc_clear,"11. Mersco will ensure that the site is cleared of all equipment, tools, work trailers, rental equipment and materials. "
+15,Division 01 General Conditions,,gc_clear,"11. Contractor Co. will ensure that the site is cleared of all equipment, tools, work trailers, rental equipment and mat"
 16,2.1 Plank Underside Removal,NAN-D-013,,"- Existing construction: 6"" Flexicore plank with 2"" topping bearing on an existing 8"" CMU foundation wall (S-1 Det 1)"
 17,2.1 Plank Underside Removal,NAN-D-014,,- Remove existing concrete on the underside of the plank down to sound material and prepare the surface per the repair m
 18,2.1 Plank Underside Removal,NAN-C-022,,"- Surface prep for SikaQuick VOH: CSP-5 profile, saturated surface dry, no standing water (SikaQuick VOH data sheet)"
 19,2.1 Plank Underside Removal,,conc_rebar,- Expose reinforcing steel where present and clean to bright metal using mechanical methods. (PFE p.3)
 20,2.1 Plank Underside Removal,,conc_square,- Square repair edges to establish defined boundaries and eliminate feathering. (PFE p.3)
-21,2.1 Plank Underside Removal,NAN-A-001,allowance concealed_reinforcement,"_(Mersco allowance of FIELD LF for plank underside concrete removal, one plank, length per field survey (NAN-F-004). Any"
+21,2.1 Plank Underside Removal,NAN-A-001,allowance concealed_reinforcement,"_(Contractor Co. allowance of FIELD LF for plank underside concrete removal, one plank, length per field survey (NAN-F-0"
 22,3.1 Plank Underside Rebuild,NAN-D-015,,- Provide vertical repair mortar (Sika Quick VOH or approved equal) so that the bottom of the existing plank bears on th
 23,3.1 Plank Underside Rebuild,NAN-C-021,,"- SikaQuick VOH: overhead lifts 1/8"" to 2""; 44 lb bag yields 0.44 cu ft (SikaQuick VOH product page)"
 24,3.1 Plank Underside Rebuild,,conc_bond,- Treat exposed rebar with a corrosion-inhibiting bonding agent to ensure proper adhesion and long-term durability. (PFE
-25,3.1 Plank Underside Rebuild,NAN-A-002,allowance concealed_reinforcement,"_(Mersco allowance of FIELD CF for overhead/vertical repair mortar, volume per field survey (NAN-F-006). Any concealed d"
+25,3.1 Plank Underside Rebuild,NAN-A-002,allowance concealed_reinforcement,"_(Contractor Co. allowance of FIELD CF for overhead/vertical repair mortar, volume per field survey (NAN-F-006). Any con"
 26,5.1 Bracket Supports,NAN-Q-002,,"- 6 bracket supports: 5 spaces + 1, which agrees with the 6 symbols drawn on each plan (NAN-D-004, NAN-D-005) (S-1 Fnd +"
 27,5.1 Bracket Supports,NAN-D-009,,"- Each bracket is L3x3x1/4 steel angle (TYP.): a vertical leg against the CMU wall, a horizontal leg under the plank and"
 28,5.1 Bracket Supports,NAN-D-001,,"- Bracket run 15'-2"" between wall faces (S-1 Fnd)"
@@ -42,7 +42,7 @@ Email: info@mersconow.com"
 37,5.1 Bracket Supports,NAN-N-003,,"- Design, fabrication and erection per the AISC ""Specification for Structural Steel Buildings""; any welding per AWS ""Str"
 38,5.1 Bracket Supports,NAN-N-004,,"- The steel fabricator is solely responsible for field surveying and verifying existing conditions, including the locati"
 39,5.1 Bracket Supports,NAN-N-005,,- No field cutting of structural steel members for the work of other trades without prior approval of the design profess
-40,5.1 Bracket Supports,NAN-A-003 NAN-A-004 NAN-A-005 NAN-A-006,allowance,"_(Mersco allowance of 6 each for steel bracket supports (S-1 Fnd + Frm). Mersco allowance of 18 each for 1/2"" dia adhesi"
+40,5.1 Bracket Supports,NAN-A-003 NAN-A-004 NAN-A-005 NAN-A-006,allowance,_(Contractor Co. allowance of 6 each for steel bracket supports (S-1 Fnd + Frm). Contractor Co. allowance of 18 each for
 41,Exclusions,,excl_engineered,"- Engineered repair details, designs, or specialty materials required. (PFE p.15)"
 42,Exclusions,,excl_concealed,"- Concealed deterioration, structural deficiencies, reinforcement loss, or substrate failures discovered during demoliti"
 43,Exclusions,,excl_full_depth,- Full-depth structural concrete repairs unless specifically listed. (PFE p.16)
@@ -55,9 +55,9 @@ Email: info@mersconow.com"
 50,Exclusions,NAN-X-003,,"- Paint, drywall, ceiling or flooring restoration above or below the work area (FIELD)"
 51,Open questions,NAN-OQ-01,,"- **NAN-OQ-01** S-1 specifies Hilti HIT HY 70, which Hilti set to phase-out and names HIT-HY 270 as its direct replaceme"
 52,Open questions,NAN-OQ-02,,"- **NAN-OQ-02** Repair depth and extent on the plank underside (NAN-F-004, NAN-F-005): S-1 gives ""down to sound material"
-53,Open questions,NAN-OQ-03,,- **NAN-OQ-03** Confirm with NTDesigns: 3 anchors and 3 bolts per bracket are counted from the drawing; the callouts say
+53,Open questions,NAN-OQ-03,,- **NAN-OQ-03** Confirm with the engineer: 3 anchors and 3 bolts per bracket are counted from the drawing; the callouts 
 54,Open questions,NAN-OQ-04,,"- **NAN-OQ-04** Angle leg lengths exist only as scale on an undimensioned detail, and two scalings disagree (NAN-S-001 t"
-55,Open questions,NAN-OQ-05,,"- **NAN-OQ-05** Permits, testing and inspections: S-1 GN assigns their cost to the contractor; Mersco's standard proposa"
+55,Open questions,NAN-OQ-05,,"- **NAN-OQ-05** Permits, testing and inspections: S-1 GN assigns their cost to the contractor; Contractor Co.'s standard"
 56,Open questions,NAN-OQ-06,,- **NAN-OQ-06** Licensing: Ocean City requires MHIC and an Ocean City Business License for condominium repair (NAN-C-004
 57,Open questions,NAN-OQ-07,,- **NAN-OQ-07** Special inspection of the adhesive anchors: the IBC 2021 Chapter 17 text could not be opened (NAN-C-012)
 58,Open questions,NAN-OQ-08,,- **NAN-OQ-08** Maryland has proposed adopting the 2024 IBC (NAN-C-010). Confirm the code edition in force when the perm

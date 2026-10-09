@@ -69,7 +69,7 @@ PRINCIPALS: dict[str, Principal] = {p.name: p for p in [
        note="Phase 5. Every unit price cites a rate-book line the way a quantity cites a drawing."),
     _p("field_crew", methods=("dimensioned",), roles=("quantity",), reads_sources=(), requires_supersedes=True,
        note="Fills a FIELD row through a form: a measured row that supersedes the placeholder, nothing else."),
-    _p("chris", methods=(), reads_sources=None, reads_prices=True,
+    _p("estimator", methods=(), reads_sources=None, reads_prices=True,
        note="Release authority and rate-book owner. Releases by hand; the pipeline cannot."),
 ]}
 

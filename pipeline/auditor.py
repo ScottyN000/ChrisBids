@@ -171,7 +171,7 @@ def read_document(path: Path) -> str:
 def audit_proposal(text: str, claims: list[Claim], extra_text: str = "") -> list[Orphan]:
     """Figures in the proposal that no ledger row accounts for.
 
-    `extra_text` is the Mersco phrase library: a figure inside a library
+    `extra_text` is the Contractor Co. phrase library: a figure inside a library
     paragraph traces to the Proposal Format Example page the phrase cites, not
     to a ledger row.
     """

@@ -19,7 +19,7 @@ REGISTER = [
      "status": "present"},
     {"source_id": "SW", "title": "Spec", "file": "sw.pdf", "sha256": "", "pages": "2", "kind": "spec",
      "status": "present"},
-    {"source_id": "CT", "title": "Chris email", "file": "", "sha256": "", "pages": "", "kind": "correspondence",
+    {"source_id": "CT", "title": "Estimator email", "file": "", "sha256": "", "pages": "", "kind": "correspondence",
      "status": "missing"},
     {"source_id": "WEB", "title": "Code", "file": "", "sha256": "", "pages": "", "kind": "code",
      "status": "present"},

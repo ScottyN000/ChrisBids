@@ -1,6 +1,6 @@
 # ChrisBids
 
-Bid-processing pipeline for Mersco Inc. Built in the order the architecture doc
+Bid-processing pipeline for Contractor Co. Built in the order the architecture doc
 sets out (p.16): the ledger and the auditor first, because they are what make
 the rest trustworthy.
 
@@ -53,4 +53,4 @@ only goes up: a PR that adds code adds the tests that kill its mutants.
 No number reaches a bid document unless it points at a page, sheet, photo,
 clause or field measurement that a human can open and check. A figure without a
 ledger row behind it is a build failure, not a warning — `pipeline audit` finds
-it and names it an orphan. Only Chris releases a bid; the pipeline cannot.
+it and names it an orphan. Only the estimator releases a bid; the pipeline cannot.

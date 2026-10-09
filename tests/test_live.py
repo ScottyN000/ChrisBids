@@ -120,7 +120,7 @@ class TileCase(unittest.TestCase):
         self.assertEqual(tiles.fit_dpi((1, 1), tiles.Box(0, 0, 1, 1)), tiles.MAX_DPI)
 
     def test_pdf_tools_never_see_an_api_key(self):
-        env = {"ANTHROPIC_API_KEY": "a", "MERSCO_ANTHROPIC_API_KEY": "m", "chrisbids_api_key": "c", "PATH": "/bin"}
+        env = {"ANTHROPIC_API_KEY": "a", "BIDS_ANTHROPIC_API_KEY": "m", "bids_api_key": "c", "PATH": "/bin"}
         with mock.patch.dict(os.environ, env, clear=True):
             self.assertEqual(tiles.tool_env(), {"PATH": "/bin"})
 
@@ -274,24 +274,24 @@ class LiveClientCase(unittest.TestCase):
         self.assertIn("refused ANTHROPIC_API_KEY", str(cm.exception))
 
     def test_no_key_means_no_run(self):
-        env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "MERSCO_ANTHROPIC_API_KEY")}
+        env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "BIDS_ANTHROPIC_API_KEY")}
         with mock.patch.dict(os.environ, env, clear=True), self.assertRaises(live.LiveRunError) as cm:
             golden.replay(ROOT / "fixtures" / "nantucket", self.tmp / "nokey.db", live.LiveClient(), units={})
-        self.assertIn("MERSCO_ANTHROPIC_API_KEY", str(cm.exception))
+        self.assertIn("BIDS_ANTHROPIC_API_KEY", str(cm.exception))
 
-    def test_the_mersco_named_key_reaches_the_client(self):
+    def test_the_bids_named_key_reaches_the_client(self):
         env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-        env["MERSCO_ANTHROPIC_API_KEY"] = "sk-test"
+        env["BIDS_ANTHROPIC_API_KEY"] = "sk-test"
         client = live.LiveClient()
         client.check = lambda: None   # no network in tests
         with mock.patch.dict(os.environ, env, clear=True):
-            broker, _, _ = golden.replay(ROOT / "fixtures" / "nantucket", self.tmp / "mersco.db", client, units={})
+            broker, _, _ = golden.replay(ROOT / "fixtures" / "nantucket", self.tmp / "bids.db", client, units={})
         broker.close()
         self.assertEqual(client.api.api_key, "sk-test")
 
     def test_the_key_goes_to_api_anthropic_com_whatever_the_ambient_base_url(self):
         env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-        env.update(MERSCO_ANTHROPIC_API_KEY="sk-test", ANTHROPIC_BASE_URL="https://elsewhere.example")
+        env.update(BIDS_ANTHROPIC_API_KEY="sk-test", ANTHROPIC_BASE_URL="https://elsewhere.example")
         clients = [live.LiveClient(), live.LiveClient(base_url="https://gateway.example")]
         with mock.patch.dict(os.environ, env, clear=True):
             for i, client in enumerate(clients):
@@ -459,7 +459,7 @@ class ExactCase(unittest.TestCase):
         self.assertIs(client.api, api)
         with self.assertRaises(live.LiveRunError) as cm:
             live.LiveClient().bind(SimpleNamespace(secret=lambda name: ""))
-        self.assertEqual(str(cm.exception), "neither ANTHROPIC_API_KEY nor MERSCO_ANTHROPIC_API_KEY is set; "
+        self.assertEqual(str(cm.exception), "neither ANTHROPIC_API_KEY nor BIDS_ANTHROPIC_API_KEY is set; "
                                             "add the key to the cloud environment and start a new session")
         asked = []
         client = live.LiveClient()
@@ -623,7 +623,7 @@ class TileExactCase(unittest.TestCase):
 
 
 @unittest.skipUnless(os.environ.get("CHRISBIDS_LIVE") == "1"
-                     and (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MERSCO_ANTHROPIC_API_KEY"))
+                     and (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("BIDS_ANTHROPIC_API_KEY"))
                      and PACKET.exists(), "live gate: set CHRISBIDS_LIVE=1 with the API key and the packet")
 class LiveGateCase(unittest.TestCase):
     def test_dimensioned_and_counted_rows_reproduce_live(self):

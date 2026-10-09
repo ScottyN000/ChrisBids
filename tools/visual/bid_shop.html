@@ -120,7 +120,7 @@ footer a { color: var(--ink); }
       </div>
     </aside>
   </main>
-  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Nothing on the floor is invented; a replay run bills no tokens, so its meter stays at zero. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Nothing on the floor is invented (the cat excepted: it is the one thing here that is not in the ledger); what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. A replay run bills no tokens, so its meter stays at zero. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
 </div>
 
 <script id="runs" type="application/json">__RUNS__</script>
@@ -150,6 +150,8 @@ footer a { color: var(--ink); }
     auditor:       { x: 150, y: 530, kind: 'desk',   name: 'Auditor',        hat: 'white' },
     ships:         { x: 920, y: 530, kind: 'door',   name: 'Bid ships' },
   };
+  // the cast that is not a station: no log row is theirs, they only react
+  const EXTRAS = { owner: { x: 880, y: 390 }, broker: { x: 420, y: 505 }, cat: { x: 500, y: 540 } };
   const HAT = { yellow: '#f2c200', white: '#f4f4f4', orange: null, blue: '#3b7dd8', green: '#3fa66a' };   // null: the accent colour
 
   // ---- playback state ----
@@ -197,12 +199,48 @@ footer a { color: var(--ink); }
     // the ledger's unit of work is the claim row
     const calls = r.calls || [];
     run._callIndex = {}; for (const c of calls) run._callIndex[`${c.unit_id}|${c.run}`] = c;
+    run._claimIndex = {}; for (const c of (r.claims || [])) run._claimIndex[c.claim_id] = c;
+    owner.say = ''; owner.until = 0; broker.arm = 0; broker.nod = 0; broker.say = ''; broker.until = 0;
     $('jobline').textContent = `${r.job || '?'} · ${r.run_id || ''} · ${events.length} log rows, ${(r.claims||[]).length} claims` + (calls.length ? `, ${calls.length} model calls billed` : ', replay (recorded answers, nothing billed)');
     $('caption').textContent = 'Press Play. Every move on the floor is one row of the run\'s audit log.';
     const src = r.prices ? `Prices: ${r.prices.unit}, read from ${r.prices.source_url} at ${r.prices.fetched_at}.` : 'No price table in this export (run tools/fetch_prices.py and pass --prices).';
     $('pricesrc').textContent = src;
     renderPanels(); draw();
   }
+
+  // ---- what the cast says. Each line is a reaction to one audit-log row and is picked by that
+  //      row's sequence number, so a replay says the same thing every time (determinism applies to jokes too). ----
+  const LINES = {
+    read1: {
+      drawing: ["Where's the north arrow?", "Scale says quarter inch. I say squint.", "Who dimensions anything in inches?", "Dimension strings. My happy place.", "Is that a 6 or a smudge?"],
+      spec: ["Division 09. Riveting.", "Two coats. It's always two coats.", "Rep's phone number is not a requirement.", "Read every clause. Lived to tell.", "Submittals, submittals, submittals."],
+      photo: ["Nice gutter.", "That's not peeling, that's texture.", "No numbers from photos. House rule.", "Same wall, new angle. Bold.", "Someone loves their railing."],
+      correspondence: ["The estimator wrote ASAP. Define ASAP.", "Reply-all. Of course it's reply-all.", "The customer says 'as discussed'. Discussed where?"],
+      takeoff: ["Carry the one.", "Run minus two ends, over spacing. Breathe.", "Code does the arithmetic. I just write the formula.", "Brackets times three. Don't ask why."],
+      codes: ["Only .gov sites. The broker is watching.", "Chapter 16 says hello.", "Wind zone. Of course it's a wind zone."],
+      materials: ["Data sheet says so. Who am I to argue.", "Coverage per gallon, as printed. Not as hoped.", "Primer first. The sheet insists."],
+      default: ["On it.", "Reading.", "Let me see that."],
+    },
+    read2: ["Again? Fine. AGAIN.", "The boss said read it twice.", "Second pass. Same page. Still ugly.", "Redundancy, not judgment, they said."],
+    read3: ["THREE times. Three.", "I could draw this from memory now.", "Third read. The page hasn't changed. I have.", "Three reads and we still don't pick. We vote."],
+    write: ["Filed. Nobody can edit it now. Nobody.", "Into the cabinet it goes.", "Signed, dated, no take-backs.", "One row, one page, one locator. Next."],
+    flagged: ["Two readings, zero decisions. Flag it.", "Not my call. Flag it for a human.", "Sticky note. Someone with a pulse decides."],
+    register: ["Hash it, stamp it, next.", "Another PDF. Love that for me.", "Another photo of the same wall. Filed.", "I never forget a hash.", "Symlink? Nice try. Skipped."],
+    denied: ["Not your lane, pal.", "The access matrix says no.", "Nice try. Role check failed.", "Only the Auditor touches that column."],
+    owner: {
+      haiku: ["Haiku. Good. Cheap.", "That one cost less than a stamp.", "Frugal. The word is frugal."],
+      sonnet: ["Sonnet? Who approved Sonnet?", "Sonnet for the Takeoff. Fine. FINE.", "That's a Sonnet call. I felt that."],
+      other: ["Cha-ching. That was my money.", "Was that billed? Tell me it wasn't billed."],
+      replay: ["Recorded answers. Free. Keep going.", "Replay run. Not a penny. Beautiful.", "Zero dollars. My favourite number."],
+      denied: ["Good. Bounce it.", "That's what the broker is for."],
+      backlog: ["Who's backed up? Them. Again.", "Why is there a pile? Why is there always a pile?"],
+      done: ["Done? Then why isn't it shipped?", "The estimator releases by hand. I'm not the estimator."],
+    },
+  };
+  const pick = (lines, seq) => lines[seq % lines.length];
+  const owner = { say: '', until: 0 };            // the owner, pacing by the door with a stopwatch
+  const broker = { arm: 0, nod: 0, say: '', until: 0 };   // the bouncer at the cabinet
+  const flaggedSoFar = () => { let n = 0; for (let i = 0; i < cursor; i++) { const e = events[i]; if (e.action === 'append' && run._claimIndex[e.subject] && run._claimIndex[e.subject].flag) n++; } return n; };
 
   // ---- applying one audit-log row to the floor ----
   const DUR = { 'model-call': 1100, append: 420, register: 260, denied: 700, default: 300 };
@@ -212,11 +250,15 @@ footer a { color: var(--ink); }
     const dur = (DUR[e.action] || DUR.default);
     if (e.action === 'register') {
       slips.push({ from: 'packet', to: 'register', t0: clock, t1: clock + dur, kind: 'page', label: e.subject });
-      w.busy = clock + dur; w.bubble = `files ${e.subject}`; d.claims += 1;
+      w.busy = clock + dur; w.bubble = `files ${e.subject}`; w.quip = pick(LINES.register, e.seq); d.claims += 1;
       log(`${e.principal} registers ${e.subject} (${e.detail})`, e.action);
     } else if (e.action === 'model-call') {
       if (stacks[e.station]) { stacks[e.station].delete(e.subject); }
       w.busy = clock + dur; w.bubble = `${e.replay ? 'replays' : 'reads'} ${e.subject}, run ${e.run || '?'}`;
+      w.quip = e.run >= 3 ? pick(LINES.read3, e.seq) : e.run === 2 ? pick(LINES.read2, e.seq) : pick(LINES.read1[e.station] || LINES.read1.default, e.seq);
+      const m = (e.model || '').toLowerCase();
+      owner.say = pick(e.replay ? LINES.owner.replay : m.includes('haiku') ? LINES.owner.haiku : m.includes('sonnet') ? LINES.owner.sonnet : LINES.owner.other, e.seq); owner.until = clock + dur;
+      if (stacks[e.station] && stacks[e.station].size >= 3 && e.seq % 3 === 0) { owner.say = pick(LINES.owner.backlog, e.seq); }
       if (e.run === 1) slips.push({ from: 'register', to: e.station, t0: clock, t1: clock + dur * 0.6, kind: 'page', label: e.subject });
       d.calls += 1;
       const c = run._callIndex && run._callIndex[`${e.subject}|${e.run}`];
@@ -226,10 +268,15 @@ footer a { color: var(--ink); }
       slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'slip', label: e.subject });
       d.claims += 1; if (done[e.station]) done[e.station].add(e.subject);
       w.busy = Math.max(w.busy || 0, clock + dur * 0.5); w.bubble = `writes ${e.subject}`;
+      const claim = run._claimIndex[e.subject]; slips[slips.length - 1].flag = !!(claim && claim.flag);
+      w.quip = claim && claim.flag ? pick(LINES.flagged, e.seq) : pick(LINES.write, e.seq);
+      broker.nod = clock + dur;
       log(`${e.principal} writes ${e.subject} (${e.detail})`, e.action);
     } else if (e.action === 'denied') {
       slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'bounce', label: e.subject });
       w.flash = clock + dur; d.denied += 1;
+      broker.arm = clock + dur; broker.say = pick(LINES.denied, e.seq); broker.until = clock + dur * 1.5;
+      owner.say = pick(LINES.owner.denied, e.seq); owner.until = clock + dur * 1.5;
       log(`${e.principal} refused: ${e.subject}`, e.action);
     } else {
       w.busy = clock + dur; w.bubble = `${e.action} ${e.subject}`.trim();
@@ -248,7 +295,7 @@ footer a { color: var(--ink); }
     if (playing) {
       clock += dt;
       while (cursor < events.length && clock >= nextAt) { nextAt = clock + apply(events[cursor++]) * 0.9; }
-      if (cursor >= events.length && clock > nextAt + 1500) { playing = false; $('play').textContent = 'Play'; $('caption').textContent = `Done: ${(run.claims||[]).length} claims on the ledger. ${finishLine()}`; }
+      if (cursor >= events.length && clock > nextAt + 1500) { playing = false; $('play').textContent = 'Play'; $('caption').textContent = `Done: ${(run.claims||[]).length} claims on the ledger. ${finishLine()}`; owner.say = pick(LINES.owner.done, events.length); owner.until = Infinity; }
       renderPanels();
     }
     draw();
@@ -297,7 +344,7 @@ footer a { color: var(--ink); }
     cv.style.width = w + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); cv._w = w; cv._h = h;
   }
-  function pos(st) { const p = PLAN[st] || { x: 500, y: 280 }; const s = Math.min(cv._w / 1000, cv._h / 560); const ox = (cv._w - 1000 * s) / 2, oy = (cv._h - 560 * s) / 2; return { x: ox + p.x * s, y: oy + p.y * s, s }; }
+  function pos(st) { const p = PLAN[st] || EXTRAS[st] || { x: 500, y: 280 }; const s = Math.min(cv._w / 1000, cv._h / 560); const ox = (cv._w - 1000 * s) / 2, oy = (cv._h - 560 * s) / 2; return { x: ox + p.x * s, y: oy + p.y * s, s }; }
   function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
   const DEPTH = 0.55;                 // the receding axis goes up and to the right, this much per unit
   function shade(hex, k) {            // k > 0 lighter, k < 0 darker
@@ -318,6 +365,7 @@ footer a { color: var(--ink); }
   function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 
   let C = {};                                   // the palette, read from CSS each frame
+  const INK = '#1f2a36', BLACK = '#23262b';      // printed paper and the bouncer's shirt stay dark in both themes
   function palette() {
     C = { fg: css('--fg'), muted: css('--muted'), line: css('--line'), accent: css('--accent'), ledger: css('--ledger'), warn: css('--warn'), ink: css('--ink'), panel: css('--panel'), floor: css('--floor'),
           wall: css('--wall'), plank: css('--plank'), plank2: css('--plank2'), wood: css('--wood'), steel: css('--steel'), skin: css('--skin'), vest: css('--vest'), paper: css('--paper'), dark: css('--bg') };
@@ -328,7 +376,17 @@ footer a { color: var(--ink); }
     // back wall with a window strip and the shop sign
     ctx.fillStyle = C.wall; ctx.fillRect(0, 0, W, wallH);
     ctx.fillStyle = shade(C.wall, -0.18); ctx.fillRect(0, wallH - 6 * s, W, 6 * s);      // skirting
-    for (let x = 60 * s; x < W - 320 * s; x += 150 * s) {                                  // windows, clear of the sign
+    const posters = [['SAFETY FIRST', 'NO NUMBER WITHOUT A PAGE'], ['REDUNDANCY,', 'NOT JUDGMENT (p.9)'], ['FLAGGED FOR', 'A SECOND LOOK', String(flaggedSoFar())]];
+    const firstPoster = W - 290 * s - 3 * 100 * s;
+    posters.forEach((po, i) => {
+      const x = firstPoster + i * 100 * s;
+      ctx.fillStyle = C.paper; ctx.fillRect(x, 16 * s, 92 * s, wallH - 36 * s); ctx.strokeStyle = shade(C.wall, -0.35); ctx.lineWidth = 1.5; ctx.strokeRect(x, 16 * s, 92 * s, wallH - 36 * s);
+      ctx.fillStyle = po.length > 2 ? C.warn : C.accent; ctx.fillRect(x, 16 * s, 92 * s, 5 * s);
+      ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = `700 ${Math.max(8, 10 * s)}px "Barlow Condensed", sans-serif`;
+      ctx.fillText(po[0], x + 46 * s, 24 * s); ctx.font = `${Math.max(8, 9 * s)}px "Barlow Condensed", sans-serif`; ctx.fillText(po[1], x + 46 * s, 36 * s);
+      if (po[2] !== undefined) { ctx.fillStyle = C.warn; ctx.font = `700 ${Math.max(12, 16 * s)}px "IBM Plex Mono", monospace`; ctx.fillText(po[2], x + 46 * s, 46 * s); }
+    });
+    for (let x = 60 * s; x + 80 * s < firstPoster; x += 150 * s) {   // windows up to the posters                           // windows up to the posters
       ctx.fillStyle = shade(C.ink, 0.55); ctx.fillRect(x, 14 * s, 70 * s, wallH - 36 * s);
       ctx.strokeStyle = shade(C.wall, -0.3); ctx.lineWidth = 2; ctx.strokeRect(x, 14 * s, 70 * s, wallH - 36 * s);
       ctx.beginPath(); ctx.moveTo(x + 35 * s, 14 * s); ctx.lineTo(x + 35 * s, wallH - 22 * s); ctx.moveTo(x, (14 * s + wallH - 22 * s) / 2); ctx.lineTo(x + 70 * s, (14 * s + wallH - 22 * s) / 2); ctx.stroke();
@@ -336,6 +394,11 @@ footer a { color: var(--ink); }
     ctx.fillStyle = C.accent; roundRect(W - 230 * s, 16 * s, 190 * s, 38 * s, 4 * s); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(12, 20 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('CONTRACTOR CO. BID SHOP', W - 135 * s, 35 * s); ctx.textBaseline = 'top';
+    // the wall clock runs on floor time
+    const cx = W - 262 * s, cy = 36 * s, cr = 16 * s;
+    ctx.fillStyle = C.paper; ctx.beginPath(); ctx.arc(cx, cy, cr, 0, 7); ctx.fill(); ctx.strokeStyle = C.fg; ctx.lineWidth = 2; ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(clock / 60000 * 2 * Math.PI) * cr * 0.5, cy - Math.cos(clock / 60000 * 2 * Math.PI) * cr * 0.5); ctx.stroke();
+    ctx.strokeStyle = C.warn; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(clock / 1000 * 2 * Math.PI / 60) * cr * 0.8, cy - Math.cos(clock / 1000 * 2 * Math.PI / 60) * cr * 0.8); ctx.stroke();
     // floor planks, darker toward the back
     const rows = Math.ceil((H - wallH) / (22 * s));
     for (let i = 0; i < rows; i++) {
@@ -365,8 +428,15 @@ footer a { color: var(--ink); }
       const p = PLAN[st], q = pos(st); const w = workers[st] || {};
       const busy = (w.busy || 0) > clock, flash = (w.flash || 0) > clock;
       items.push({ y: q.y, fn: () => drawStation(st, p, q, s, w, busy, flash) });
-      if (busy || flash) items.push({ y: 1e9, fn: () => { if (w.bubble) bubble(q.x, q.y - (p.kind === 'bench' ? 96 : 92) * s, s, flash ? 'REFUSED by the broker' : w.bubble, flash); } });
+      if (busy || flash) items.push({ y: 1e9, fn: () => { if (w.bubble) bubble(q.x, q.y - (p.kind === 'bench' ? 96 : 92) * s, s, flash ? 'REFUSED by the broker' : w.bubble, flash, flash ? '' : w.quip); } });
     }
+    const ownerAt = pos('owner'), brokerAt = pos('broker'), catAt = pos('cat');
+    items.push({ y: ownerAt.y, fn: () => drawOwner(ownerAt.x, ownerAt.y, s) });
+    items.push({ y: brokerAt.y, fn: () => drawBroker(brokerAt.x, brokerAt.y, s) });
+    items.push({ y: catAt.y + 40 * s, fn: () => drawCat(catAt.y + 40 * s, s) });
+    if (owner.until > clock && owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, owner.say, false) });
+    if (broker.until > clock && broker.say) items.push({ y: 1e9, fn: () => bubble(brokerAt.x, brokerAt.y - 84 * s, s, broker.say, true) });
+    if (run && cursor >= events.length && !playing && events.length) { const d = pos('ships'); items.push({ y: d.y + 1, fn: () => drawBid(d.x - 70 * s, d.y, s) }); items.push({ y: 1e9, fn: () => bubble(d.x - 70 * s, d.y - 70 * s, s, 'Waiting for the estimator.', false, 'Still waiting.') }); }
     for (let i = slips.length - 1; i >= 0; i--) {
       const sl = slips[i]; const t = (clock - sl.t0) / (sl.t1 - sl.t0);
       if (t >= 1.3) { slips.splice(i, 1); continue; }
@@ -374,7 +444,7 @@ footer a { color: var(--ink); }
       if (sl.kind === 'bounce' && t > 0.5) k = ease(1 - (t - 0.5));
       const x = a.x + (b.x - a.x) * k, y = a.y + (b.y - a.y) * k;
       if (sl.kind === 'page') items.push({ y: y + 1, fn: () => drawCourier(x, y, s, b.x >= a.x, sl.label) });
-      else items.push({ y: y + 1, fn: () => drawSlip(x, y - Math.sin(Math.PI * Math.min(1, k)) * 40 * s, s, k, sl.kind, y) });
+      else items.push({ y: y + 1, fn: () => drawSlip(x, y - Math.sin(Math.PI * Math.min(1, k)) * 40 * s, s, k, sl.kind, y, sl.flag) });
     }
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.fn();
@@ -414,6 +484,12 @@ footer a { color: var(--ink); }
     const waiting = stacks[st] ? stacks[st].size : 0;
     for (let i = 0; i < Math.min(waiting, 6); i++) box3d(q.x + dw / 2 + 16 * s, q.y - i * 4 * s, 18 * s, 12 * s, 3.5 * s, C.paper, shade(C.paper, -0.35));
     if (waiting > 6) { ctx.fillStyle = C.fg; ctx.font = `${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.fillText('+' + (waiting - 6), q.x + dw / 2 + 28 * s, q.y - 38 * s); }
+    if (waiting >= 3) {                       // backed up: sweat, and a sign on the pile
+      ctx.fillStyle = '#6fb7ff'; for (let i = 0; i < 3; i++) { const ph = (clock / 500 + i * 0.7) % 1; ctx.globalAlpha = 1 - ph; ctx.beginPath(); ctx.ellipse(q.x - 18 * s + i * 7 * s, q.y - dh - 60 * s + ph * 14 * s, 2 * s, 3 * s, 0, 0, 7); ctx.fill(); } ctx.globalAlpha = 1;
+      ctx.save(); ctx.translate(q.x + dw / 2 + 16 * s, q.y - 30 * s); ctx.rotate(-0.15 + Math.sin(clock / 300) * 0.05);
+      ctx.fillStyle = C.paper; ctx.strokeStyle = C.warn; ctx.lineWidth = 1.5; ctx.fillRect(-14 * s, -8 * s, 28 * s, 12 * s); ctx.strokeRect(-14 * s, -8 * s, 28 * s, 12 * s);
+      ctx.fillStyle = C.warn; ctx.font = `700 ${Math.max(8, 9 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('HELP', 0, -2 * s); ctx.textBaseline = 'top'; ctx.restore();
+    }
     const finished = done[st] ? done[st].size : 0;
     if (finished) { ctx.fillStyle = C.ledger; ctx.font = `700 ${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.fillText(`${finished} done`, q.x + dw / 2 + 6 * s, q.y - dh - 12 * s); }
   }
@@ -482,23 +558,103 @@ footer a { color: var(--ink); }
   }
 
   // a claim slip tossed toward the ledger (green) or bounced back by the broker (red)
-  function drawSlip(x, y, s, k, kind, floorY) {
+  function drawSlip(x, y, s, k, kind, floorY, flag) {
     shadow(x, floorY + 2 * s, 8 * s, 3 * s, 0.12 + 0.1 * (1 - Math.min(1, Math.abs(floorY - y) / (40 * s))));
     ctx.save(); ctx.translate(x, y); ctx.rotate((k - 0.5) * 0.9);
     ctx.fillStyle = kind === 'bounce' ? '#ffd9d6' : '#fff6d6'; ctx.strokeStyle = kind === 'bounce' ? C.warn : C.ledger; ctx.lineWidth = 1.2;
     ctx.fillRect(-11 * s, -7 * s, 22 * s, 14 * s); ctx.strokeRect(-11 * s, -7 * s, 22 * s, 14 * s);
     ctx.strokeStyle = C.muted; ctx.beginPath(); ctx.moveTo(-7 * s, -3 * s); ctx.lineTo(7 * s, -3 * s); ctx.moveTo(-7 * s, 1 * s); ctx.lineTo(4 * s, 1 * s); ctx.moveTo(-7 * s, 5 * s); ctx.lineTo(6 * s, 5 * s); ctx.stroke();
     if (kind === 'bounce') { ctx.strokeStyle = C.warn; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-6 * s, -5 * s); ctx.lineTo(6 * s, 5 * s); ctx.moveTo(6 * s, -5 * s); ctx.lineTo(-6 * s, 5 * s); ctx.stroke(); }
+    if (flag) { ctx.fillStyle = '#ffd34d'; ctx.fillRect(2 * s, -11 * s, 10 * s, 10 * s); ctx.fillStyle = INK; ctx.font = `700 ${Math.max(8, 9 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', 7 * s, -6 * s); ctx.textBaseline = 'top'; }
     ctx.restore();
   }
 
-  function bubble(x, y, s, text, warn) {
-    ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; const w = ctx.measureText(text).width + 16 * s, h = 22 * s;
+  function bubble(x, y, s, text, warn, sub) {
+    ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; const w1 = ctx.measureText(text).width;
+    ctx.font = `italic ${Math.max(10, 12 * s)}px "Source Sans 3", "Segoe UI", sans-serif`; const w2 = sub ? ctx.measureText(sub).width : 0;
+    const w = Math.max(w1, w2) + 16 * s, h = sub ? 38 * s : 22 * s, tail = x;
+    x = Math.min(cv._w - w / 2 - 4, Math.max(w / 2 + 4, x));
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetY = 3 * s;
     ctx.fillStyle = C.panel; roundRect(x - w / 2, y - h, w, h, 6 * s); ctx.fill(); ctx.restore();
     ctx.strokeStyle = warn ? C.warn : C.line; ctx.lineWidth = 1.2; roundRect(x - w / 2, y - h, w, h, 6 * s); ctx.stroke();
-    ctx.fillStyle = C.panel; ctx.beginPath(); ctx.moveTo(x - 5 * s, y - 1); ctx.lineTo(x, y + 7 * s); ctx.lineTo(x + 5 * s, y - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = warn ? C.warn : C.fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y - h / 2); ctx.textBaseline = 'top';
+    ctx.fillStyle = C.panel; ctx.beginPath(); ctx.moveTo(tail - 5 * s, y - 1); ctx.lineTo(tail, y + 7 * s); ctx.lineTo(tail + 5 * s, y - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = warn ? C.warn : C.fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.fillText(text, x, y - h + 11 * s);
+    if (sub) { ctx.fillStyle = C.muted; ctx.font = `italic ${Math.max(10, 12 * s)}px "Source Sans 3", "Segoe UI", sans-serif`; ctx.fillText(sub, x, y - 10 * s); }
+    ctx.textBaseline = 'top';
+  }
+
+  // the owner: no hard hat, a tie, a stopwatch, and a foot that taps faster the more is spent
+  function drawOwner(x, y, s) {
+    const tap = Math.sin(clock / (spend > 0 ? 90 : 260));
+    shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
+    ctx.save(); ctx.translate(x, y);
+    ctx.strokeStyle = '#3a3f47'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-4 * s, -10 * s); ctx.lineTo(-5 * s, 0); ctx.moveTo(4 * s, -10 * s); ctx.lineTo(6 * s, -Math.max(0, tap) * 4 * s); ctx.stroke();   // legs, one tapping
+    ctx.fillStyle = '#2d4a6b'; roundRect(-11 * s, -32 * s, 22 * s, 24 * s, 4 * s); ctx.fill();                    // jacket
+    ctx.fillStyle = C.paper; ctx.fillRect(-3 * s, -32 * s, 6 * s, 12 * s); ctx.fillStyle = C.warn; ctx.fillRect(-1.5 * s, -32 * s, 3 * s, 11 * s);   // shirt and tie
+    ctx.strokeStyle = '#2d4a6b'; ctx.lineWidth = 4.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -27 * s); ctx.lineTo(-16 * s, -16 * s); ctx.moveTo(9 * s, -27 * s); ctx.lineTo(16 * s, -18 * s); ctx.stroke();   // arms
+    ctx.fillStyle = C.steel; ctx.beginPath(); ctx.arc(-17 * s, -14 * s, 4.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = C.paper; ctx.beginPath(); ctx.arc(-17 * s, -14 * s, 3 * s, 0, 7); ctx.fill();   // stopwatch
+    ctx.strokeStyle = C.fg; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-17 * s, -14 * s); ctx.lineTo(-17 * s + Math.cos(clock / 160) * 2.5 * s, -14 * s + Math.sin(clock / 160) * 2.5 * s); ctx.stroke();
+    ctx.fillStyle = C.paper; ctx.fillRect(13 * s, -24 * s, 9 * s, 12 * s); ctx.strokeStyle = C.muted; ctx.strokeRect(13 * s, -24 * s, 9 * s, 12 * s);   // clipboard
+    ctx.fillStyle = C.skin; ctx.fillRect(-3 * s, -37 * s, 6 * s, 6 * s); ctx.beginPath(); ctx.arc(0, -44 * s, 9 * s, 0, 7); ctx.fill();   // neck, bald head
+    ctx.fillStyle = INK; const worried = spend > 0;
+    ctx.beginPath(); ctx.arc(-3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.arc(3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.2 * s; ctx.beginPath();                                                   // eyebrows: up when money moves
+    ctx.moveTo(-6 * s, (worried ? -50 : -48) * s); ctx.lineTo(-1.5 * s, (worried ? -48.5 : -48) * s); ctx.moveTo(1.5 * s, (worried ? -48.5 : -48) * s); ctx.lineTo(6 * s, (worried ? -50 : -48) * s); ctx.stroke();
+    ctx.fillStyle = INK; ctx.fillRect(-4 * s, -41 * s, 8 * s, 1.6 * s);                                                  // moustache
+    ctx.restore();
+    label('THE OWNER', x, y + 8 * s, s, false);
+  }
+
+  // the broker: the bouncer at the cabinet. Nods a row in; stiff-arms a row from the wrong principal.
+  function drawBroker(x, y, s) {
+    const nod = broker.nod > clock ? Math.sin(clock / 80) * 2 * s : 0, arm = broker.arm > clock;
+    shadow(x, y + 2 * s, 16 * s, 5 * s, 0.22);
+    ctx.save(); ctx.translate(x, y + nod);
+    ctx.strokeStyle = BLACK; ctx.lineWidth = 7 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-6 * s, -12 * s); ctx.lineTo(-7 * s, 0); ctx.moveTo(6 * s, -12 * s); ctx.lineTo(7 * s, 0); ctx.stroke();
+    ctx.fillStyle = BLACK; roundRect(-16 * s, -40 * s, 32 * s, 30 * s, 6 * s); ctx.fill();                   // a big black shirt
+    ctx.strokeStyle = BLACK; ctx.lineWidth = 7 * s;
+    if (arm) { ctx.beginPath(); ctx.moveTo(-13 * s, -34 * s); ctx.lineTo(-34 * s, -34 * s); ctx.stroke(); ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(-36 * s, -34 * s, 4.5 * s, 0, 7); ctx.fill(); }   // the stiff arm
+    else { ctx.beginPath(); ctx.moveTo(-13 * s, -34 * s); ctx.lineTo(8 * s, -24 * s); ctx.moveTo(13 * s, -34 * s); ctx.lineTo(-8 * s, -24 * s); ctx.stroke(); }   // arms crossed
+    ctx.beginPath(); ctx.moveTo(13 * s, -34 * s); ctx.lineTo(18 * s, -20 * s); ctx.stroke();
+    ctx.fillStyle = '#f2c200'; ctx.fillRect(-14 * s, -38 * s, 10 * s, 5 * s); ctx.fillStyle = INK; ctx.font = `700 ${Math.max(5, 4 * s)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BROKER', -9 * s, -35.5 * s); ctx.textBaseline = 'top';
+    ctx.fillStyle = C.skin; ctx.fillRect(-5 * s, -46 * s, 10 * s, 7 * s); ctx.beginPath(); ctx.arc(0, -53 * s, 10 * s, 0, 7); ctx.fill();   // thick neck, head
+    ctx.fillStyle = BLACK; ctx.fillRect(-9 * s, -56 * s, 7 * s, 4 * s); ctx.fillRect(2 * s, -56 * s, 7 * s, 4 * s); ctx.fillRect(-2 * s, -55 * s, 4 * s, 1.5 * s);   // sunglasses
+    ctx.strokeStyle = shade(C.skin, -0.4); ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-3 * s, -47 * s); ctx.lineTo(3 * s, -47 * s); ctx.stroke();   // no smile
+    ctx.restore();
+    label('THE BROKER', x, y + 8 * s, s, false);
+  }
+
+  // the finished bid, waiting at the door for the estimator (the pipeline cannot release it)
+  function drawBid(x, y, s) {
+    const tap = Math.max(0, Math.sin(clock / 120));
+    shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
+    ctx.save(); ctx.translate(x, y);
+    ctx.strokeStyle = INK; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(-6 * s, 0); ctx.moveTo(5 * s, -6 * s); ctx.lineTo(6 * s, -tap * 4 * s); ctx.stroke();
+    ctx.fillStyle = C.paper; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.fillRect(-14 * s, -44 * s, 28 * s, 38 * s); ctx.strokeRect(-14 * s, -44 * s, 28 * s, 38 * s);
+    ctx.strokeStyle = C.muted; ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(-10 * s, -20 * s + i * 4 * s); ctx.lineTo(10 * s - (i % 2) * 5 * s, -20 * s + i * 4 * s); } ctx.stroke();
+    ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(-5 * s, -34 * s, 1.5 * s, 0, 7); ctx.arc(5 * s, -34 * s, 1.5 * s, 0, 7); ctx.fill();   // eyes
+    ctx.strokeStyle = INK; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-3 * s, -28 * s); ctx.lineTo(3 * s, -28 * s); ctx.stroke();   // a straight mouth
+    ctx.fillStyle = C.warn; ctx.beginPath(); ctx.moveTo(-6 * s, -4 * s); ctx.lineTo(0, -1 * s); ctx.lineTo(-6 * s, 2 * s); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(6 * s, -4 * s); ctx.lineTo(0, -1 * s); ctx.lineTo(6 * s, 2 * s); ctx.closePath(); ctx.fill();   // bow tie
+    ctx.fillStyle = C.ledger; ctx.font = `700 ${Math.max(7, 8 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.fillText('BID', 0, -43 * s);
+    ctx.restore();
+  }
+
+  // the shop cat: the one thing on the floor that is not in the ledger. Walks the front of the shop on the floor clock.
+  function drawCat(y, s) {
+    const W = cv._w, ph = clock / 14000, x = W / 2 + Math.sin(ph) * (W / 2 - 60 * s), moving = Math.abs(Math.cos(ph)) > 0.25, right = Math.cos(ph) > 0;
+    shadow(x, y + 1 * s, 12 * s, 3 * s, 0.18);
+    ctx.save(); ctx.translate(x, y); if (!right) ctx.scale(-1, 1);
+    const fur = shade(C.wood, -0.55), step = moving ? Math.sin(clock / 90) : 0;
+    ctx.strokeStyle = fur; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round';
+    if (moving) { ctx.beginPath(); ctx.moveTo(-8 * s, -4 * s); ctx.lineTo(-8 * s + step * 3 * s, 0); ctx.moveTo(6 * s, -4 * s); ctx.lineTo(6 * s - step * 3 * s, 0); ctx.stroke(); }
+    ctx.fillStyle = fur; ctx.beginPath(); ctx.ellipse(0, -7 * s, 12 * s, moving ? 5 * s : 6.5 * s, 0, 0, 7); ctx.fill();            // body
+    ctx.beginPath(); ctx.arc(12 * s, -11 * s, 5 * s, 0, 7); ctx.fill();                                                       // head
+    ctx.beginPath(); ctx.moveTo(9 * s, -14 * s); ctx.lineTo(10 * s, -19 * s); ctx.lineTo(13 * s, -15 * s); ctx.moveTo(14 * s, -15 * s); ctx.lineTo(16 * s, -19 * s); ctx.lineTo(17 * s, -14 * s); ctx.fill();   // ears
+    ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(-11 * s, -8 * s); ctx.quadraticCurveTo(-20 * s, -8 * s + Math.sin(clock / 400) * 4 * s, -17 * s, -20 * s); ctx.stroke();   // tail
+    ctx.fillStyle = '#9fe36a'; ctx.beginPath(); ctx.arc(13.5 * s, -12 * s, 1 * s, 0, 7); ctx.arc(10.5 * s, -12 * s, 1 * s, 0, 7); ctx.fill();   // eyes
+    ctx.restore();
   }
 
   function drawTray(st, x, y, s) {
@@ -544,7 +700,7 @@ footer a { color: var(--ink); }
 
   // ---- controls ----
   $('play').addEventListener('click', () => { if (cursor >= events.length) { load(run); } playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; if (playing && !nextAt) nextAt = clock; });
-  $('step').addEventListener('click', () => { playing = false; $('play').textContent = 'Play'; if (cursor < events.length) { clock = Math.max(clock, nextAt); nextAt = clock + apply(events[cursor++]); renderPanels(); } });
+  $('step').addEventListener('click', () => { playing = false; $('play').textContent = 'Play'; if (cursor < events.length) { clock = Math.max(clock, nextAt); nextAt = clock + apply(events[cursor++]); renderPanels(); if (cursor >= events.length) { owner.say = pick(LINES.owner.done, events.length); owner.until = Infinity; } } });
   $('reset').addEventListener('click', () => load(run));
   $('speed').addEventListener('input', e => { speed = parseFloat(e.target.value); });
   $('job').addEventListener('change', e => { const r = RUNS[e.target.value]; if (r) load(r); });

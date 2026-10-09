@@ -167,7 +167,9 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   offset. (c) `#4 bar`, `2 x 4 blocking` and `4x4 posts` are sizes, and `11 inches`, `8 inch CMU`, `6 mil
   poly` are figures, not counts; a count of spacings is a count however it is written (`5 x 2'-8"`,
   `5 @ 2'-8"`, `5 × 2'-8"`, `5@2'-8"` and `5x2'-8"` with no spaces, arch p.4's `11 + 5 x 32 + 11`,
-  `5 x 2 ft`, `5 X 32 IN`), as are `max 5 spaces` and `2 in each bay`. A count kept in a label and used
+  `5 x 2 ft`, `5 X 32 IN`, `5 x 32 o.c.`), as are `max 5 spaces` and `2 in each bay`. Known gap: a
+  unit-less `N x M` followed by nothing or by a word that fits a size as well (`2 x 4 typ`) reads as a
+  size, so `5 x 32` at the end of a label is not marked. A count kept in a label and used
   in a formula as a plain number (`{PER} * (5 + 1)`) is noted on the item too, since that number cites no
   row; an item that uses a dimensioned row at all is left alone there, since the golden formula's own 2
   (the two ends) would meet a `2 PLACES` label on every item, so a sum with one product on the dimension

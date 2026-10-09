@@ -90,10 +90,12 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
 # another x, so a count of spacings is still a count however it is written: `5 x 2'-8"`, `5 @ 2'-8"`
 # (arch p.6), `5 × 2'-8"`, the same with no spaces as a CAD override prints them (`5@2'-8"`,
 # `5x2'-8"`), arch p.4's own `11 + 5 x 32 + 11`, `5 x 2 ft`, `5 X 32 IN` (drawings print in capitals).
-# A count is followed by a word, by `@` or `×`, or by an x and a figure carrying a mark. A number
-# followed by a unit word (`11 inches`, `8 inch CMU`, `6 mil poly`) is a figure; a bare `in` is left
-# alone, since `2 in each bay` is a count.
-SIZE_SECOND = r"\d+(?![\d'\"\-/])(?!\s*(?:[+=\-*/]|(?i:in|inches|inch|ft|feet|foot)\b))"
+# A count is followed by a word, by `@` or `×`, or by an x and a figure carrying a mark. A spacing
+# written on centre (`5 x 32 o.c.`) is a count too. Known gap: a unit-less `N x M` followed by nothing,
+# or by a word that fits a size as well (`2 x 4 typ`, `max`), reads as a size. A number followed by a
+# unit word (`11 inches`, `8 inch CMU`, `6 mil poly`) is a figure; a bare `in` is left alone, since
+# `2 in each bay` is a count.
+SIZE_SECOND = r"\d+(?![\d'\"\-/])(?!\s*(?:[+=\-*/]|(?i:in|inches|inch|ft|feet|foot|o\.?c)\b))"
 BARE_COUNT = re.compile(r"(?<![\w\-/.'\"#])(?<!\d[xX×] )(?<!\d [xX×] )\(?(\d+)\)?"
                         r"(?!\s*[xX×]\s*" + SIZE_SECOND + r")(?=\s+[A-Za-z]|\s*[@×]|\s*[xX×]\s*\d+['\"])")
 FIGURE_UNIT = re.compile(r"(?i)^\s+(?:inches|inch|in\.|ft\.?|feet|foot|mil|ga\.?|gauge|mm|cm|lbs?|psi|psf|oz|kips?)(?![A-Za-z])")

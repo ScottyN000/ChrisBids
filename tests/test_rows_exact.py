@@ -85,6 +85,7 @@ class DrawingCase(unittest.TestCase):
                               ("Bracket run: 11\" + 5 x 2'-8\" + 11\"", ["5"]), ("Bracket run: 11 + 5 x 32 + 11", ["5"]),
                               ("Bracket spacing, 5 x 2 ft", ["5"]), ("Bracket spacing, 5 x 32 in", ["5"]),
                               ("BRACKET SPACING, 5 X 2 FT", ["5"]), ("Bracket spacing, 5 X 32 IN", ["5"]),
+                              ("Bracket spacing 5 x 32 o.c.", ["5"]), ("BRACKETS 5 X 32 OC", ["5"]),
                               ("Bracket run: 11\" + 5 @ 2'-8\" + 11\"", ["5"]), ("Bracket run: 11 + 5 @ 32 + 11", ["5"]),
                               ("Bracket spacing, 5 × 2'-8\"", ["5"]), ("Bracket spacing, 5@2'-8\"", ["5"]),
                               ("Bracket spacing, 5x2'-8\"", ["5"]), ("Bracket spacing, 5×2'-8\"", ["5"]),
@@ -105,6 +106,7 @@ class DrawingCase(unittest.TestCase):
                             ("BRACKET RUN, 2 X 4 BLOCKING BETWEEN", "15'-2\""), ("Blocking, 2x 4 between", "15'-2\""),
                             ("Blocking, 2 × 4 between", "15'-2\""), ("Rebar, #4 @ 12\" o.c.", "12\""),
                             ("Blocking, 2x4 between", "15'-2\""), ("Rebar, #4@12\" o.c.", "12\""),
+                            ("Blocking, 2 x 4 typ", "15'-2\""), ("Blocking, 2 x 4", "15'-2\""),
                             ("Blocking, 2 x 10 joists", "15'-2\""), ("Wall face to first bracket, 11 inches", "11\""),
                             ("East wall, 8 inch CMU", "8\""), ("Under slab, 6 mil poly", "4\""), ("Angle, 12 ga. steel", "4\""),
                             ("Posts, 2 x 4 x 8 ft", "8'-0\"")]:

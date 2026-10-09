@@ -76,7 +76,9 @@ changed tests import) at or above the floor in `tools/mutation_gate.py` (narrowe
 from the whole of `pipeline/` by the owner, 2026-10-09, to save Actions minutes); `docs/pipeline-dag.md` regenerated when the pipeline
 changes; bandit, pip-audit and gitleaks clean; `SECURITY.md` updated when a
 control or a known gap changes; the PR description states the mutation score
-and the run it came from (advisor on PR #17, 2026-10-09).
+and the run it came from, a CI or local run on the head under review or on an
+earlier head with the same `pipeline/` and `tests/` files, named by its sha
+(advisor on PR #17, 2026-10-09; the owner's merge of PR #20 is its sign-off).
 
 ## What to check
 

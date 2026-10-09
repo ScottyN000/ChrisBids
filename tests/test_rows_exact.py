@@ -82,8 +82,9 @@ class DrawingCase(unittest.TestCase):
         # and a word ending in x are told apart.
         for label, counts in [("Bracket spacing, 2 places, 2 x 4 blocking between", ["2"]),
                               ("Bracket spacing, max 5 spaces", ["5"]), ("Bracket spacing, MAX 5 SPACES", ["5"]),
-                              ("Bracket run: 11\" + 5 x 2'-8\" + 11\"", ["5"]), ("approx 6 brackets", ["6"]),
-                              ("Blocking, 2 in each bay", ["2"])]:
+                              ("Bracket run: 11\" + 5 x 2'-8\" + 11\"", ["5"]), ("Bracket run: 11 + 5 x 32 + 11", ["5"]),
+                              ("Bracket spacing, 5 x 2 ft", ["5"]), ("Bracket spacing, 5 x 32 in", ["5"]),
+                              ("approx 6 brackets", ["6"]), ("Blocking, 2 in each bay", ["2"])]:
             with self.subTest(label=label):
                 self.assertEqual(bare_counts(label), counts)
         for label, text in [("Bracket spacing, max 5 spaces", "2'-8\""), ("Bracket run: 11\" + 5 x 2'-8\" + 11\"", "15'-2\"")]:

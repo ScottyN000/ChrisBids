@@ -502,8 +502,8 @@ class SymbolCheckCase(unittest.TestCase):
         six = reader_row("NAN-DR-FND-04", 6, "each", "Bracket symbols drawn", method="counted")
         rows = {**BY_ID, six.claim_id: six}
         by_symbols = it("Adhesive anchors", f"{{{ANCH}}} * {{{six.claim_id}}}", 18)
-        note = (f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries dimension strings "
-                f"({SPAN}, {SPACING}, {END})")
+        note = (f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries bracket dimension "
+                f"strings ({SPAN}, {SPACING})")   # the end distance row names no bracket
         self.assertEqual(takeoff.route_notes(by_symbols, rows), [note])
         c = takeoff.derived_claim("NAN-TK-Q-03", by_symbols, 2, 2, rows)
         self.assertEqual((c.flag, c.derivation), ("unverified", f"3 x 6 = 18; {note}"))
@@ -520,7 +520,23 @@ class SymbolCheckCase(unittest.TestCase):
             self.assertEqual(takeoff.symbol_notes(mixed, with_both), [])
             c = takeoff.derived_claim("NAN-TK-Q-05", mixed, 2, 2, with_both)
             self.assertEqual((c.flag, c.derivation), ("unverified", f"3 x {symbols.value} + 3 x ((182 - 2 x 11) / 32 + 1) = {total}; "
-                             f"rests on the symbol count {symbols.claim_id} where Partial Foundation Plan carries dimension strings ({SPAN}, {SPACING}, {END})"))
+                             f"rests on the symbol count {symbols.claim_id} where Partial Foundation Plan carries bracket dimension strings ({SPAN}, {SPACING})"))
+        # Window tags beside a room width: no dimension string names the window, so the symbol count is the
+        # prompt's own route when no run and spacing are listed, and the item is not flagged.
+        tags = reader_row("NAN-DR-A1-01", 12, "each", "Window tags", method="counted", locator="Floor Plan", tag="A-1")
+        per_window = reader_row("NAN-DR-A1-02", 4, "per window", "Clips per window", method="counted", locator="Floor Plan", tag="A-1")
+        width = reader_row("NAN-DR-A1-03", 144, "in", "Living room width: 12'-0\"", locator="Floor Plan", tag="A-1")
+        plan = {tags.claim_id: tags, per_window.claim_id: per_window, width.claim_id: width}
+        clips = it("Window clips", f"{{{per_window.claim_id}}} * {{{tags.claim_id}}}", 48)
+        self.assertEqual(takeoff.route_notes(clips, plan), [])
+        self.assertEqual(takeoff.derived_claim("NAN-TK-Q-06", clips, 2, 2, plan).flag, "")
+        # A view whose only dimension is a wall thickness names no bracket either.
+        wall = reader_row("NAN-DR-FND-06", 8, "in", "East wall thickness: 8\"")
+        self.assertEqual(takeoff.route_notes(by_symbols, {six.claim_id: six, ANCH: BY_ID[ANCH], wall.claim_id: wall}), [])
+        # A job with no per-assembly row is held to every dimension string on the view.
+        no_per = {k: v for k, v in rows.items() if k != ANCH}
+        self.assertEqual(takeoff.route_notes(it("Spaces", f"{{{six.claim_id}}} - 1", 5, "spaces"), no_per), [
+            f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries dimension strings ({SPAN}, {SPACING}, {END})"])
         # A symbol count on a view with no dimension strings is the number of assemblies (the prompt's rule).
         elsewhere = reader_row("NAN-DR-FRM-01", 6, "each", "Support symbols", method="counted",
                                locator="Partial First Floor Framing Plan", tag="S-1 Frm")
@@ -538,6 +554,22 @@ class SymbolCheckCase(unittest.TestCase):
         derived = Claim(**{**six.__dict__, "claim_id": "NAN-TK-Q-01", "calc": f"{SPACES} + 1"})
         self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{derived.claim_id}}}", 18),
                                              {**rows, derived.claim_id: derived}), [])
+
+    def test_a_count_kept_in_a_label_and_used_as_a_plain_number_is_noted(self):
+        """`{PER} * (5 + 1)` takes the 5 from `5 spaces at 2'-8"`, a label whose count no row backs."""
+        kept = Claim(**{**reader_row(SPACING, 32, "in", "5 spaces at 2'-8\": 2'-8\"").__dict__,
+                        "derivation": "2'-8\" dimension string = 32 in; a run put a count in the label with no counted row"})
+        rows = {**BY_ID, SPACING: kept}
+        by_number = it("Adhesive anchors", f"{{{ANCH}}} * (5 + 1)", 18)
+        note = f"takes 5 from the label of {SPACING}, a count with no counted row"
+        self.assertEqual(takeoff.label_notes(by_number, rows), [note])
+        c = takeoff.derived_claim("NAN-TK-Q-03", by_number, 2, 2, rows)
+        self.assertEqual((c.flag, c.derivation), ("unverified", f"3 x (5 + 1) = 18; {note}"))
+        # A number the label does not carry, or a row not so marked, gives no note; the rows searched are `claims`.
+        self.assertEqual(takeoff.label_notes(it("Anchors", f"{{{ANCH}}} * 6", 18), rows), [])
+        self.assertEqual(takeoff.label_notes(by_number, BY_ID), [])
+        self.assertEqual(takeoff.label_notes(by_number, BY_ID, list(rows.values())), [note])
+        self.assertEqual(takeoff.label_notes(by_number, rows, list(BY_ID.values())), [])
 
     def test_only_symbols_of_the_assembly_the_rows_are_per_are_compared(self):
         piers = reader_row("NAN-DR-FND-05", 2, "each", "New pier symbols drawn", method="counted")

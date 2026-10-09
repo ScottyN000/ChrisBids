@@ -36,6 +36,7 @@ from .broker import Broker
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
 from .readers.rows import COUNT_IN_LABEL, DIFFERING_LABELS, Unit
+from .readers.vote import bare_counts
 from .schema import Claim, LedgerError
 
 NAME = "takeoff"
@@ -274,25 +275,32 @@ def symbol_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
 
 def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     """A note per symbol count an item rests on where the view the symbols are on
-    carries dimension strings, whatever else the item uses: a fastener total that
-    takes the anchors from the symbols and the bolts from the dimensions is on that
-    route too (the symbol check passes a sum of per-assembly products by). The number
-    of assemblies comes from the dimensions (run, spacing, end offsets); a symbol count
-    stands in only when no run and spacing are listed (the prompt's rule). Code cannot
-    tell a run from a wall thickness without reading the labels, so any dimensioned row
-    on that view is enough to flag the item for a second look, with those rows on the
-    note. `claims` is every current row, as for `symbol_rows`.
+    carries dimension strings naming the assembly counted, whatever else the item
+    uses: a fastener total that takes the anchors from the symbols and the bolts from
+    the dimensions is on that route too (the symbol check passes a sum of per-assembly
+    products by). The number of assemblies comes from the dimensions (run, spacing, end
+    offsets); a symbol count stands in only when no run and spacing are listed (the
+    prompt's rule). Code cannot tell a run from a room width without reading the
+    labels, so the dimension strings that count are those naming what the item's own
+    per-assembly rows are per (`Bracket spacing: 2'-8"` for a per-bracket row), else
+    what the job's are per, as `symbol_rows` matches them; window tags beside a room
+    width are the prompt's own route and are not flagged. A job with no per-assembly
+    row at all is held to every dimension string on the view. The rows that count go
+    on the note. `claims` is every current row, as for `symbol_rows`.
     """
     claims = list(by_id.values()) if claims is None else claims
+    used = _used(item, by_id)
+    names = assembly_names(used) or assembly_names(claims)
     notes = []
-    for c in _used(item, by_id):
+    for c in used:
         if not is_symbol_count(c):
             continue
-        dims = [d.claim_id for d in claims
-                if d.method == "dimensioned" and (d.source_id, d.locator) == (c.source_id, c.locator)]
-        if dims:
-            notes.append(f"rests on the symbol count {c.claim_id} where {c.locator} carries dimension strings "
-                         f"({', '.join(dims)})")
+        dims = [d for d in claims if d.method == "dimensioned" and (d.source_id, d.locator) == (c.source_id, c.locator)]
+        named = [d for d in dims if any(n in d.statement.lower() for n in names)] if names else dims
+        if named:
+            what = " and ".join(n for n in names if any(n in d.statement.lower() for d in named))
+            notes.append(f"rests on the symbol count {c.claim_id} where {c.locator} carries {what + ' ' if what else ''}"
+                         f"dimension strings ({', '.join(d.claim_id for d in named)})")
     return notes
 
 
@@ -301,7 +309,12 @@ def label_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     since the model then chose which wording to follow, or on which a run put a count
     with no counted row behind it (dropped by the vote or kept); none for the first when
     a symbol row on the view agrees with the number the dimensions give, which confirms
-    the choice.
+    the choice. A kept count can also reach a formula as a plain number (`{PER} * (5 + 1)`
+    from `5 spaces at 2'-8"`), which the prompt allows for a number the row wording gives:
+    an item whose own constants include a count found in the label of a current row so
+    marked that the item does not use is noted too, since that number cites no row (a
+    row it uses is noted already). A formula's own 1 and 2 (the fence post, the two
+    ends) can meet such a label by chance; the note asks for a second look, no more.
 
     The row says so with `rows.DIFFERING_LABELS` or `rows.COUNT_IN_LABEL` in its
     derivation, the one place a ledger row records what the vote saw; the constants are
@@ -316,6 +329,14 @@ def label_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     counted = [c.claim_id for c in used if COUNT_IN_LABEL in c.derivation]
     if counted:
         notes.append(f"uses {', '.join(counted)}, whose label a run gave a count with no counted row")
+    constants = set(re.findall(r"\d+", schema.CALC_REF.sub("", item["calc"])))
+    used_ids = {c.claim_id for c in used}
+    for c in (list(by_id.values()) if claims is None else claims):
+        if c.claim_id in used_ids or COUNT_IN_LABEL not in c.derivation:
+            continue
+        taken = sorted(constants & set(bare_counts(c.statement)), key=int)
+        if taken:
+            notes.append(f"takes {', '.join(taken)} from the label of {c.claim_id}, a count with no counted row")
     return notes
 
 

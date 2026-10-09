@@ -50,7 +50,7 @@ class Voted:
     @property
     def label(self) -> str:
         """The wordings the runs gave this figure, side by side when they differ."""
-        return " / ".join(self.labels or [(self.item.get("label") or "").strip()])
+        return " | ".join(self.labels or [(self.item.get("label") or "").strip()])
 
     @property
     def status(self) -> str:
@@ -78,12 +78,45 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
     return k
 
 
+# A bare count in a label: a number standing on its own before a word (`5 spaces`,
+# `printed 5 times`, `(2 places)`). A number joined to a mark, a slash, a hyphen or a
+# letter (`2'-8"`, `1/S-1`, `S-1`, `2x4`), or named by the word before it (`detail 1`,
+# `sheet 2`, `type 3`), is a figure or a reference and is left alone.
+BARE_COUNT = re.compile(r"(?<![\w\-/.'\"])(\d+)(?=\s+[A-Za-z])")
+REFERENCE_WORDS = {"det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item", "typ"}
+
+
+def bare_counts(label: str) -> list[str]:
+    """The numbers in a label that are counts, as `BARE_COUNT` says, with those a
+    reference word names left out."""
+    out = []
+    for m in BARE_COUNT.finditer(label):
+        before = re.findall(r"[A-Za-z]+", label[: m.start()])
+        if not before or before[-1].lower() not in REFERENCE_WORDS:
+            out.append(m.group(1))
+    return out
+
+
+def without_counts(label: str) -> str:
+    """The label with its bare counts taken out; `5 spaces at` becomes `spaces at`."""
+    out = []
+    pos = 0
+    for m in BARE_COUNT.finditer(label):
+        before = re.findall(r"[A-Za-z]+", label[: m.start()])
+        if before and before[-1].lower() in REFERENCE_WORDS:
+            continue
+        out.append(label[pos: m.start()].rstrip())
+        pos = m.end()
+    out.append(label[pos:])
+    return re.sub(r"\(\s+", "(", re.sub(r"\s+", " ", " ".join(out))).strip()
+
+
 def dimension_labels(items: list[dict]) -> list[str]:
     """Every run's wording of a dimension's label, first seen first. Wordings that differ
-    only in case or trailing punctuation are one. A wording carrying a number the
+    only in case or trailing punctuation are one. A wording carrying a bare count the
     dimension string lacks (`printed 5 times`) is a count with no counted row behind it
     (traceability), so it is dropped; when no wording survives, the first is kept with
-    those numbers taken out."""
+    those counts taken out. Sheet and detail references (`REF. DET. 1/S-1`) are kept."""
     printed = set(re.findall(r"\d+", items[0].get("text") or ""))
     labels, seen, stripped = [], set(), []
     for it in items:
@@ -92,10 +125,10 @@ def dimension_labels(items: list[dict]) -> list[str]:
         if not wording or wording in seen:
             continue
         seen.add(wording)
-        if set(re.findall(r"\d+", label)) <= printed:
+        if set(bare_counts(label)) <= printed:
             labels.append(label)
         else:
-            stripped.append(re.sub(r"\s*\d+(?![\d'\"/])", "", label).strip())
+            stripped.append(without_counts(label))
     return labels or stripped[:1]
 
 

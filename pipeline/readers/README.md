@@ -136,7 +136,7 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   that head failed on Nantucket: the reader's first run labelled the `2'-8"` string as the first bracket
   from the wall face and the `11"` string as a wall segment, a label was taken from the first run that
   had it, and Takeoff saw no run and spacing and wrote `3 x 6`.
-- Head b8aa6fb: the vote keeps every run's wording of a dimension label on the row (`A / B`), so Takeoff
+- Head b8aa6fb: the vote keeps every run's wording of a dimension label on the row (`A | B`; ` / ` stays for conflicting readings), so Takeoff
   sees each run's reading of what the string spans, and the drawing prompt says the string printed again
   and again along a row of symbols is the spacing and the short string from the wall face to the first
   symbol is the end offset. Run 37941692004 passed on both jobs; the `11"` row carried two wordings and
@@ -150,8 +150,8 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   the item's own per-assembly unit (`per bracket assembly` names the bracket), an item is compared with its
   own kind's symbols when a view has two kinds, every symbol count on the view is compared when none names
   the assembly, and label wordings that differ only in case or trailing punctuation count as one. A
-  wording carrying a number the dimension string lacks is dropped by the vote (a count belongs in a
-  counted row), and a spaces or assembly-count item is compared only with the symbols its own dimension
+  wording carrying a bare count the dimension string lacks (`printed 5 times`) is dropped by the vote (a
+  count belongs in a counted row; sheet and detail references such as `1/S-1` are left alone), and a spaces or assembly-count item is compared only with the symbols its own dimension
   rows name when a view has two kinds of assembly.
 
 ## The ruling still open

@@ -210,7 +210,7 @@ class ExportCase(unittest.TestCase):
         cases = [
             ("fetch", "2026-10-09; sha256 ab12; served by https://example.gov/final", "read", ""),
             ("fetch", "2026-10-09; not fetched: example.com is not on the allowlist", "off-list", "example.com"),
-            ("fetch", "2026-10-09; not fetched: vendor.example.com is not on the allowlist; served by https://vendor.example.com/", "off-list", "vendor.example.com"),
+            ("fetch", "2026-10-09; not fetched: vendor.example.com is not on the allowlist", "off-list", "vendor.example.com"),   # a redirect hop: no `served by`, the fetcher stops before reading
             ("fetch", "2026-10-09; not fetched: localhost is the local machine", "unsafe", "localhost"),
             ("fetch", "2026-10-09; not fetched: 127.0.0.1 is a non-public address", "unsafe", "127.0.0.1"),
             ("fetch", "2026-10-09; not fetched: only http(s) URLs are fetched, not 'file'", "unsafe", "only http(s) URLs are fetched, not 'file'"),

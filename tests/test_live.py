@@ -186,6 +186,7 @@ class LiveClientCase(unittest.TestCase):
         body = api.requests[0]
         self.assertEqual(body["model"], "claude-haiku-5-5")
         self.assertEqual(body["system"][0]["cache_control"], {"type": "ephemeral"})
+        self.assertEqual(body["cache_control"], {"type": "ephemeral"})   # the unit too, for runs 2 and later
         self.assertEqual(body["output_config"]["format"]["type"], "json_schema")
         self.assertEqual(body["output_config"]["effort"], "high")
         self.assertEqual(len(body["messages"]), 1)
@@ -426,7 +427,7 @@ class ExactCase(unittest.TestCase):
     def test_the_request_body_exactly(self):
         client = live.LiveClient(api=OneAnswer(), model="m", max_tokens=7)
         self.assertEqual(client.request("spec", self.unit, "sys", schemas.SPEC), {
-            "model": "m", "max_tokens": 7,
+            "model": "m", "max_tokens": 7, "cache_control": {"type": "ephemeral"},
             "system": [{"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}],
             "messages": [{"role": "user", "content": live.content_for("spec", self.unit)}],
             "output_config": {"format": {"type": "json_schema", "schema": live.api_schema(schemas.SPEC)},

@@ -231,16 +231,21 @@ class LiveClient:
 
     def request(self, reader: str, unit: Unit, system: str, schema: dict) -> dict:
         """The request body for one call. Identical for every run of a unit, so the
-        three runs differ only by sampling, and the system prompt prefix is cached."""
+        runs differ only by sampling, and every run after the first reads the
+        system prompt and the unit from the cache."""
         key = json.dumps(schema, sort_keys=True)   # a per-job schema is a new object each run
         if key not in self._schemas:
             self._schemas[key] = api_schema(schema)
         output_config = {"format": {"type": "json_schema", "schema": self._schemas[key]}}
         if self.effort:
             output_config["effort"] = self.effort
+        # Two cache points: the system prompt (shared by every unit of a reader) and,
+        # through the top-level marker, the whole request up to the unit itself, so
+        # the second and later runs of a unit read the page from the cache.
         return {
             "model": self.model_id,
             "max_tokens": self.max_tokens,
+            "cache_control": {"type": "ephemeral"},
             "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             "messages": [{"role": "user", "content": content_for(reader, unit)}],
             "output_config": output_config,

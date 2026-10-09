@@ -10,8 +10,13 @@ name: mutation
 # 1,260 of some 1,500 wall-clock minutes by 2026-10-08, mostly on draft pushes
 # later superseded). So it runs on a PR once it is ready for review and on each
 # push after, not on drafts, and not again on main after the merge: the PR run
-# already gated that PR's code. A weekly run on main catches two PRs that each
-# passed but together fall below the floor; it can also be run by hand.
+# already gated that PR's code. On a PR it runs only the mutants in the
+# pipeline modules the PR changes (tools/changed_mutants.py; a changed test
+# file stands for the modules it imports, read from the base if the PR deletes
+# it; a change to the mutation tooling itself picks every module), and none
+# when it changes no module. The gate scores those mutants together. The weekly run on main runs them all,
+# catching a module no PR touched that has fallen below the floor; it can also
+# be run by hand.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -20,6 +25,7 @@ on:
       - "tests/**"
       - "pyproject.toml"
       - "tools/mutation_gate.py"
+      - "tools/changed_mutants.py"
       - ".github/workflows/mutation.yml"
   schedule:
     - cron: "41 7 * * 1"   # weekly, on main
@@ -39,6 +45,8 @@ jobs:
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # the PR's diff against its base names the modules to mutate
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
@@ -47,12 +55,30 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils
           python -m pip install --quiet -r requirements.txt pytest==9.1.1 mutmut==3.8.0
-      - name: Run mutmut on pipeline/
-        run: python -m mutmut run --max-children "$(nproc)"
+      - name: Pick the mutants (a PR's changed modules; everything on main)
+        id: pick
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            python tools/changed_mutants.py "$BASE" > .mutants.txt
+            echo "modules: $(tr '\n' ' ' < .mutants.txt)"
+            grep -q . .mutants.txt && echo run=yes >> "$GITHUB_OUTPUT" || echo run=no >> "$GITHUB_OUTPUT"
+          else
+            : > .mutants.txt
+            echo run=yes >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run mutmut
+        if: steps.pick.outputs.run == 'yes'
+        run: xargs -a .mutants.txt python -m mutmut run --max-children "$(nproc)"
+      - name: No pipeline module changed, so no mutant to run
+        if: steps.pick.outputs.run == 'no'
+        run: echo "this PR changes no module under pipeline/; the weekly run on main covers them all"
       - name: Surviving mutants
-        if: always()
+        if: always() && steps.pick.outputs.run == 'yes'
         run: python -m mutmut results | grep -E "survived|no tests" || true
       - name: Mutation score is at or above the floor
+        if: steps.pick.outputs.run == 'yes'
         run: |
           python -m mutmut export-cicd-stats
           python tools/mutation_gate.py

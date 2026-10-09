@@ -35,18 +35,23 @@ docker compose run --rm pipeline verify-fixtures --out /runs/verify
 CHRISBIDS_PACKET=/mnt/project-files docker compose run --rm tests
 ```
 
-Mutation testing, which CI runs on every PR that touches `pipeline/` or `tests/`
-([`.github/workflows/mutation.yml`](.github/workflows/mutation.yml)):
+Mutation testing ([`.github/workflows/mutation.yml`](.github/workflows/mutation.yml)). On a
+PR, CI runs only the mutants in the `pipeline/` modules the PR changes, and in the modules
+its changed test files import, and gates on their combined score; a weekly run on main
+runs them all:
 
 ```
 pip install pytest mutmut
 python3 -m mutmut run                     # small edits to pipeline/, the tests run against each
+python3 tools/changed_mutants.py origin/main | grep -q . && python3 -m mutmut run $(python3 tools/changed_mutants.py origin/main)   # this branch's modules; nothing printed means nothing to run (bare `mutmut run` is everything)
 python3 -m mutmut results                 # the mutants no test caught
 python3 -m mutmut export-cicd-stats && python3 tools/mutation_gate.py
 ```
 
 The gate fails below the floor in [`tools/mutation_gate.py`](tools/mutation_gate.py). The floor
-only goes up: a PR that adds code adds the tests that kill its mutants.
+only goes up: a PR that adds code adds the tests that kill its mutants. A picked module
+that gives mutmut nothing to mutate stops the run ("Filtered for specific mutants, but
+nothing matches"); list such a module in `do_not_mutate` in `pyproject.toml`.
 
 ## The rule
 

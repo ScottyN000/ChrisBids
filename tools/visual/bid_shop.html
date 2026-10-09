@@ -1,0 +1,409 @@
+<title>Bid Shop Floor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a shop floor (canvas) on the left where characters carry a job between stations,
+   a narrow side column with the meter (cost), the backlog and the log. One screen on desktop,
+   stacked on a phone. */
+:root {
+  --bg: #eaeef3;          /* drafting-table grey with a blue cast */
+  --floor: #f6f8fa;
+  --panel: #ffffff;
+  --line: #c9d2dc;
+  --fg: #16212e;
+  --muted: #5b6b7c;
+  --accent: #e8731a;      /* hard-hat orange */
+  --ledger: #2f7d4f;      /* filing-cabinet green */
+  --warn: #b3261e;
+  --ink: #1f4e79;         /* blueprint ink */
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151c; --floor: #161e27; --panel: #1b2530; --line: #2f3d4b; --fg: #e6ecf2; --muted: #93a3b3;
+    --accent: #ff8a3d; --ledger: #4fb076; --warn: #ff6b60; --ink: #7fb3e6; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151c; --floor: #161e27; --panel: #1b2530; --line: #2f3d4b; --fg: #e6ecf2; --muted: #93a3b3;
+  --accent: #ff8a3d; --ledger: #4fb076; --warn: #ff6b60; --ink: #7fb3e6; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.4; }
+.wrap { padding-block: 12px; padding-inline: 16px; display: flex; flex-direction: column; gap: 10px; min-height: 100%; box-sizing: border-box; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 30px; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+h1 small { font-weight: 500; color: var(--muted); font-size: 16px; margin-left: 8px; font-family: var(--body); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+.controls label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+select, button, input[type=range] { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; }
+button { cursor: pointer; }
+button.primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 600; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.file { position: relative; overflow: hidden; }
+.file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 10px; flex: 1; min-height: 0; }
+.floorbox { background: var(--floor); border: 1px solid var(--line); border-radius: 10px; position: relative; min-width: 0; min-height: 420px; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; }
+.caption { position: absolute; left: 12px; bottom: 10px; font-family: var(--mono); font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--floor) 80%, transparent); padding: 2px 6px; border-radius: 4px; max-width: calc(100% - 24px); }
+aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.card h2 { font-family: var(--display); font-weight: 700; font-size: 18px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.big { font-family: var(--mono); font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.sub { color: var(--muted); font-size: 13px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+td, th { padding: 3px 4px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.n, th.n { text-align: right; font-family: var(--mono); }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.log { font-family: var(--mono); font-size: 12px; max-height: 190px; overflow: auto; margin: 0; padding: 0; list-style: none; }
+.log li { padding: 2px 0; border-bottom: 1px dashed var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log li.denied { color: var(--warn); }
+.log li.append { color: var(--ledger); }
+.pill { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); margin-left: 6px; vertical-align: middle; }
+.pill.hot { border-color: var(--accent); color: var(--accent); }
+footer { color: var(--muted); font-size: 12px; }
+footer a { color: var(--ink); }
+@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } .floorbox { min-height: 360px; } }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Bid Shop Floor <small id="jobline">loading</small></h1>
+    <div class="controls">
+      <label for="job">Job</label>
+      <select id="job"></select>
+      <span class="file"><button id="loadbtn" type="button">Load a run</button><input id="loadfile" type="file" accept="application/json" aria-label="Load a timeline.json exported by tools/export_run.py"></span>
+      <button id="play" class="primary" type="button">Play</button>
+      <button id="step" type="button">Step</button>
+      <button id="reset" type="button">Restart</button>
+      <label for="speed">Speed</label>
+      <input id="speed" type="range" min="0.25" max="4" step="0.25" value="1" aria-label="Playback speed">
+    </div>
+  </header>
+  <main>
+    <div class="floorbox">
+      <canvas id="floor" aria-label="Shop floor: characters carry the job between stations"></canvas>
+      <div class="caption" id="caption">Press Play. Every move on the floor is one row of the run's audit log.</div>
+    </div>
+    <aside>
+      <div class="card">
+        <h2>Meter</h2>
+        <div class="big" id="cost">$0.0000</div>
+        <div class="sub" id="costsub">model spend so far</div>
+        <table id="costtable"><tbody></tbody></table>
+        <div class="sub" id="pricesrc"></div>
+      </div>
+      <div class="card">
+        <h2>Who is backed up</h2>
+        <table id="backlog"><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h2>Who did what</h2>
+        <table id="whodid"><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h2>Floor log</h2>
+        <ul class="log" id="log"></ul>
+      </div>
+    </aside>
+  </main>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Nothing on the floor is invented; a replay run bills no tokens, so its meter stays at zero. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+</div>
+
+<script id="runs" type="application/json">__RUNS__</script>
+<script>
+(function () {
+  'use strict';
+  const RUNS = JSON.parse(document.getElementById('runs').textContent);
+  const $ = id => document.getElementById(id);
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // ---- the floor plan: stations on a 1000 x 560 grid, scaled to the canvas ----
+  const PLAN = {
+    packet:        { x: 60,  y: 100, kind: 'tray',   name: 'Bid packet' },
+    intake:        { x: 180, y: 100, kind: 'desk',   name: 'Intake',        hat: 'yellow' },
+    register:      { x: 300, y: 100, kind: 'tray',   name: 'Source Register' },
+    orchestrator:  { x: 420, y: 100, kind: 'board',  name: 'Orchestrator',  hat: 'white' },
+    drawing:       { x: 560, y: 60,  kind: 'desk',   name: 'Drawing Reader', hat: 'orange' },
+    spec:          { x: 560, y: 150, kind: 'desk',   name: 'Spec Reader',    hat: 'orange' },
+    photo:         { x: 560, y: 240, kind: 'desk',   name: 'Photo Reader',   hat: 'orange' },
+    correspondence:{ x: 560, y: 330, kind: 'desk',   name: 'Correspondence', hat: 'orange' },
+    takeoff:       { x: 720, y: 100, kind: 'bench',  name: 'Takeoff',        hat: 'blue' },
+    codes:         { x: 720, y: 210, kind: 'desk',   name: 'Codes & Regs',   hat: 'blue' },
+    materials:     { x: 720, y: 300, kind: 'desk',   name: 'Materials',      hat: 'blue' },
+    customer:      { x: 720, y: 390, kind: 'desk',   name: 'Customer Reqs',  hat: 'blue', planned: true },
+    ledger:        { x: 430, y: 460, kind: 'cabinet',name: 'Claim ledger' },
+    scope_writer:  { x: 600, y: 470, kind: 'desk',   name: 'Scope Writer',   hat: 'green' },
+    auditor:       { x: 760, y: 470, kind: 'desk',   name: 'Auditor',        hat: 'white' },
+    ships:         { x: 920, y: 470, kind: 'door',   name: 'Bid ships' },
+  };
+  const HAT = { yellow: '#f2c200', white: '#f4f4f4', orange: null, blue: '#3b7dd8', green: '#3fa66a' };
+
+  // ---- playback state ----
+  let run = null, events = [], cursor = 0, playing = false, speed = 1, raf = 0, last = 0;
+  let clock = 0;                 // ms of floor time
+  const workers = {};            // station -> {busy:until, bubble:text, flash:until}
+  const slips = [];              // flying papers {from,to,t0,t1,kind}
+  const stacks = {};             // station -> units not yet started (backlog)
+  const done = {};               // station -> units finished
+  const did = {};                // principal -> {calls, claims, denied}
+  let spend = 0; const spendBy = {};  // station -> dollars
+  const logEl = $('log');
+
+  function priceFor(model, promptTokens) {
+    const table = run.prices && run.prices.models; if (!table || !model) return null;
+    const m = model.toLowerCase();
+    const want = m.includes('haiku') && m.includes('5-5') ? 'haiku 5.5' : m.includes('sonnet') && m.includes('5-5') ? 'sonnet 5.5'
+               : m.includes('opus') && m.includes('5-5') ? 'opus 5.5' : m.includes('fable') ? 'fable 5.1' : null;
+    if (!want) return null;
+    const names = Object.keys(table).filter(n => n.toLowerCase().includes(want));
+    if (!names.length) return null;
+    let name = names[0];
+    if (names.length > 1) name = names.find(n => (promptTokens > 100000) === /over 100,000/.test(n)) || names[0];
+    return { name, p: table[name] };
+  }
+  function callCost(c) {
+    const u = c.usage || {}; const prompt = (u.input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.cache_read_input_tokens||0);
+    const pr = priceFor(c.model, prompt); if (!pr) return null;
+    const p = pr.p;
+    return ((u.input_tokens||0)*p.input + (u.cache_creation_input_tokens||0)*p.cache_write_5m
+          + (u.cache_read_input_tokens||0)*p.cache_read + (u.output_tokens||0)*p.output) / 1e6;
+  }
+
+  function load(r) {
+    run = r; events = r.events || []; cursor = 0; clock = 0; playing = false; $('play').textContent = 'Play';
+    for (const k in workers) delete workers[k]; slips.length = 0;
+    for (const k in stacks) delete stacks[k]; for (const k in done) delete done[k]; for (const k in did) delete did[k];
+    spend = 0; for (const k in spendBy) delete spendBy[k]; logEl.innerHTML = '';
+    // backlog: every unit a station will read, from the model-call rows ahead of us
+    for (const e of events) if (e.action === 'model-call') {
+      const u = e.subject.split('#')[0] + '#' + (e.subject.split('#')[1] || '');
+      (stacks[e.station] = stacks[e.station] || new Set()).add(e.subject);
+      done[e.station] = done[e.station] || new Set();
+    }
+    // the ledger's unit of work is the claim row
+    const calls = r.calls || [];
+    run._callIndex = {}; for (const c of calls) run._callIndex[`${c.unit_id}|${c.run}`] = c;
+    $('jobline').textContent = `${r.job || '?'} · ${r.run_id || ''} · ${events.length} log rows, ${(r.claims||[]).length} claims` + (calls.length ? `, ${calls.length} model calls billed` : ', replay (recorded answers, nothing billed)');
+    $('caption').textContent = 'Press Play. Every move on the floor is one row of the run\'s audit log.';
+    const src = r.prices ? `Prices: ${r.prices.unit}, read from ${r.prices.source_url} at ${r.prices.fetched_at}.` : 'No price table in this export (run tools/fetch_prices.py and pass --prices).';
+    $('pricesrc').textContent = src;
+    renderPanels(); draw();
+  }
+
+  // ---- applying one audit-log row to the floor ----
+  const DUR = { 'model-call': 1100, append: 420, register: 260, denied: 700, default: 300 };
+  function apply(e) {
+    const w = workers[e.station] = workers[e.station] || {};
+    const d = did[e.principal] = did[e.principal] || { calls: 0, claims: 0, denied: 0 };
+    const dur = (DUR[e.action] || DUR.default);
+    if (e.action === 'register') {
+      slips.push({ from: 'packet', to: 'register', t0: clock, t1: clock + dur, kind: 'page', label: e.subject });
+      w.busy = clock + dur; w.bubble = `files ${e.subject}`; d.claims += 1;
+      log(`${e.principal} registers ${e.subject} (${e.detail})`, e.action);
+    } else if (e.action === 'model-call') {
+      if (stacks[e.station]) { stacks[e.station].delete(e.subject); }
+      w.busy = clock + dur; w.bubble = `${e.replay ? 'replays' : 'reads'} ${e.subject}, run ${e.run || '?'}`;
+      if (e.run === 1) slips.push({ from: 'register', to: e.station, t0: clock, t1: clock + dur * 0.6, kind: 'page', label: e.subject });
+      d.calls += 1;
+      const c = run._callIndex && run._callIndex[`${e.subject}|${e.run}`];
+      if (c) { const cost = callCost(c); if (cost != null) { spend += cost; spendBy[e.station] = (spendBy[e.station] || 0) + cost; } }
+      log(`${e.principal} ${w.bubble}${c ? ` · ${c.usage.input_tokens + (c.usage.cache_read_input_tokens||0) + (c.usage.cache_creation_input_tokens||0)} in, ${c.usage.output_tokens} out` : ''}`, e.action);
+    } else if (e.action === 'append') {
+      slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'slip', label: e.subject });
+      d.claims += 1; if (done[e.station]) done[e.station].add(e.subject);
+      w.busy = Math.max(w.busy || 0, clock + dur * 0.5); w.bubble = `writes ${e.subject}`;
+      log(`${e.principal} writes ${e.subject} (${e.detail})`, e.action);
+    } else if (e.action === 'denied') {
+      slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'bounce', label: e.subject });
+      w.flash = clock + dur; d.denied += 1;
+      log(`${e.principal} refused: ${e.subject}`, e.action);
+    } else {
+      w.busy = clock + dur; w.bubble = `${e.action} ${e.subject}`.trim();
+      log(`${e.principal} ${e.action} ${e.subject}`, e.action);
+    }
+    return dur;
+  }
+  function log(text, cls) {
+    const li = document.createElement('li'); li.textContent = text; li.className = cls; logEl.prepend(li);
+    while (logEl.children.length > 60) logEl.lastChild.remove();
+  }
+
+  let nextAt = 0;
+  function tick(now) {
+    if (!last) last = now; const dt = Math.min(100, now - last) * speed; last = now;
+    if (playing) {
+      clock += dt;
+      while (cursor < events.length && clock >= nextAt) { nextAt = clock + apply(events[cursor++]) * 0.9; }
+      if (cursor >= events.length && clock > nextAt + 1500) { playing = false; $('play').textContent = 'Play'; $('caption').textContent = `Done: ${(run.claims||[]).length} claims on the ledger. ${finishLine()}`; }
+      renderPanels();
+    }
+    draw();
+    raf = requestAnimationFrame(tick);
+  }
+  function finishLine() {
+    const flagged = (run.claims || []).filter(c => c.flag).length;
+    return flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.';
+  }
+
+  // ---- side panels ----
+  function renderPanels() {
+    $('cost').textContent = '$' + spend.toFixed(4);
+    const tb = $('costtable').tBodies[0]; tb.innerHTML = '';
+    const rows = Object.entries(spendBy).sort((a, b) => b[1] - a[1]);
+    const max = rows.length ? rows[0][1] : 0;
+    for (const [st, v] of rows) {
+      const tr = tb.insertRow(); tr.insertCell().textContent = PLAN[st] ? PLAN[st].name : st;
+      const c = tr.insertCell(); c.className = 'n'; c.textContent = '$' + v.toFixed(4);
+      const b = tr.insertCell(); b.innerHTML = `<div class="bar"><i style="width:${max ? (100 * v / max).toFixed(0) : 0}%"></i></div>`;
+    }
+    if (!rows.length) { const tr = tb.insertRow(); const c = tr.insertCell(); c.colSpan = 3; c.className = 'sub'; c.textContent = (run.calls && run.calls.length) ? 'spend appears as calls are made' : 'replay run: recorded answers, no tokens billed'; }
+    const bl = $('backlog').tBodies[0]; bl.innerHTML = '';
+    const items = Object.keys(stacks).map(st => ({ st, waiting: stacks[st].size, busy: workers[st] && workers[st].busy > clock }))
+      .sort((a, b) => b.waiting - a.waiting);
+    for (const it of items) {
+      const tr = bl.insertRow(); tr.insertCell().textContent = PLAN[it.st] ? PLAN[it.st].name : it.st;
+      const c = tr.insertCell(); c.className = 'n'; c.textContent = it.waiting ? `${it.waiting} waiting` : 'clear';
+      const p = tr.insertCell(); p.innerHTML = it.busy ? '<span class="pill hot">working</span>' : it.waiting ? '<span class="pill">queued</span>' : '<span class="pill">idle</span>';
+    }
+    if (!items.length) { const tr = bl.insertRow(); const c = tr.insertCell(); c.className = 'sub'; c.textContent = 'no reader work in this run'; }
+    const wd = $('whodid').tBodies[0]; wd.innerHTML = '';
+    const head = wd.insertRow(); for (const h of ['who', 'calls', 'rows filed', 'refused']) { const th = document.createElement('th'); th.textContent = h; if (h !== 'who') th.className = 'n'; head.appendChild(th); }
+    for (const [p, d] of Object.entries(did)) {
+      const tr = wd.insertRow(); tr.insertCell().textContent = p.replace(/_/g, ' ');
+      for (const k of ['calls', 'claims', 'denied']) { const c = tr.insertCell(); c.className = 'n'; c.textContent = d[k]; }
+    }
+  }
+
+  // ---- drawing ----
+  const cv = $('floor'); const ctx = cv.getContext('2d');
+  function fit() {
+    const box = cv.parentElement.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(box.width * dpr); cv.height = Math.round(box.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); cv._w = box.width; cv._h = box.height;
+  }
+  function pos(st) { const p = PLAN[st] || { x: 500, y: 280 }; const s = Math.min(cv._w / 1000, cv._h / 560); const ox = (cv._w - 1000 * s) / 2, oy = (cv._h - 560 * s) / 2; return { x: ox + p.x * s, y: oy + p.y * s, s }; }
+  function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+
+  function draw() {
+    if (!run) return;
+    const fg = css('--fg'), muted = css('--muted'), line = css('--line'), accent = css('--accent'), ledger = css('--ledger'), warn = css('--warn'), ink = css('--ink'), panel = css('--panel'), floor = css('--floor');
+    ctx.clearRect(0, 0, cv._w, cv._h);
+    const s = pos('intake').s;
+    // floor grid, like a drafting sheet
+    ctx.strokeStyle = line; ctx.lineWidth = 0.5; ctx.globalAlpha = 0.5;
+    for (let x = 0; x < cv._w; x += 40 * s) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cv._h); ctx.stroke(); }
+    for (let y = 0; y < cv._h; y += 40 * s) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cv._w, y); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    // routes
+    ctx.strokeStyle = line; ctx.lineWidth = 2 * s; ctx.setLineDash([6 * s, 6 * s]);
+    for (const e of run.edges || []) { if (!PLAN[e.from] || !PLAN[e.to]) continue; const a = pos(e.from), b = pos(e.to); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    ctx.setLineDash([]);
+    // stations
+    for (const st in PLAN) {
+      const p = PLAN[st], q = pos(st); const w = workers[st] || {};
+      const busy = (w.busy || 0) > clock, flash = (w.flash || 0) > clock;
+      ctx.font = `${Math.max(10, 13 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      if (p.kind === 'cabinet') {
+        drawCabinet(q.x, q.y, s, ledger, panel, fg, (run.claims || []).length, countDone());
+      } else if (p.kind === 'door') {
+        ctx.fillStyle = panel; ctx.strokeStyle = fg; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 22 * s, q.y - 40 * s, 44 * s, 70 * s); ctx.strokeRect(q.x - 22 * s, q.y - 40 * s, 44 * s, 70 * s);
+        ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(q.x + 14 * s, q.y - 2 * s, 3 * s, 0, 7); ctx.fill();
+        ctx.fillStyle = muted; ctx.fillText('the estimator releases by hand', q.x, q.y + 34 * s);
+      } else if (p.kind === 'tray') {
+        ctx.fillStyle = panel; ctx.strokeStyle = ink; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 30 * s, q.y - 14 * s, 60 * s, 28 * s); ctx.strokeRect(q.x - 30 * s, q.y - 14 * s, 60 * s, 28 * s);
+        const n = st === 'register' ? countRegistered() : 0;
+        for (let i = 0; i < Math.min(n, 8); i++) { ctx.fillStyle = i % 2 ? panel : floor; ctx.strokeStyle = muted; ctx.lineWidth = 1; ctx.fillRect(q.x - 24 * s + i * 2 * s, q.y - 10 * s - i * 1.5 * s, 46 * s, 20 * s); ctx.strokeRect(q.x - 24 * s + i * 2 * s, q.y - 10 * s - i * 1.5 * s, 46 * s, 20 * s); }
+        if (st === 'register' && n) { ctx.fillStyle = fg; ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.fillText(String(n), q.x, q.y - 6 * s); }
+      } else {
+        // a desk with a worker behind it
+        const dim = p.planned && !(stacks[st] && stacks[st].size);
+        ctx.globalAlpha = dim ? 0.35 : 1;
+        ctx.fillStyle = panel; ctx.strokeStyle = flash ? warn : (busy ? accent : line); ctx.lineWidth = busy || flash ? 2.5 : 1.5;
+        roundRect(q.x - 34 * s, q.y - 8 * s, 68 * s, 22 * s, 4 * s); ctx.fill(); ctx.stroke();
+        drawWorker(q.x, q.y - 26 * s, s, p.hat, busy, clock, fg, accent, panel);
+        // waiting packets beside the desk
+        const waiting = stacks[st] ? stacks[st].size : 0;
+        for (let i = 0; i < Math.min(waiting, 6); i++) { ctx.fillStyle = floor; ctx.strokeStyle = muted; ctx.lineWidth = 1; ctx.fillRect(q.x + 40 * s, q.y + 6 * s - i * 5 * s, 16 * s, 11 * s); ctx.strokeRect(q.x + 40 * s, q.y + 6 * s - i * 5 * s, 16 * s, 11 * s); }
+        if (waiting > 6) { ctx.fillStyle = muted; ctx.font = `${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.fillText('+' + (waiting - 6), q.x + 58 * s, q.y - 24 * s); ctx.textAlign = 'center'; }
+        if (busy && w.bubble) bubble(q.x, q.y - 62 * s, s, w.bubble, panel, fg, line);
+        ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = fg; ctx.font = `${Math.max(10, 13 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center';
+      ctx.fillText(p.name.toUpperCase(), q.x, q.y + (p.kind === 'cabinet' ? 60 : p.kind === 'door' ? 44 : 18) * s);
+    }
+    // flying slips
+    for (let i = slips.length - 1; i >= 0; i--) {
+      const sl = slips[i]; const t = (clock - sl.t0) / (sl.t1 - sl.t0);
+      if (t >= 1.3) { slips.splice(i, 1); continue; }
+      const a = pos(sl.from), b = pos(sl.to); let k = ease(Math.min(1, Math.max(0, t)));
+      if (sl.kind === 'bounce' && t > 0.5) k = ease(1 - (t - 0.5)) ;
+      const x = a.x + (b.x - a.x) * k, y = a.y + (b.y - a.y) * k - Math.sin(Math.PI * Math.min(1, k)) * 18 * s;
+      ctx.save(); ctx.translate(x, y); ctx.rotate((k - 0.5) * 0.4);
+      ctx.fillStyle = sl.kind === 'bounce' ? warn : (sl.kind === 'slip' ? '#fff6d6' : panel); ctx.strokeStyle = sl.kind === 'slip' ? ledger : ink; ctx.lineWidth = 1;
+      ctx.fillRect(-9 * s, -6 * s, 18 * s, 12 * s); ctx.strokeRect(-9 * s, -6 * s, 18 * s, 12 * s);
+      ctx.strokeStyle = muted; ctx.beginPath(); ctx.moveTo(-6 * s, -2 * s); ctx.lineTo(6 * s, -2 * s); ctx.moveTo(-6 * s, 2 * s); ctx.lineTo(3 * s, 2 * s); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  function countDone() { let n = 0; for (const st in done) n += done[st].size; return n; }
+  function countRegistered() { let n = 0; for (let i = 0; i < cursor; i++) if (events[i].action === 'register') n++; return n; }
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function drawWorker(x, y, s, hat, busy, t, fg, accent, panel) {
+    const bob = busy ? Math.sin(t / 120) * 1.5 * s : 0;
+    ctx.save(); ctx.translate(x, y + bob);
+    ctx.fillStyle = fg; ctx.globalAlpha = 0.85;
+    roundRect(-9 * s, 6 * s, 18 * s, 16 * s, 4 * s); ctx.fill();          // body
+    ctx.globalAlpha = 1; ctx.fillStyle = panel; ctx.strokeStyle = fg; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(0, 0, 7 * s, 0, 7); ctx.fill(); ctx.stroke();  // head
+    ctx.fillStyle = HAT[hat] || accent; ctx.beginPath(); ctx.arc(0, -1 * s, 7.5 * s, Math.PI, 0); ctx.fill();   // hard hat
+    ctx.fillRect(-9 * s, -1.5 * s, 18 * s, 2 * s);
+    ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(-2.5 * s, 1.5 * s, 0.8 * s, 0, 7); ctx.arc(2.5 * s, 1.5 * s, 0.8 * s, 0, 7); ctx.fill();
+    if (busy) { ctx.strokeStyle = fg; ctx.lineWidth = 1.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, 12 * s); ctx.lineTo(-16 * s, 18 * s + Math.sin(t / 90) * 3 * s); ctx.stroke(); }
+    ctx.restore();
+  }
+  function bubble(x, y, s, text, panel, fg, line) {
+    ctx.font = `${Math.max(10, 11 * s)}px "IBM Plex Mono", monospace`; const w = ctx.measureText(text).width + 14 * s, h = 18 * s;
+    ctx.fillStyle = panel; ctx.strokeStyle = line; ctx.lineWidth = 1; roundRect(x - w / 2, y - h, w, h, 5 * s); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 4 * s, y); ctx.lineTo(x, y + 5 * s); ctx.lineTo(x + 4 * s, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y - h / 2); ctx.textBaseline = 'top';
+  }
+  function drawCabinet(x, y, s, ledger, panel, fg, total, filed) {
+    ctx.fillStyle = panel; ctx.strokeStyle = ledger; ctx.lineWidth = 2; roundRect(x - 40 * s, y - 40 * s, 80 * s, 80 * s, 4 * s); ctx.fill(); ctx.stroke();
+    for (let i = 0; i < 3; i++) { ctx.strokeStyle = ledger; ctx.lineWidth = 1; ctx.strokeRect(x - 34 * s, y - 34 * s + i * 25 * s, 68 * s, 20 * s); ctx.fillStyle = ledger; ctx.fillRect(x - 6 * s, y - 25 * s + i * 25 * s, 12 * s, 2 * s); }
+    // the drawer fills as rows are appended (append events counted by the log)
+    const n = appended();
+    ctx.fillStyle = ledger; ctx.globalAlpha = 0.25; ctx.fillRect(x - 34 * s, y - 34 * s, 68 * s * Math.min(1, total ? n / total : 0), 20 * s); ctx.globalAlpha = 1;
+    ctx.fillStyle = fg; ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center';
+    ctx.fillText(`${n} / ${total} rows`, x, y + 44 * s);
+  }
+  function appended() { let n = 0; for (let i = 0; i < cursor; i++) if (events[i].action === 'append') n++; return n; }
+
+  // ---- controls ----
+  $('play').addEventListener('click', () => { if (cursor >= events.length) { load(run); } playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; if (playing && !nextAt) nextAt = clock; });
+  $('step').addEventListener('click', () => { playing = false; $('play').textContent = 'Play'; if (cursor < events.length) { clock = Math.max(clock, nextAt); nextAt = clock + apply(events[cursor++]); renderPanels(); } });
+  $('reset').addEventListener('click', () => load(run));
+  $('speed').addEventListener('input', e => { speed = parseFloat(e.target.value); });
+  $('job').addEventListener('change', e => { const r = RUNS[e.target.value]; if (r) load(r); });
+  $('loadbtn').addEventListener('click', () => $('loadfile').click());
+  $('loadfile').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return; const rd = new FileReader();
+    rd.onload = () => { try { const r = JSON.parse(rd.result); if (!r.events) throw new Error('no events'); RUNS[f.name] = r; const o = document.createElement('option'); o.value = f.name; o.textContent = `${r.job || f.name} (loaded)`; $('job').appendChild(o); $('job').value = f.name; load(r); }
+      catch (err) { $('caption').textContent = `Could not read ${f.name}: expected a timeline.json from tools/export_run.py (${err.message}).`; } };
+    rd.readAsText(f);
+  });
+  window.addEventListener('resize', () => { fit(); draw(); });
+  const mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', draw);
+
+  // ---- boot ----
+  for (const key of Object.keys(RUNS)) { const o = document.createElement('option'); o.value = key; o.textContent = RUNS[key].title || key; $('job').appendChild(o); }
+  fit();
+  const first = Object.keys(RUNS)[0]; if (first) load(RUNS[first]);
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) { /* animation is driven by Play; nothing moves at rest */ }
+  raf = requestAnimationFrame(tick);
+})();
+</script>

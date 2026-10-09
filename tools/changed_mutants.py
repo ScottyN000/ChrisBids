@@ -3,8 +3,12 @@
 mutmut takes mutant name patterns (`pipeline.webread.*`), so a PR that touches
 two modules runs only their mutants instead of all ~9,400. Each mutant is
 tested exactly as in a full run, so a module's score is the same number. A
-module with no function in it has no mutants and is left out (mutmut refuses a
-pattern list that matches nothing). A changed test file stands for the pipeline
+module with no function in it has no mutants and is left out, because mutmut
+3.8 stops with "Filtered for specific mutants, but nothing matches" when no
+pattern matches a mutant, and the job fails. A module whose functions give
+mutmut nothing to mutate (bodies that are only `pass`) is not caught by that
+check and fails the job the same way; list it in `do_not_mutate` to pick it
+out. A changed test file stands for the pipeline
 modules it imports, read from the base when the PR deletes it, and so does
 every test file that imports the changed one (a shared fake, a test another
 test builds on), so a PR that only weakens or removes a test is still measured

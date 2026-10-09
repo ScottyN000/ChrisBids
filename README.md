@@ -49,7 +49,9 @@ python3 -m mutmut export-cicd-stats && python3 tools/mutation_gate.py
 ```
 
 The gate fails below the floor in [`tools/mutation_gate.py`](tools/mutation_gate.py). The floor
-only goes up: a PR that adds code adds the tests that kill its mutants.
+only goes up: a PR that adds code adds the tests that kill its mutants. A picked module
+that gives mutmut nothing to mutate stops the run ("Filtered for specific mutants, but
+nothing matches"); list such a module in `do_not_mutate` in `pyproject.toml`.
 
 ## The rule
 

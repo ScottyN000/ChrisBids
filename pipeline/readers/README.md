@@ -157,6 +157,40 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   assembly-count item is compared only with the symbols its own dimension rows name when a view has two kinds of assembly. The symbol check reads every current row, so a symbol count the
   reader runs disagreed on (a conflict row no formula may use) is still compared and both readings go on the
   note; a count made of the string's own digits (`2 places` on `2'-8"`) is still a count.
+- After PR #17 (the advisor's five deferred items, code and tests only): (a) a wording the vote drops for
+  carrying a count still marks the row (`a run put a count in the label with no counted row`), so Takeoff
+  flags what rests on it whether the count was dropped or kept. (b) Measured on run 37942423549 (head
+  669c6b1, the first with the differing-labels marker): 3 of the 5 dimensioned rows carried `runs word the
+  label differently` (12", 11" and 8"; the run and spacing did not) and 0 of the 4 Takeoff items were
+  flagged, because the 6 bracket symbols on the view agreed with the number the dimensions give; the trigger
+  is left as it is, since a narrower one would need code to read the labels for a run, a spacing and an
+  offset. (c) `#4 bar`, `2 x 4 blocking` and `4x4 posts` are sizes, and `11 inches`, `8 inch CMU`, `6 mil
+  poly` are figures, not counts; a count of spacings is a count however it is written (`5 x 2'-8"`,
+  `5 @ 2'-8"`, `5 × 2'-8"`, `5@2'-8"` and `5x2'-8"` with no spaces, arch p.4's `11 + 5 x 32 + 11`,
+  `5 x 2 ft`, `5 X 32 IN`, `5 x 32 o.c.`), as are `max 5 spaces` and `2 in each bay`. Known gap: a
+  unit-less `N x M` followed by nothing or by a word that fits a size as well (`2 x 4 typ`) reads as a
+  size, so `5 x 32` at the end of a label is not marked. A count kept in a label and used
+  in a formula as a plain number (`{PER} * (5 + 1)`) is noted on the item too, since that number cites no
+  row; an item that uses a dimensioned row at all is left alone there, since the golden formula's own 2
+  (the two ends) would meet a `2 PLACES` label on every item, so a sum with one product on the dimension
+  route and another on a plain number (`{PER} * (5 + 1) + {BOLTS} * ({RUN} - 2 * {END}) / {SPACING} + 1`)
+  is a known gap: its 5 is not noted. (d) An item that
+  rests on a symbol count where
+  the job carries dimension strings naming the assembly counted is flagged unverified whatever else it uses
+  (`takeoff.route_notes`, those rows and their view on the note; a fastener total that takes the anchors
+  from the symbols and the bolts from the dimensions is on that route too, and the symbol check passes such
+  a sum by). The dimension strings that count are those naming what the item's per-assembly rows are per,
+  else what the job's are per, as `symbol_rows` matches them, on any view (the brackets drawn again on the
+  framing plan are the brackets the foundation plan dimensions, arch p.6), so window tags beside a room
+  width (the prompt's own route when no run and spacing are listed) are not flagged; a symbol count whose
+  wording names one of the job's assemblies is held to that name and to what the per-assembly rows in its
+  own terms of the formula are per (bolts per pier times the pier symbols, summed into a bracket total, to
+  the pier strings only; anchors per bracket times the pier symbols, alone or in a sum or product with the
+  per-pier row, to the bracket strings and the pier strings alike), and one whose wording names none to all
+  the item's names; a job with no per-assembly row at all is held to every dimension string on the symbols'
+  own view. (e) The
+  per-PR mutation score goes in the PR description with the run it came from (now in the Every PR bar of
+  `docs/advisor.md`).
 
 ## The ruling still open
 

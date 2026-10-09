@@ -46,7 +46,7 @@ class Voted:
     runs: int                                   # runs made
     readings: dict[str, list] = field(default_factory=dict)  # field -> distinct values, if they differ
     labels: list[str] = field(default_factory=list)  # a drawing dimension's label from every run, first seen first
-    counted_label: bool = False                 # every wording carried a count the string lacks; the first is kept as printed
+    counted_label: bool = False                 # a run's wording carried a count the string lacks (dropped when another survives, else the first is kept as printed)
 
     @property
     def label(self) -> str:
@@ -85,7 +85,20 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
 # hyphen or a letter (`2'-8"`, `1/S-1`, `S-1`, `2x4`), or named by the word before it
 # (`detail 1`, `sheet 2`, `type 3`), is a figure or a reference and is left alone. `TYP.`
 # qualifies a count (`TYP. 2 PLACES`), it names nothing, so it is not a reference word.
-BARE_COUNT = re.compile(r"(?<![\w\-/.'\"])\(?(\d+)\)?(?=\s+[A-Za-z])")
+# A bar size (`#4 bar`) and a lumber size (`2 x 4 blocking`, `2x4`, `2 X 4 BLOCKING`) are sizes, not
+# counts. A size is bare digits on both sides of the x with nothing after the second but a word or
+# another x, so a count of spacings is still a count however it is written: `5 x 2'-8"`, `5 @ 2'-8"`
+# (arch p.6), `5 × 2'-8"`, the same with no spaces as a CAD override prints them (`5@2'-8"`,
+# `5x2'-8"`), arch p.4's own `11 + 5 x 32 + 11`, `5 x 2 ft`, `5 X 32 IN` (drawings print in capitals).
+# A count is followed by a word, by `@` or `×`, or by an x and a figure carrying a mark. A spacing
+# written on centre (`5 x 32 o.c.`) is a count too. Known gap: a unit-less `N x M` followed by nothing,
+# or by a word that fits a size as well (`2 x 4 typ`, `max`), reads as a size. A number followed by a
+# unit word (`11 inches`, `8 inch CMU`, `6 mil poly`) is a figure; a bare `in` is left alone, since
+# `2 in each bay` is a count.
+SIZE_SECOND = r"\d+(?![\d'\"\-/])(?!\s*(?:[+=\-*/]|(?i:in|inches|inch|ft|feet|foot|o\.?c)\b))"
+BARE_COUNT = re.compile(r"(?<![\w\-/.'\"#])(?<!\d[xX×] )(?<!\d [xX×] )\(?(\d+)\)?"
+                        r"(?!\s*[xX×]\s*" + SIZE_SECOND + r")(?=\s+[A-Za-z]|\s*[@×]|\s*[xX×]\s*\d+['\"])")
+FIGURE_UNIT = re.compile(r"(?i)^\s+(?:inches|inch|in\.|ft\.?|feet|foot|mil|ga\.?|gauge|mm|cm|lbs?|psi|psf|oz|kips?)(?![A-Za-z])")
 REFERENCE_WORDS = ("det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item")
 # A reference word right before the number, with only a stop, `#`, `:` and spaces between.
 NAMED_BY_REFERENCE = re.compile(r"(?i)\b(?:" + "|".join(REFERENCE_WORDS) + r")\.?\s*[#:]?\s*$")
@@ -93,19 +106,23 @@ NAMED_BY_REFERENCE = re.compile(r"(?i)\b(?:" + "|".join(REFERENCE_WORDS) + r")\.
 
 def bare_counts(label: str) -> list[str]:
     """The numbers in a label that are counts, as `BARE_COUNT` says, with those a
-    reference word right before them names left out (`detail 1`, not `per plan, 5 spaces`)."""
+    reference word right before them names (`detail 1`, not `per plan, 5 spaces`) and
+    those a unit word follows (`11 inches`) left out."""
     return [m.group(1) for m in BARE_COUNT.finditer(label)
-            if not NAMED_BY_REFERENCE.search(label[: m.start()])]
+            if not NAMED_BY_REFERENCE.search(label[: m.start()]) and not FIGURE_UNIT.match(label[m.end():])]
 
 
 def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
     """Every run's wording of a dimension's label, first seen first, and whether a count
     had to be let through. Wordings that differ only in case or trailing punctuation are
     one. A wording carrying a bare count (`printed 5 times`, with the dimension string
-    itself taken out first) is a count with no counted row behind it (traceability), so
+    itself replaced by `0"` first, a figure that is never a count, so `5x2'-8"` keeps the
+    mark its count is read by) is a count with no counted row behind it (traceability), so
     it is dropped while another wording survives; when none does, the first is kept as
-    printed, never rewritten, and the second value is True so the row can say so. Sheet
-    and detail references (`REF. DET. 1/S-1`) are not counts."""
+    printed, never rewritten. The second value is True whenever a wording carried a count,
+    dropped or kept, so the row can say so and Takeoff can flag what rests on it. Sheet
+    and detail references (`REF. DET. 1/S-1`), sizes (`#4 bar`, `2 x 4`) and figures with a
+    unit word (`11 inches`) are not counts."""
     text = (items[0].get("text") or "").strip()
     labels, seen, counted = [], set(), []
     for it in items:
@@ -114,9 +131,9 @@ def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
         if not wording or wording in seen:
             continue
         seen.add(wording)
-        (counted if bare_counts(label.replace(text, " ") if text else label) else labels).append(label)
+        (counted if bare_counts(label.replace(text, ' 0" ') if text else label) else labels).append(label)
     if labels:
-        return labels, False
+        return labels, bool(counted)
     return counted[:1], bool(counted)
 
 

@@ -22,8 +22,8 @@ both figures in its derivation (determinism: keep both, never pick). An item
 resting on a dimension whose runs worded the label differently is flagged the
 same way, unless an agreeing symbol row confirms the number, because the model
 chose which wording to follow. An item that rests on a symbol count where the
-symbols' view carries dimension strings is flagged too, whatever else it uses:
-the dimension route was there to take (`route_notes`).
+job carries dimension strings naming that assembly is flagged too, whatever else
+it uses: the dimension route was there to take (`route_notes`).
 """
 from __future__ import annotations
 
@@ -274,19 +274,21 @@ def symbol_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
 
 
 def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
-    """A note per symbol count an item rests on where the view the symbols are on
-    carries dimension strings naming the assembly counted, whatever else the item
-    uses: a fastener total that takes the anchors from the symbols and the bolts from
-    the dimensions is on that route too (the symbol check passes a sum of per-assembly
-    products by). The number of assemblies comes from the dimensions (run, spacing, end
-    offsets); a symbol count stands in only when no run and spacing are listed (the
-    prompt's rule). Code cannot tell a run from a room width without reading the
-    labels, so the dimension strings that count are those naming what the item's own
-    per-assembly rows are per (`Bracket spacing: 2'-8"` for a per-bracket row), else
-    what the job's are per, as `symbol_rows` matches them; window tags beside a room
-    width are the prompt's own route and are not flagged. A job with no per-assembly
-    row at all is held to every dimension string on the view. The rows that count go
-    on the note. `claims` is every current row, as for `symbol_rows`.
+    """A note per symbol count an item rests on where the job carries dimension
+    strings naming the assembly counted, whatever else the item uses: a fastener total
+    that takes the anchors from the symbols and the bolts from the dimensions is on
+    that route too (the symbol check passes a sum of per-assembly products by). The
+    number of assemblies comes from the dimensions (run, spacing, end offsets); a
+    symbol count stands in only when no run and spacing are listed (the prompt's rule,
+    job-wide: the brackets drawn again on a plan with no dimension strings are still
+    the brackets the foundation plan dimensions, arch p.5). Code cannot tell a run from
+    a room width without reading the labels, so the dimension strings that count are
+    those naming what the item's own per-assembly rows are per (`Bracket spacing:
+    2'-8"` for a per-bracket row), else what the job's are per, as `symbol_rows`
+    matches them, on any view; window tags beside a room width are the prompt's own
+    route and are not flagged. A job with no per-assembly row at all is held to every
+    dimension string on the symbols' own view. The rows that count go on the note with
+    their view. `claims` is every current row, as for `symbol_rows`.
     """
     claims = list(by_id.values()) if claims is None else claims
     used = _used(item, by_id)
@@ -295,11 +297,16 @@ def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     for c in used:
         if not is_symbol_count(c):
             continue
-        dims = [d for d in claims if d.method == "dimensioned" and (d.source_id, d.locator) == (c.source_id, c.locator)]
-        named = [d for d in dims if any(n in d.statement.lower() for n in names)] if names else dims
+        dims = [d for d in claims if d.method == "dimensioned"]
+        if names:
+            named = [d for d in dims if any(n in d.statement.lower() for n in names)]
+        else:
+            named = [d for d in dims if (d.source_id, d.locator) == (c.source_id, c.locator)]
         if named:
             what = " and ".join(n for n in names if any(n in d.statement.lower() for d in named))
-            notes.append(f"rests on the symbol count {c.claim_id} where {c.locator} carries {what + ' ' if what else ''}"
+            views = _join(d.locator for d in named)
+            notes.append(f"rests on the symbol count {c.claim_id} where {' and '.join(views)} "
+                         f"{'carries' if len(views) == 1 else 'carry'} {what + ' ' if what else ''}"
                          f"dimension strings ({', '.join(d.claim_id for d in named)})")
     return notes
 

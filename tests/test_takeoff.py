@@ -533,18 +533,30 @@ class SymbolCheckCase(unittest.TestCase):
         # A view whose only dimension is a wall thickness names no bracket either.
         wall = reader_row("NAN-DR-FND-06", 8, "in", "East wall thickness: 8\"")
         self.assertEqual(takeoff.route_notes(by_symbols, {six.claim_id: six, ANCH: BY_ID[ANCH], wall.claim_id: wall}), [])
-        # A job with no per-assembly row is held to every dimension string on the view.
+        # An item with no per-assembly row of its own (spaces) is held to what the job's are per.
+        spaces = it("Spaces", f"{{{six.claim_id}}} - 1", 5, "spaces")
+        self.assertEqual(takeoff.route_notes(spaces, rows), [note])
+        # A job with no per-assembly row at all is held to every dimension string on the symbols' view.
         no_per = {k: v for k, v in rows.items() if k != ANCH}
-        self.assertEqual(takeoff.route_notes(it("Spaces", f"{{{six.claim_id}}} - 1", 5, "spaces"), no_per), [
+        self.assertEqual(takeoff.route_notes(spaces, no_per), [
             f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries dimension strings ({SPAN}, {SPACING}, {END})"])
-        # A symbol count on a view with no dimension strings is the number of assemblies (the prompt's rule).
-        elsewhere = reader_row("NAN-DR-FRM-01", 6, "each", "Support symbols", method="counted",
+        # The brackets drawn again on a plan with no dimension strings (arch p.5: 6 symbols on both plans) are
+        # still the brackets the foundation plan dimensions: the rule is job-wide, and the note names that view.
+        elsewhere = reader_row("NAN-DR-FRM-01", 6, "each", "Bracket symbols drawn on the framing plan", method="counted",
                                locator="Partial First Floor Framing Plan", tag="S-1 Frm")
         self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{elsewhere.claim_id}}}", 18),
-                                             {**BY_ID, elsewhere.claim_id: elsewhere}), [])
-        # Another view's dimensions, even on the same sheet, are not this view's.
+                                             {**BY_ID, elsewhere.claim_id: elsewhere}), [
+            f"rests on the symbol count {elsewhere.claim_id} where Partial Foundation Plan carries bracket dimension strings ({SPAN}, {SPACING})"])
+        # A bracket run on another view, with no spacing, is held the same way; strings on two views name both.
         far = Claim(**{**BY_ID[SPAN].__dict__, "claim_id": "NAN-DR-FRM-02", "locator": "Partial First Floor Framing Plan"})
-        self.assertEqual(takeoff.route_notes(by_symbols, {six.claim_id: six, "NAN-DR-FRM-02": far, ANCH: BY_ID[ANCH]}), [])
+        self.assertEqual(takeoff.route_notes(by_symbols, {six.claim_id: six, "NAN-DR-FRM-02": far, ANCH: BY_ID[ANCH]}), [
+            f"rests on the symbol count {six.claim_id} where Partial First Floor Framing Plan carries bracket dimension strings (NAN-DR-FRM-02)"])
+        self.assertEqual(takeoff.route_notes(by_symbols, {**rows, "NAN-DR-FRM-02": far}), [
+            f"rests on the symbol count {six.claim_id} where Partial Foundation Plan and Partial First Floor Framing Plan "
+            f"carry bracket dimension strings ({SPAN}, {SPACING}, NAN-DR-FRM-02)"])
+        # A view with no dimension string anywhere in the job naming the assembly is the prompt's own route.
+        self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{elsewhere.claim_id}}}", 18),
+                                             {ANCH: BY_ID[ANCH], elsewhere.claim_id: elsewhere, END: BY_ID[END]}), [])
         # The rows the symbol check reads (`claims`) are the ones searched for dimension strings.
         self.assertEqual(takeoff.route_notes(by_symbols, rows, [six, BY_ID[ANCH]]), [])
         self.assertEqual(takeoff.route_notes(by_symbols, {six.claim_id: six, ANCH: BY_ID[ANCH]}, list(rows.values())), [note])

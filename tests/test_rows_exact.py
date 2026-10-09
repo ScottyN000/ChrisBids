@@ -84,6 +84,9 @@ class DrawingCase(unittest.TestCase):
                               ("Bracket spacing, max 5 spaces", ["5"]), ("Bracket spacing, MAX 5 SPACES", ["5"]),
                               ("Bracket run: 11\" + 5 x 2'-8\" + 11\"", ["5"]), ("Bracket run: 11 + 5 x 32 + 11", ["5"]),
                               ("Bracket spacing, 5 x 2 ft", ["5"]), ("Bracket spacing, 5 x 32 in", ["5"]),
+                              ("BRACKET SPACING, 5 X 2 FT", ["5"]), ("Bracket spacing, 5 X 32 IN", ["5"]),
+                              ("Bracket run: 11\" + 5 @ 2'-8\" + 11\"", ["5"]), ("Bracket run: 11 + 5 @ 32 + 11", ["5"]),
+                              ("Bracket spacing, 5 × 2'-8\"", ["5"]),
                               ("approx 6 brackets", ["6"]), ("Blocking, 2 in each bay", ["2"])]:
             with self.subTest(label=label):
                 self.assertEqual(bare_counts(label), counts)
@@ -98,6 +101,8 @@ class DrawingCase(unittest.TestCase):
                             ("Bracket run, sheet #2 to grid line 3", "15'-2\""), ("Wall face to bracket, 11\" typ", "11\""),
                             ("Rebar, #4 bar at 12\" o.c.", "12\""), ("Bracket run, 2 x 4 blocking between", "15'-2\""),
                             ("Bracket run, 2 X 4 blocking between", "15'-2\""), ("Post spacing, 4x4 posts", "8'-0\""),
+                            ("BRACKET RUN, 2 X 4 BLOCKING BETWEEN", "15'-2\""), ("Blocking, 2x 4 between", "15'-2\""),
+                            ("Blocking, 2 × 4 between", "15'-2\""), ("Rebar, #4 @ 12\" o.c.", "12\""),
                             ("Blocking, 2 x 10 joists", "15'-2\""), ("Wall face to first bracket, 11 inches", "11\""),
                             ("East wall, 8 inch CMU", "8\""), ("Under slab, 6 mil poly", "4\""), ("Angle, 12 ga. steel", "4\""),
                             ("Posts, 2 x 4 x 8 ft", "8'-0\"")]:

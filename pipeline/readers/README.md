@@ -165,16 +165,18 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   flagged, because the 6 bracket symbols on the view agreed with the number the dimensions give; the trigger
   is left as it is, since a narrower one would need code to read the labels for a run, a spacing and an
   offset. (c) `#4 bar`, `2 x 4 blocking` and `4x4 posts` are sizes, and `11 inches`, `8 inch CMU`, `6 mil
-  poly` are figures, not counts; a count of spacings is a count however it is written (`5 x 2'-8"`, arch
-  p.4's `11 + 5 x 32 + 11`, `5 x 2 ft`), as are `max 5 spaces` and `2 in each bay`. A count kept in a label
-  and used in a formula as a plain number (`{PER} * (5 + 1)`) is noted on the item too, since that number
-  cites no row. (d) An item that rests on a symbol count where the symbols' view carries dimension strings
-  naming the assembly counted is flagged unverified whatever else it uses (`takeoff.route_notes`, those rows
-  on the note; a fastener total that takes the anchors from the symbols and the bolts from the dimensions is
-  on that route too, and the symbol check passes such a sum by). The dimension strings that count are those
-  naming what the item's per-assembly rows are per, else what the job's are per, as `symbol_rows` matches
-  them, so window tags beside a room width (the prompt's own route when no run and spacing are listed) are
-  not flagged; a job with no per-assembly row at all is held to every dimension string on the view. (e) The
+  poly` are figures, not counts; a count of spacings is a count however it is written (`5 x 2'-8"`,
+  `5 @ 2'-8"`, `5 × 2'-8"`, arch p.4's `11 + 5 x 32 + 11`, `5 x 2 ft`, `5 X 32 IN`), as are `max 5 spaces`
+  and `2 in each bay`. A count kept in a label and used in a formula as a plain number (`{PER} * (5 + 1)`)
+  is noted on the item too, since that number cites no row. (d) An item that rests on a symbol count where
+  the job carries dimension strings naming the assembly counted is flagged unverified whatever else it uses
+  (`takeoff.route_notes`, those rows and their view on the note; a fastener total that takes the anchors
+  from the symbols and the bolts from the dimensions is on that route too, and the symbol check passes such
+  a sum by). The dimension strings that count are those naming what the item's per-assembly rows are per,
+  else what the job's are per, as `symbol_rows` matches them, on any view (the brackets drawn again on the
+  framing plan are the brackets the foundation plan dimensions, arch p.5), so window tags beside a room
+  width (the prompt's own route when no run and spacing are listed) are not flagged; a job with no
+  per-assembly row at all is held to every dimension string on the symbols' own view. (e) The
   per-PR mutation score goes in the PR description with the run it came from (now in the Every PR bar of
   `docs/advisor.md`).
 

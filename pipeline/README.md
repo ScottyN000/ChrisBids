@@ -245,6 +245,14 @@ lists its `options` in the table. Each run picks one (or "other"), code checks i
 is one of them, and the runs must pick the same one, so a status is never read
 from free text. The agreed option is the row's value.
 
+So is the figure of an ask whose table entry names its `unit` (`# sq ft/gal`,
+`# weeks`): the figure the answer fills the first mark with, a range as one
+figure, with that unit. A data sheet's spread rate then reaches the ledger as a
+value, and a `material` row's calc may rest on it ([`schema.py`](schema.py)
+replays a calc at both ends of a range and the row's value is the range the
+ends give). An ask with no unit (a date, an edition) keeps its figures in the
+sentence.
+
 When the runs find differing readings on the page (different passages and
 figures, or one run finds it and one does not), code does not pick one. Each
 reading is written as its own row, flagged unverified, for the estimator to settle.
@@ -278,9 +286,10 @@ reported and left out:
 
 The gate runs in `live.yml` (`part: web`).
 
-Not built yet: order quantities from spread rates (a `material` row may not be
-`fetched`, p.6), the cold-cache search, the 90-day cache for federal
-regulations, and the edition, effective-date, discontinuation and ESR-expiry
-comparisons between bids (p.8). The page hash is in the fetch log, not on the row.
-An agreed figure (a spread rate, a date) is checked by code but stored only in the
-row's sentence, not in `value`; the spread-rate quantities will need it stored as a field.
+Not built yet: the Materials order rows (the quantity a data sheet's rate and a
+takeoff area give, p.4; the ledger can carry them now, the step that writes
+them is next), the cold-cache search, the 90-day cache for federal regulations,
+and the edition, effective-date, discontinuation and ESR-expiry comparisons
+between bids (p.8). The page hash is in the fetch log, not on the row. An agreed
+figure with no unit in the table (a date) is checked by code but stored only in
+the row's sentence, not in `value`.

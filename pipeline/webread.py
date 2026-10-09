@@ -113,6 +113,11 @@ class Ask:
     # A closed answer's options (yes/no, a status): the model picks one, or
     # OTHER, and the runs must pick the same one. Free text is never compared.
     options: tuple[str, ...] = ()
+    # The unit of the figure the first # mark stands for ("sq ft/gal", "weeks"):
+    # that figure is then the row's value, with this unit, so a data sheet's
+    # spread rate can feed an order quantity. Blank for an ask whose figures
+    # stay in the sentence (a date, an edition).
+    unit: str = ""
 
 
 @dataclass(frozen=True)
@@ -143,7 +148,8 @@ def load(path: Path = SOURCES) -> Table:
         pages.append(Source(
             url=p["url"], title=p["title"], agent=p["agent"],
             when=tuple(tuple(t.lower() for t in g) for g in p["when"]),
-            asks=tuple(Ask(a["id"], a["ask"], a.get("fixture", ""), tuple(a.get("options", ()))) for a in p["asks"]),
+            asks=tuple(Ask(a["id"], a["ask"], a.get("fixture", ""), tuple(a.get("options", ())), a.get("unit", ""))
+                       for a in p["asks"]),
             ids=tuple(p.get("ids", ())),
         ))
     return Table(named=frozenset(data["named_domains"]), pages=pages)
@@ -269,6 +275,19 @@ def slots(answer: dict, ids: tuple[str, ...] = (), marks: frozenset[int] = froze
                  for k, f in enumerate(answer.get("figures", ())))
 
 
+def figure_of(answer: dict, ask: Ask, ids: tuple[str, ...] = ()) -> tuple[str, str]:
+    """The row's value and unit from an ask that names its unit: the one figure
+    the answer fills the first # mark with, as the quote writes it (a range is
+    one figure: "320-400"), and the table's unit. An ask with no unit, an answer
+    not found, or a first mark filled with no figure or several gives none."""
+    if not ask.unit or not answer.get("found"):
+        return "", ""
+    filled = slots(answer, ids, id_marks(ask.ask, ids))
+    if not filled or len(filled[0]) != 1:
+        return "", ""
+    return filled[0][0], ask.unit
+
+
 def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = (), ask: str = "") -> list[str]:
     """Why code will not keep this answer. Empty means it may become a row.
     Each entry of `figures` must be in the quote or, in a mark the ask places
@@ -381,9 +400,9 @@ class WebResult:
 
 
 def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
-    # Both agents write role "code" for now: "material" may not be fetched (p.6),
-    # since it would feed a quantity. Data-sheet rates get their own role when
-    # order quantities from spread rates are built.
+    # Both agents write role "code": a data-sheet row is the evidence an order
+    # quantity rests on (p.4) through a `material` row's calc (schema.MATERIAL_OK),
+    # which the Materials order step writes, not the reader.
     return Claim(claim_id=f"{job}-WEB-{n:03d}", source_id=SOURCE_ID, method="fetched", role="code",
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
 
@@ -565,14 +584,16 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                 result.readings += [f"{unit.unit_id} {ask.id}: figures {r.get('figures', [])}, "
                                     f"choice {r.get('choice', '')!r}, quote {r['quote'][:100]!r}" for r in readings]
                 for a in readings:
+                    value, unit = figure_of(a, ask, ids)
                     write(_row(job, next_id(), source, page, confidence="inferred", flag="unverified",
-                               quote=a["quote"].strip(), statement=a["statement"].strip(),
+                               quote=a["quote"].strip(), statement=a["statement"].strip(), value=value, unit=unit,
                                locator=f"ask {ask.id}"), source.agent)
                 if not readings:
                     write(_gap(job, next_id(), source, page, ask, why), source.agent)
                 continue
+            value, unit = figure_of(agreed, ask, ids)
             write(_row(job, next_id(), source, page, confidence="exact", quote=agreed["quote"].strip(),
-                       statement=agreed["statement"].strip(), value=agreed.get("choice", ""),
+                       statement=agreed["statement"].strip(), value=agreed.get("choice", "") or value, unit=unit,
                        locator=f"ask {ask.id}"),
                   source.agent)
     return result

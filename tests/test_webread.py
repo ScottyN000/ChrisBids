@@ -82,7 +82,16 @@ class TableCase(unittest.TestCase):
         first = t.pages[0]
         self.assertEqual((first.title, first.when), ("Ocean City online permitting",
                                                      (("ocean city",), ("maryland", "md"))))
-        self.assertEqual(first.asks[1], webread.Ask("a2", "How long permit review takes: # weeks", "NAN-C-002"))
+        self.assertEqual(first.asks[1], webread.Ask("a2", "How long permit review takes: # weeks", "NAN-C-002", (),
+                                                    "weeks"))
+        # an ask that names its unit puts its first figure on the row as a value: the spread rates, the
+        # permit weeks and the fall-protection and ladder heights; the unit is the text after the first mark
+        with_unit = [a for p in t.pages for a in p.asks if a.unit]
+        self.assertEqual(sorted(a.unit for a in with_unit), ["ft"] * 3 + ["sq ft/gal"] * 8 + ["weeks"])
+        for a in with_unit:
+            self.assertTrue(a.ask.split("#")[1].strip(" )").startswith(a.unit), (a.ask, a.unit))
+        self.assertEqual(sorted(a.fixture for a in with_unit if a.unit == "sq ft/gal"),
+                         [f"OBV-C-0{n}" for n in range(23, 31)])
         self.assertEqual(sum(1 for p in t.pages for a in p.asks if a.fixture), 50)
         esr = next(p for p in t.pages if p.url.endswith("ESR-4143.pdf"))
         self.assertEqual(esr.ids, ("ESR-4143", "HIT-HY 270", "HY 270"))
@@ -511,6 +520,38 @@ class RunCase(unittest.TestCase):
         bad = dict(yes, choice="")
         _, res = run(Fake({"answers": [bad]}, {"answers": [bad]}, {"answers": [bad]}, {"answers": [bad]}), tbl=tbl)
         self.assertIn("J#web1 run 1 a2: the choice '' is not one of yes, no, other", res.discarded)
+
+    def test_an_ask_that_names_its_unit_writes_its_figure_as_the_row_s_value(self):
+        weeks = (webread.Ask("a1", "Permit turnaround # weeks", "J-C-001", unit="weeks"), webread.Ask("a2", "Plans required"))
+        b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [PLANS, TURNAROUND]}), tbl=table(source(asks=weeks)))
+        self.assertEqual([(c.locator, c.value, c.unit, c.flag) for c in res.rows],
+                         [("ask a1", "2-4", "weeks", ""), ("ask a2", "", "", "")])
+        back = b.ledger.by_id()["J-WEB-001"]
+        self.assertEqual((back.value, back.value_num, back.unit), ("2-4", None, "weeks"))
+        # each kept reading carries its own figure; a reading with none carries no value
+        other = answer("a1", "All applications REQUIRE PLANS OR DRAWINGS.", "Plans come first.", figures=[""])
+        b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [other, PLANS]}), tbl=table(source(asks=weeks)))
+        self.assertEqual([(c.value, c.unit, c.flag) for c in res.rows if c.locator == "ask a1"],
+                         [("2-4", "weeks", "unverified"), ("", "", "unverified")])
+
+    def test_figure_of(self):
+        ask = webread.Ask("a1", "Spread rate: # sq ft/gal", unit="sq ft/gal")
+        found = lambda *figs: {"found": True, "figures": list(figs)}
+        cases = [
+            (found("350-400"), ask, (), ("350-400", "sq ft/gal")),
+            (found("350 - 400"), ask, (), ("350-400", "sq ft/gal")),     # a range is one figure, written one way
+            (found("2,500"), ask, (), ("2,500", "sq ft/gal")),
+            (found("350 to 400"), ask, (), ("", "")),                     # two figures in the first mark: none
+            (found(""), ask, (), ("", "")),
+            (found(), ask, (), ("", "")),
+            ({"found": False, "figures": []}, ask, (), ("", "")),
+            (found("350-400"), webread.Ask("a1", "Spread rate: # sq ft/gal"), (), ("", "")),   # no unit in the table
+            # a first mark that fills the page's own identifier is no figure
+            (found("02", "350-400"), webread.Ask("a1", "LX# spread rate: # sq ft/gal", unit="sq ft/gal"), ("LX02",),
+             ("", "")),
+        ]
+        for answer_, ask_, ids, want in cases:
+            self.assertEqual(webread.figure_of(answer_, ask_, ids), want, (answer_, ask_.ask))
 
     def test_materials_pages_are_written_as_materials(self):
         client = Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [TURNAROUND, PLANS]})

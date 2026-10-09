@@ -258,7 +258,7 @@ rows:
      url: 'https://oceancitymd.gov/oc/departments/planning-community-development/online-permitting/',
      quote: 'All applications REQUIRE PLANS OR DRAWINGS. Please attach plans and necessary information with your application in .pdf format.',
      statement: 'Ocean City accepts digital permit submissions only, with plans attached as PDF'}
-  - {id: NAN-C-002, role: code, method: fetched, confidence: exact, source: WEB, tag: Ocean City online permitting, retrieved: 2026-10-07,
+  - {id: NAN-C-002, role: code, method: fetched, value: '2-4', unit: weeks, confidence: exact, source: WEB, tag: Ocean City online permitting, retrieved: 2026-10-07,
      url: 'https://oceancitymd.gov/oc/departments/planning-community-development/online-permitting/',
      quote: 'Permits will be issued 2-4 weeks on average after submission is confirmed.',
      statement: 'Permit turnaround 2-4 weeks on average'}

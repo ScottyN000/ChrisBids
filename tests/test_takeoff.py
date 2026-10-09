@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pipeline import takeoff
+from pipeline import schema, takeoff
 from pipeline.broker import Broker
 from pipeline.readers import compare, validate
 from pipeline.readers.clients import prompt, prompt_version
@@ -395,6 +395,18 @@ class GoldenReplayCase(unittest.TestCase):
             self.assertEqual(results["takeoff"].calls, 0)
             self.assertEqual([(c.method, c.value, c.source_id) for c in results["takeoff"].rows],
                              [("FIELD", "", "IMG_8343")])
+
+    def test_the_route_is_the_dimensions_not_the_symbol_count(self):
+        """The prompt's per-assembly template and every recorded Nantucket total multiply by
+        the brackets the run, spacing and end offsets give, never by the 6 symbols drawn."""
+        self.assertIn("{PER} * (({RUN} - 2 * {END}) / {SPACING} + 1)", prompt("takeoff"))
+        recorded = json.loads((ROOT / "fixtures" / "nantucket" / "recordings" / "takeoff.json").read_text())
+        totals = [it["calc"] for u in recorded["units"] for r in u["runs"] for it in r["items"] if "*" in it["calc"]]
+        self.assertTrue(totals)
+        for calc in totals:
+            refs = set(schema.CALC_REF.findall(calc))
+            self.assertTrue({"NAN-DR-S1FND-01", "NAN-DR-S1FND-02", "NAN-DR-S1FND-03"} <= refs, calc)
+            self.assertNotIn("NAN-DR-S1FND-04", refs, calc)
 
     def test_the_prompt_example_is_schema_valid_and_reproduces(self):
         text = prompt("takeoff")

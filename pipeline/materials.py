@@ -157,8 +157,8 @@ def item_errors(item: dict, by_id: dict[str, Claim], shown: str = "") -> list[st
     if unknown:
         return [f"names {', '.join(unknown)}, which is not a row it was shown"]
     sheet = by_id[item["sheet"]]
-    if sheet.method != "fetched" or not sheet.quote:
-        return [f"sheet {sheet.claim_id} is not a fetched row with a quote"]
+    if sheet.method != "fetched" or not sheet.url:
+        return [f"sheet {sheet.claim_id} is not a fetched row with a URL"]
     q = by_id.get(item["quantity"]) if item["quantity"] else None
     if item["quantity"] and (q.method not in QUANTITY_METHODS or q.role not in QUANTITY_ROLES):
         return [f"quantity {q.claim_id} is a {q.method} {q.role} row, not a takeoff figure, an allowance or a FIELD row"]
@@ -224,6 +224,9 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
     shaky = [c.claim_id for c in [q, spec, sheet, *basis] if c is not None and c.flag]
     if shaky:
         notes.append(f"uses flagged {', '.join(_join(shaky))}")
+    if not sheet.quote:
+        # the page was looked at and did not show the product (the repaint's "or equivalent" caulk, 2026-10-09)
+        notes.append(f"the page {sheet.claim_id} cites quotes nothing for the product")
     if item["unit"] == "each":
         how = f"{q.claim_id}" if q is not None else "no count row"
         if q is None:

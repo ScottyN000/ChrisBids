@@ -46,6 +46,9 @@ SCALED = row("X-DR-009", "Angle leg, scaled", method="scaled", role="quantity", 
              confidence="scaled", division="")
 ALLOW = row("X-A-004", "exterior wall surfaces", method="FIELD", role="allowance", unit="sq ft", source="none",
             locator="", tag="FIELD", division="", confidence="missing")
+NOPAGE = row("X-WEB-007", "No product named Example Patch P20 was found on the page", method="fetched", role="code",
+             source="WEB", locator="ask a1", tag="P20 page", url="https://www.example.com/p20", retrieved="2026-10-09",
+             flag="unverified", division="")
 ROWS = [SYSTEM, SPEC_RATE, AREA, FIELD, X100, COUNT, A7, ANCHOR]
 BY_ID = {c.claim_id: c for c in ROWS}
 
@@ -99,7 +102,7 @@ class ItemCase(unittest.TestCase):
             (item(sheet="X-WEB-999"), "names X-WEB-999, which is not a row it was shown"),
             (item(sheet=""), "names no data-sheet row; a product with none gets no order row"),
             (item(basis=("X-SP-010", "X-NO")), "names X-NO, which is not a row it was shown"),
-            (item(sheet="X-SP-010"), "sheet X-SP-010 is not a fetched row with a quote"),
+            (item(sheet="X-SP-010"), "sheet X-SP-010 is not a fetched row with a URL"),
             (item(quantity="X-SP-010"), "quantity X-SP-010 is a clause scope row, not a takeoff figure, an allowance or a FIELD row"),
             (item(spec_rate="X-SP-010"), "spec_rate X-SP-010 is not a clause row stating a rate"),
             (item(unit="bags"), "orders bags but the rate X-R-001 is per 'sq ft/gal'"),
@@ -121,6 +124,15 @@ class ItemCase(unittest.TestCase):
         c = materials.order_claim("X-MT-06", no_rate, 2, 2, BY_ID)
         self.assertEqual((c.value, c.flag, c.url), ("", "unverified", BULLETIN))
         self.assertIn("no row states a rate", c.statement)
+        # a page looked at that did not show the product is cited all the same, and the order says so
+        by_id = dict(BY_ID, **{NOPAGE.claim_id: NOPAGE})
+        patch = item("Example Patch P20", "gal", "X-A-004", 0, "", "X-WEB-007", ("X-SP-010",))
+        by_id[ALLOW.claim_id] = ALLOW
+        self.assertEqual(materials.item_errors(patch, by_id, materials.unit_for("X", list(by_id.values())).text), [])
+        c = materials.order_claim("X-MT-07", patch, 2, 2, by_id)
+        self.assertEqual((c.value, c.flag, c.url, c.quote), ("", "unverified", "https://www.example.com/p20", ""))
+        self.assertIn("uses flagged X-WEB-007", c.statement)
+        self.assertIn("the page X-WEB-007 cites quotes nothing for the product", c.statement)
         self.assertEqual(materials.item_errors(item(spec_rate=""), BY_ID, shown), [])   # the sheet's rate will do
         self.assertEqual(materials.item_errors(item(quantity=""), BY_ID, shown), [])    # nothing covered yet
 

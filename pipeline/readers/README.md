@@ -154,7 +154,9 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   another wording survives (a count belongs in a counted row; sheet and detail references such as `1/S-1`
   are not counts); when none survives the first is kept as printed, never rewritten, the row's derivation
   says the label carries a count with no counted row, and Takeoff flags every item resting on it. A spaces or
-  assembly-count item is compared only with the symbols its own dimension rows name when a view has two kinds of assembly.
+  assembly-count item is compared only with the symbols its own dimension rows name when a view has two kinds of assembly. The symbol check reads every current row, so a symbol count the
+  reader runs disagreed on (a conflict row no formula may use) is still compared and both readings go on the
+  note; a count made of the string's own digits (`2 places` on `2'-8"`) is still a count.
 
 ## The ruling still open
 

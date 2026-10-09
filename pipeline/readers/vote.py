@@ -101,12 +101,12 @@ def bare_counts(label: str) -> list[str]:
 def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
     """Every run's wording of a dimension's label, first seen first, and whether a count
     had to be let through. Wordings that differ only in case or trailing punctuation are
-    one. A wording carrying a bare count the dimension string lacks (`printed 5 times`)
-    is a count with no counted row behind it (traceability), so it is dropped while
-    another wording survives; when none does, the first is kept as printed, never
-    rewritten, and the second value is True so the row can say so. Sheet and detail
-    references (`REF. DET. 1/S-1`) are not counts."""
-    printed = set(re.findall(r"\d+", items[0].get("text") or ""))
+    one. A wording carrying a bare count (`printed 5 times`, with the dimension string
+    itself taken out first) is a count with no counted row behind it (traceability), so
+    it is dropped while another wording survives; when none does, the first is kept as
+    printed, never rewritten, and the second value is True so the row can say so. Sheet
+    and detail references (`REF. DET. 1/S-1`) are not counts."""
+    text = (items[0].get("text") or "").strip()
     labels, seen, counted = [], set(), []
     for it in items:
         label = (it.get("label") or "").strip()
@@ -114,7 +114,7 @@ def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
         if not wording or wording in seen:
             continue
         seen.add(wording)
-        (labels if set(bare_counts(label)) <= printed else counted).append(label)
+        (counted if bare_counts(label.replace(text, " ") if text else label) else labels).append(label)
     if labels:
         return labels, False
     return counted[:1], bool(counted)

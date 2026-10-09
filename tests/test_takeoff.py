@@ -447,6 +447,16 @@ class SymbolCheckCase(unittest.TestCase):
         c = takeoff.derived_claim("NAN-TK-Q-01", it("Spaces", SPACES, 5, "spaces"), 2, 2, rows)
         self.assertEqual(c.flag, "unverified")
         self.assertTrue(c.derivation.endswith("NAN-DR-FND-04 counts 7 symbols where the dimensions give 6"))
+        # A symbol count the reader runs disagreed on is no formula input, but it is still
+        # compared: the check reads every current row, and both readings go on the note.
+        conflict = Claim(**{**self.SYMBOLS.__dict__, "value": "6 (reading A) / 7 (reading B)",
+                            "value_num": None, "flag": "conflict"})
+        claims = list(BY_ID.values()) + [conflict]
+        self.assertEqual(takeoff.inputs(claims), list(BY_ID.values()))
+        c = takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, BY_ID, claims)
+        self.assertEqual((c.flag, c.derivation), ("unverified", "3 x ((182 - 2 x 11) / 32 + 1) = 18; "
+                         "NAN-DR-FND-04 counts 6 (reading A) / 7 (reading B) symbols where the dimensions give 6"))
+        self.assertEqual(takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, BY_ID).flag, "")
 
     def test_an_agreeing_symbol_count_or_one_on_another_view_is_no_note(self):
         same = reader_row("NAN-DR-FND-04", 6, "each", "Bracket symbols drawn", method="counted")

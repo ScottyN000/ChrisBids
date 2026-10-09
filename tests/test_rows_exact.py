@@ -57,6 +57,10 @@ class DrawingCase(unittest.TestCase):
                                 [item("dimension", "Wall face to first bracket, 2 places, see 1/S-1", "11\"")]])
         self.assertEqual((v.labels, v.counted_label), (["Wall face to first bracket (2 PLACES)"], True))
         self.assertEqual(one("drawing", FND, v).statement, "Wall face to first bracket (2 PLACES): 11\"")
+        # A count made of the string's own digits is still a count.
+        (v,) = vote("drawing", [[item("dimension", "Bracket spacing, 2 places", "2'-8\"")],
+                                [item("dimension", "8 brackets at 2'-8\"", "2'-8\"")]])
+        self.assertEqual((v.labels, v.counted_label), (["Bracket spacing, 2 places"], True))
         # Sheet and detail references, and numbers joined to a letter, are not counts.
         runs = [[item("dimension", "Bracket spacing (REF. DET. 1/S-1)", "11\"")],
                 [item("dimension", "Wall face to first bracket (2 places), see S-1", "11\"")]]

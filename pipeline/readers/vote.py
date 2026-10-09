@@ -45,7 +45,7 @@ class Voted:
     seen: int                                   # runs that produced this key
     runs: int                                   # runs made
     readings: dict[str, list] = field(default_factory=dict)  # field -> distinct values, if they differ
-    labels: list[str] = field(default_factory=list)  # every run's label wording, first seen first
+    labels: list[str] = field(default_factory=list)  # a drawing dimension's label from every run, first seen first
 
     @property
     def label(self) -> str:
@@ -107,9 +107,10 @@ def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
             if len(values) > 1:
                 readings[f] = values
         labels = []
-        for it in items:
-            label = (it.get("label") or "").strip()
-            if label and label not in labels:
-                labels.append(label)
+        if reader == "drawing" and items[0].get("kind") == "dimension":
+            for it in items:
+                label = (it.get("label") or "").strip()
+                if label and label not in labels:
+                    labels.append(label)
         out.append(Voted(item=items[0], seen=len(items), runs=len(runs), readings=readings, labels=labels))
     return out

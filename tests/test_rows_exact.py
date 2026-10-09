@@ -44,7 +44,7 @@ class DrawingCase(unittest.TestCase):
         self.assertEqual((c.statement, c.flag), ("Top wall segment: 11\" / First bracket from the wall face: 11\"", ""))
         (v,) = vote("drawing", [[item("count", "Brackets", count=6, unit="each")],
                                 [item("count", "Bracket symbols", count=6, unit="each")]])
-        self.assertEqual(one("drawing", FND, v).statement, "Brackets")
+        self.assertEqual((v.labels, one("drawing", FND, v).statement), ([], "Brackets"))
 
     def test_dimension_fractional_keeps_its_fraction(self):
         v = Voted(item("dimension", "Gap", "1/2\""), seen=3, runs=3)

@@ -433,6 +433,11 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.assemblies(self.ANCHORS, BY_ID), 6)
         rows = dict(BY_ID, **{self.SYMBOLS.claim_id: self.SYMBOLS})
         self.assertIsNone(takeoff.assemblies(it("Anchors", f"{{{ANCH}}} * {{{self.SYMBOLS.claim_id}}}", 21), rows))
+        bolts = reader_row("NAN-DR-DET-02", 3, "per bracket", "Bolts (TYP.)", method="counted")
+        rows[bolts.claim_id] = bolts
+        summed = it("All fasteners", f"{{{ANCH}}} * ({SPACES} + 1) + {{{bolts.claim_id}}} * ({SPACES} + 1)", 36)
+        self.assertIsNone(takeoff.assemblies(summed, rows))
+        self.assertEqual(takeoff.symbol_notes(summed, rows), [])
 
     def test_a_symbol_count_that_disagrees_flags_every_item_on_that_route(self):
         rows = dict(BY_ID, **{self.SYMBOLS.claim_id: self.SYMBOLS})

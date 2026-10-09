@@ -190,11 +190,15 @@ def assemblies(item: dict, by_id: dict[str, Claim]) -> float | None:
     """The number of assemblies an item's dimension route gives; None when it uses no dimension.
 
     A `spaces` item gives one more than its value. Any other item gives its
-    formula with every per-assembly row set to 1, so `{PER} * (N)` gives N.
+    formula with its one per-assembly row set to 1, so `{PER} * (N)` gives N.
+    An item over two per-assembly rows (all fasteners together) is a sum, not
+    a count of assemblies, and is not compared.
     """
     refs = schema.CALC_REF.findall(item["calc"])
     if not any(by_id[r].method == "dimensioned" for r in refs):
         return None
+    if len({r for r in refs if by_id[r].unit.startswith("per ")}) > 1:
+        return None  # a sum of per-assembly products is not a count of assemblies
     if item["unit"] == "spaces":
         return float(item["value"]) + 1
     expr = item["calc"]

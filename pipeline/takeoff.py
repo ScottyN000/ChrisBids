@@ -211,24 +211,28 @@ def assemblies(item: dict, by_id: dict[str, Claim]) -> float | None:
     return schema.arith(expr)
 
 
-def assembly_names(by_id: dict[str, Claim]) -> list[str]:
-    """What the job's per-assembly rows are per: `3 per bracket` names the bracket."""
-    return _join(c.unit[4:].strip().lower() for c in by_id.values() if c.unit.startswith("per "))
+def assembly_names(rows) -> list[str]:
+    """What per-assembly rows are per: `3 per bracket` names the bracket (first word only,
+    so `per bracket assembly` names it too)."""
+    return _join(c.unit[4:].split()[0].lower() for c in rows if c.unit.startswith("per ") and c.unit[4:].split())
 
 
 def symbol_rows(item: dict, by_id: dict[str, Claim]) -> list[Claim]:
     """The counted symbol rows that count the item's assemblies: on a view the item's
-    dimensions came from, naming what the per-assembly rows are per (a pier beside the
-    brackets is not one). When no row is per anything, every symbol count on the view.
+    dimensions came from, naming what the item's own per-assembly row is per (a pier
+    beside the brackets is not one). An item with no per-assembly row (spaces, the
+    bracket count) uses the job's per-assembly names. When no symbol row on the view
+    names the assembly, every symbol count on the view is compared, so a reader's
+    wording can never switch the check off.
     """
     refs = schema.CALC_REF.findall(item["calc"])
-    views = {(by_id[r].source_id, by_id[r].locator) for r in refs if by_id[r].method == "dimensioned"}
-    names = assembly_names(by_id)
-    return [
-        c for c in by_id.values()
-        if c.method == "counted" and c.unit == "each" and (c.source_id, c.locator) in views
-        and (not names or any(name in c.statement.lower() for name in names))
-    ]
+    used = [by_id[r] for r in dict.fromkeys(refs)]
+    views = {(c.source_id, c.locator) for c in used if c.method == "dimensioned"}
+    names = assembly_names(used) or assembly_names(by_id.values())
+    on_view = [c for c in by_id.values()
+               if c.method == "counted" and c.unit == "each" and (c.source_id, c.locator) in views]
+    named = [c for c in on_view if any(name in c.statement.lower() for name in names)]
+    return named or on_view
 
 
 def symbol_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
@@ -246,7 +250,11 @@ def symbol_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
 def label_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
     """A note when the item rests on a dimension whose runs worded the label differently,
     since the model then chose which wording to follow; none when a symbol row on the
-    view agrees with the number the dimensions give, which confirms the choice."""
+    view agrees with the number the dimensions give, which confirms the choice.
+
+    The row says so with `rows.DIFFERING_LABELS` in its derivation, the one place a
+    ledger row records what the vote saw; the constant is shared, never retyped.
+    """
     used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
     differing = [c.claim_id for c in used if DIFFERING_LABELS in c.derivation]
     if not differing:

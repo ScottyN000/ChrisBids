@@ -108,9 +108,12 @@ def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
                 readings[f] = values
         labels = []
         if reader == "drawing" and items[0].get("kind") == "dimension":
+            seen_wordings = set()
             for it in items:
                 label = (it.get("label") or "").strip()
-                if label and label not in labels:
+                wording = re.sub(r"[\s.,;:]+$", "", label).lower()
+                if wording and wording not in seen_wordings:
+                    seen_wordings.add(wording)
                     labels.append(label)
         out.append(Voted(item=items[0], seen=len(items), runs=len(runs), readings=readings, labels=labels))
     return out

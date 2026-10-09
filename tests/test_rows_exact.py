@@ -37,7 +37,7 @@ class DrawingCase(unittest.TestCase):
         """Takeoff reads the label to learn what the string spans; one run's wording can miss it."""
         runs = [[item("dimension", "Top wall segment: 11\"", "11\"")],
                 [item("dimension", " First bracket from the wall face ", "11\"")],
-                [item("dimension", "Top wall segment: 11\"", "11\"")]]
+                [item("dimension", "top wall segment: 11\".", "11\"")]]
         (v,) = vote("drawing", runs)
         self.assertEqual((v.seen, v.status, v.labels), (3, "agree", ["Top wall segment: 11\"", "First bracket from the wall face"]))
         c = one("drawing", FND, v)

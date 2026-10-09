@@ -145,7 +145,11 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   Run 37941971164 passed on both jobs.
 - Head after that: an item resting on a dimension whose runs worded the label differently is flagged
   unverified (`takeoff.label_notes`), since the model chose which wording to follow, unless a symbol row
-  on the view agrees with the number the dimensions give. Its live run is recorded here once it has run.
+  on the view agrees with the number the dimensions give. Run 37942423549 (head 669c6b1) passed on both jobs.
+- Head after 669c6b1 (code and tests only, no prompt change): a symbol row is matched on the first word of
+  the item's own per-assembly unit (`per bracket assembly` names the bracket), an item is compared with its
+  own kind's symbols when a view has two kinds, every symbol count on the view is compared when none names
+  the assembly, and label wordings that differ only in case or trailing punctuation count as one.
 
 ## The ruling still open
 

@@ -472,16 +472,42 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, {**rows, six.claim_id: six}).flag, "")
         self.assertEqual(len(takeoff.label_notes(self.ANCHORS, {**rows, self.SYMBOLS.claim_id: self.SYMBOLS})), 1)
         self.assertEqual(takeoff.label_notes(self.ANCHORS, BY_ID), [])
+        bolts = reader_row("NAN-DR-DET-02", 3, "per bracket", "Bolts (TYP.)", method="counted")
+        summed = it("All fasteners", f"{{{ANCH}}} * ({SPACES} + 1) + {{{bolts.claim_id}}} * ({SPACES} + 1)", 36)
+        with_six = {**rows, six.claim_id: six, bolts.claim_id: bolts}
+        self.assertEqual(len(takeoff.label_notes(summed, with_six)), 1)
+        elsewhere = reader_row("NAN-DR-FRM-01", 6, "each", "Bracket symbols", method="counted",
+                               locator="Partial First Floor Framing Plan", tag="S-1 Frm")
+        self.assertEqual(len(takeoff.label_notes(self.ANCHORS, {**rows, elsewhere.claim_id: elsewhere})), 1)
 
     def test_only_symbols_of_the_assembly_the_rows_are_per_are_compared(self):
         piers = reader_row("NAN-DR-FND-05", 2, "each", "New pier symbols drawn", method="counted")
         rows = dict(BY_ID, **{r.claim_id: r for r in (self.SYMBOLS, piers)})
-        self.assertEqual(takeoff.assembly_names(rows), ["bracket"])
+        self.assertEqual(takeoff.assembly_names(rows.values()), ["bracket"])
         self.assertEqual(takeoff.symbol_notes(self.ANCHORS, rows), [
             "NAN-DR-FND-04 counts 7 symbols where the dimensions give 6"])
         no_per = {k: v for k, v in rows.items() if k != ANCH}
-        self.assertEqual(takeoff.assembly_names(no_per), [])
+        self.assertEqual(takeoff.assembly_names(no_per.values()), [])
         self.assertEqual(len(takeoff.symbol_notes(it("Brackets", f"{SPACES} + 1", 6), no_per)), 2)
+        # The reader's wording of the unit cannot switch the check off.
+        worded = reader_row(ANCH, 3, "per bracket assembly (TYP.)", "Adhesive anchors", method="counted",
+                            locator="Support Detail 1/S-1", tag="S-1 Det 1")
+        self.assertEqual(takeoff.assembly_names([worded]), ["bracket"])
+        self.assertEqual(len(takeoff.symbol_notes(self.ANCHORS, {**rows, ANCH: worded})), 1)
+        odd = reader_row(ANCH, 3, "per support unit", "Adhesive anchors", method="counted",
+                         locator="Support Detail 1/S-1", tag="S-1 Det 1")
+        self.assertEqual(len(takeoff.symbol_notes(self.ANCHORS, {**rows, ANCH: odd})), 2)
+        # Two kinds of assembly on one view: an item is compared with its own kind's symbols.
+        pier_anch = reader_row("NAN-DR-DET-09", 4, "per pier", "Pier anchors", method="counted",
+                               locator="Support Detail 2/S-1", tag="S-1 Det 2")
+        pier_run = reader_row("NAN-DR-FND-06", 48, "in", "Pier run between wall faces")
+        pier_space = reader_row("NAN-DR-FND-07", 48, "in", "Pier spacing on center")
+        two = {**rows, pier_anch.claim_id: pier_anch, pier_run.claim_id: pier_run, pier_space.claim_id: pier_space}
+        pier_item = it("Pier anchors", f"{{{pier_anch.claim_id}}} * ({{{pier_run.claim_id}}} / {{{pier_space.claim_id}}} + 1)", 8)
+        self.assertEqual(takeoff.assemblies(pier_item, two), 2)
+        self.assertEqual(takeoff.symbol_notes(pier_item, two), [])
+        self.assertEqual(takeoff.symbol_notes(self.ANCHORS, two),
+                         ["NAN-DR-FND-04 counts 7 symbols where the dimensions give 6"])
 
 
 

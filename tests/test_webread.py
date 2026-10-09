@@ -534,6 +534,18 @@ class RunCase(unittest.TestCase):
         self.assertEqual([(c.value, c.unit, c.flag) for c in res.rows if c.locator == "ask a1"],
                          [("2-4", "weeks", "unverified"), ("", "", "unverified")])
 
+    def test_a_split_after_a_unit_ask_still_names_the_page_in_the_run_log(self):
+        # The live run of 2026-10-09 crashed here: the figure's unit had taken the
+        # page's name, and the next ask's split tried to log the page by it.
+        weeks = (webread.Ask("a1", "Permit turnaround # weeks", "J-C-001", unit="weeks"), webread.Ask("a2", "Plans required"))
+        other = answer("a2", "", "The page does not say.", found=False)
+        b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [TURNAROUND, other]}), tbl=table(source(asks=weeks)))
+        self.assertEqual([(c.locator, c.value, c.unit, c.flag) for c in res.rows if c.locator == "ask a1"],
+                         [("ask a1", "2-4", "weeks", "")])
+        a2 = [(c.value, c.unit, c.flag) for c in res.rows if c.locator == "ask a2"]
+        self.assertTrue(a2 and all(row == ("", "", "unverified") for row in a2), a2)
+        self.assertTrue(res.readings and all(line.startswith("J#web1 a2: ") for line in res.readings), res.readings)
+
     def test_figure_of(self):
         ask = webread.Ask("a1", "Spread rate: # sq ft/gal", unit="sq ft/gal")
         found = lambda *figs: {"found": True, "figures": list(figs)}

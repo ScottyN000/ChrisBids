@@ -584,17 +584,17 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                 result.readings += [f"{unit.unit_id} {ask.id}: figures {r.get('figures', [])}, "
                                     f"choice {r.get('choice', '')!r}, quote {r['quote'][:100]!r}" for r in readings]
                 for a in readings:
-                    value, unit = figure_of(a, ask, ids)
+                    value, figure_unit = figure_of(a, ask, ids)
                     write(_row(job, next_id(), source, page, confidence="inferred", flag="unverified",
-                               quote=a["quote"].strip(), statement=a["statement"].strip(), value=value, unit=unit,
-                               locator=f"ask {ask.id}"), source.agent)
+                               quote=a["quote"].strip(), statement=a["statement"].strip(), value=value,
+                               unit=figure_unit, locator=f"ask {ask.id}"), source.agent)
                 if not readings:
                     write(_gap(job, next_id(), source, page, ask, why), source.agent)
                 continue
-            value, unit = figure_of(agreed, ask, ids)
+            value, figure_unit = figure_of(agreed, ask, ids)
             write(_row(job, next_id(), source, page, confidence="exact", quote=agreed["quote"].strip(),
-                       statement=agreed["statement"].strip(), value=agreed.get("choice", "") or value, unit=unit,
-                       locator=f"ask {ask.id}"),
+                       statement=agreed["statement"].strip(), value=agreed.get("choice", "") or value,
+                       unit=figure_unit, locator=f"ask {ask.id}"),
                   source.agent)
     return result
 

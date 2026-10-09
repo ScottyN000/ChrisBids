@@ -1,0 +1,963 @@
+<title>Bid Shop Floor</title>
+<style>
+/* Layout: a shop floor (canvas) on the left where characters carry a job between stations,
+   a narrow side column with the meter (cost), the backlog and the log. One screen on desktop,
+   stacked on a phone. The page loads nothing from the network (SECURITY.md): the type is whatever
+   of these faces the viewer has installed, else the system fallback named in each stack. */
+:root {
+  --bg: #eaeef3;          /* drafting-table grey with a blue cast */
+  --floor: #f6f8fa;
+  --panel: #ffffff;
+  --line: #c9d2dc;
+  --fg: #16212e;
+  --muted: #5b6b7c;
+  --accent: #e8731a;      /* hard-hat orange */
+  --ledger: #2f7d4f;      /* filing-cabinet green */
+  --warn: #b3261e;
+  --ink: #1f4e79;         /* blueprint ink */
+  --wall: #d6dde6;        /* the back wall */
+  --plank: #d9b98a;       /* floor boards */
+  --plank2: #cfae7e;
+  --wood: #a9743f;        /* desks */
+  --steel: #8d99a6;       /* trays, handles */
+  --skin: #f1c9a5;
+  --vest: #ff8a1f;        /* hi-vis */
+  --paper: #fbf7ea;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151c; --floor: #161e27; --panel: #1b2530; --line: #2f3d4b; --fg: #e6ecf2; --muted: #93a3b3;
+    --accent: #ff8a3d; --ledger: #4fb076; --warn: #ff6b60; --ink: #7fb3e6; color-scheme: dark;
+    --wall: #243040; --plank: #5a4634; --plank2: #4f3d2d; --wood: #7a5230; --steel: #6b7886; --skin: #e0b48e; --vest: #ff8a1f; --paper: #efe8d6;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151c; --floor: #161e27; --panel: #1b2530; --line: #2f3d4b; --fg: #e6ecf2; --muted: #93a3b3;
+  --accent: #ff8a3d; --ledger: #4fb076; --warn: #ff6b60; --ink: #7fb3e6; color-scheme: dark;
+  --wall: #243040; --plank: #5a4634; --plank2: #4f3d2d; --wood: #7a5230; --steel: #6b7886; --skin: #e0b48e; --vest: #ff8a1f; --paper: #efe8d6;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.4; }
+.wrap { padding-block: 12px; padding-inline: 16px; display: flex; flex-direction: column; gap: 10px; min-height: 100%; box-sizing: border-box; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 30px; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+h1 small { font-weight: 500; color: var(--muted); font-size: 16px; margin-left: 8px; font-family: var(--body); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+.controls label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+select, button, input[type=range] { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; }
+button { cursor: pointer; }
+button.primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 600; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.file { position: relative; overflow: hidden; }
+.file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 10px; flex: 1; min-height: 0; }
+.floorbox { background: var(--floor); border: 1px solid var(--line); border-radius: 10px; position: relative; min-width: 0; min-height: 520px; overflow: hidden; overflow-x: auto; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15), 0 10px 30px -18px rgba(0,0,0,0.45); }
+canvas { display: block; width: 100%; height: 100%; }
+.caption { position: absolute; left: 12px; bottom: 10px; font-family: var(--mono); font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--floor) 80%, transparent); padding: 2px 6px; border-radius: 4px; max-width: calc(100% - 24px); }
+aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.card h2 { font-family: var(--display); font-weight: 700; font-size: 18px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.big { font-family: var(--mono); font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.sub { color: var(--muted); font-size: 13px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+td, th { padding: 3px 4px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.n, th.n { text-align: right; font-family: var(--mono); }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.log { font-family: var(--mono); font-size: 12px; max-height: 190px; overflow: auto; margin: 0; padding: 0; list-style: none; }
+.log li { padding: 2px 0; border-bottom: 1px dashed var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log li.denied { color: var(--warn); }
+.log li.append { color: var(--ledger); }
+.pill { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); margin-left: 6px; vertical-align: middle; }
+.pill.hot { border-color: var(--accent); color: var(--accent); }
+footer { color: var(--muted); font-size: 12px; }
+footer a { color: var(--ink); }
+@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } .floorbox { min-height: 460px; } .caption { position: sticky; left: 12px; } }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Bid Shop Floor <small id="jobline">loading</small></h1>
+    <div class="controls">
+      <label for="job">Job</label>
+      <select id="job"></select>
+      <span class="file"><button id="loadbtn" type="button">Load a run</button><input id="loadfile" type="file" accept="application/json" aria-label="Load a timeline.json exported by tools/export_run.py"></span>
+      <button id="play" class="primary" type="button">Play</button>
+      <button id="step" type="button">Step</button>
+      <button id="reset" type="button">Restart</button>
+      <label for="speed">Speed</label>
+      <input id="speed" type="range" min="0.25" max="4" step="0.25" value="1" aria-label="Playback speed">
+    </div>
+  </header>
+  <main>
+    <div class="floorbox">
+      <canvas id="floor" aria-label="Shop floor: characters carry the job between stations"></canvas>
+      <div class="caption" id="caption">Press Play. Every move on the floor is one row of the run's audit log.</div>
+    </div>
+    <aside>
+      <div class="card">
+        <h2>Meter</h2>
+        <div class="big" id="cost">$0.0000</div>
+        <div class="sub" id="costsub">model spend so far</div>
+        <table id="costtable"><tbody></tbody></table>
+        <div class="sub" id="pricesrc"></div>
+      </div>
+      <div class="card">
+        <h2>Who is backed up</h2>
+        <table id="backlog"><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h2>Who did what</h2>
+        <table id="whodid"><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h2>Floor log</h2>
+        <ul class="log" id="log"></ul>
+      </div>
+    </aside>
+  </main>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) and goes back to his post, and the estimator walks the finished bid out by hand. The bid is there only when every Scope Writer run was valid, the draft is in the run folder, the audited rows include no fail and, on a whole bid, bid.txt says OK (the auditor's orphan-figure and source-hash checks are not in the log, and the caption says so); the exporter works that out from the log and the folder (a proposal.md or bid.txt older than the ledger was left by an earlier run and does not count), and any other run ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call the exporter could not price is counted, not priced, and the meter gives the reason instead of a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+</div>
+
+<script id="runs" type="application/json">__RUNS__</script>
+<script>
+(function () {
+  'use strict';
+  const RUNS = JSON.parse(document.getElementById('runs').textContent);
+  const $ = id => document.getElementById(id);
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // ---- the floor plan: where each DAG station stands on a 1000 x 560 grid, scaled to the canvas.
+  //      A station's name, status and what its model reads come from the export's stations (pipeline/dag.py and roles.py);
+  //      only its position, its furniture and its hat colour live here ----
+  const PLAN = {
+    packet:        { x: 70,  y: 200, kind: 'tray' },
+    intake:        { x: 180, y: 190, kind: 'desk', hat: 'yellow' },
+    register:      { x: 300, y: 200, kind: 'tray' },
+    orchestrator:  { x: 410, y: 190, kind: 'desk', hat: 'white' },
+    drawing:       { x: 560, y: 160, kind: 'desk', hat: 'orange' },
+    spec:          { x: 560, y: 250, kind: 'desk', hat: 'orange' },
+    photo:         { x: 560, y: 340, kind: 'desk', hat: 'orange' },
+    correspondence:{ x: 560, y: 430, kind: 'desk', hat: 'orange' },
+    takeoff:       { x: 740, y: 170, kind: 'bench', hat: 'blue' },
+    codes:         { x: 740, y: 270, kind: 'desk', hat: 'blue' },
+    materials:     { x: 740, y: 360, kind: 'desk', hat: 'blue' },
+    customer:      { x: 740, y: 450, kind: 'desk', hat: 'blue' },
+    ledger:        { x: 330, y: 500, kind: 'cabinet' },
+    scope_writer:  { x: 150, y: 410, kind: 'desk', hat: 'green' },
+    draft:         { x: 222, y: 448, kind: 'tray' },
+    auditor:       { x: 150, y: 530, kind: 'desk', hat: 'white' },
+    ships:         { x: 920, y: 530, kind: 'door' },
+  };
+  // the cast that is not a station: no log row is theirs, they only react
+  const EXTRAS = { owner: { x: 880, y: 390 }, estimator: { x: 835, y: 482 }, broker: { x: 420, y: 505 }, cat: { x: 500, y: 540 }, bid: { x: 500, y: 514 }, pile: { x: 452, y: 546 } };
+  const stationOf = st => (run && run._st && run._st[st]) || { id: st, label: st, status: '', input: '' };
+  const nameOf = st => stationOf(st).label || st;
+  const HAT = { yellow: '#f2c200', white: '#f4f4f4', orange: null, blue: '#3b7dd8', green: '#3fa66a' };   // null: the accent colour
+
+  // ---- playback state ----
+  let run = null, events = [], cursor = 0, playing = false, speed = 1, last = 0;
+  let clock = 0;                 // ms of floor time
+  const workers = {};            // station -> {busy:until, bubble:text, flash:until}
+  const slips = [];              // flying papers {from,to,t0,t1,kind}
+  const stacks = {};             // station -> units not yet started (backlog)
+  const done = {};               // station -> units finished
+  const did = {};                // principal -> {calls, claims, denied}
+  // the meter: each call's cost comes from the export (tools/export_run.py prices it from the fetched table);
+  // a call the exporter could not price is counted here, with its reason, and never shown as a figure
+  let spend = 0; const spendBy = {};  // station -> dollars, priced calls only
+  let pricedCalls = 0, unpricedCalls = 0, unpricedWhy = '';
+  const clamp = v => Math.max(0, Math.min(1, v));
+  const logEl = $('log');
+
+  function load(r) {
+    run = r; events = r.events || []; cursor = 0; clock = 0; nextAt = 0; playing = false; $('play').textContent = 'Play';
+    for (const k in workers) delete workers[k]; slips.length = 0;
+    for (const k in stacks) delete stacks[k]; for (const k in done) delete done[k]; for (const k in did) delete did[k];
+    spend = 0; for (const k in spendBy) delete spendBy[k]; pricedCalls = 0; unpricedCalls = 0; unpricedWhy = ''; logEl.innerHTML = '';
+    run._st = {}; for (const s of r.stations || []) run._st[s.id] = s;
+    // backlog: every unit a station will read, from the model-call rows ahead of us
+    for (const e of events) if (e.action === 'model-call') {
+      (stacks[e.station] = stacks[e.station] || new Set()).add(e.subject);
+      done[e.station] = done[e.station] || new Set();
+    }
+    // the ledger's unit of work is the claim row
+    run._claimIndex = {}; for (const c of (r.claims || [])) run._claimIndex[c.claim_id] = c;
+    // what the log says about the run's calls and where it got to
+    run._calls = events.filter(e => e.action === 'model-call').length;
+    run._billed = events.filter(e => e.action === 'model-call' && !e.replay).length;
+    run._end = reached();
+    owner.say = ''; owner.until = 0; broker.arm = 0; broker.nod = 0; broker.say = ''; broker.until = 0; finale = null; doorOpen = 0;
+    const billed = run._billed;
+    $('jobline').textContent = `${r.job || '?'} · ${r.run_id || ''} · ${events.length} log rows, ${(r.claims||[]).length} claims`
+      + (billed ? `, ${billed} model call${billed === 1 ? '' : 's'} billed` : run._calls ? ', replay (recorded answers, nothing billed)' : ', no model call');
+    $('caption').textContent = 'Press Play. Every move on the floor is one row of the run\'s audit log.';
+    const src = r.prices ? `Prices: ${r.prices.unit}, read from ${r.prices.source_url} at ${r.prices.fetched_at}. Cache writes at the 5-minute rate.` : 'No price table in this export (run tools/fetch_prices.py and pass --prices).';
+    $('pricesrc').textContent = src;
+    renderPanels(); draw();
+  }
+  // what the log and the run folder show the run reached: the export's `ending`, worked out and tested in
+  // tools/export_run.py (the bid is on the floor only when every Scope Writer run was valid, the draft is in the run
+  // folder, the audited rows include no fail and, on a whole bid, bid.txt says OK; the auditor's own orphan-figure
+  // and source-hash checks are not in the log, so the caption says so rather than calling the audit passed).
+  // The page adds only where on the timeline the last Scope Writer row lands, for the draft tray.
+  function reached() {
+    const r = { scope_runs: 0, valid: 0, draft: false, audits: 0, passed: 0, unverified: 0, failed: 0, verdict: null,
+                drafted: false, why: 'the export has no ending', ships: false, ...(run.ending || {}) };
+    r.ships = !!r.ships; r.drafted = !!r.drafted;
+    const sw = events.filter(e => e.action === 'model-call' && e.station === 'scope_writer');
+    r.lastScope = sw.length ? events.indexOf(sw[sw.length - 1]) : -1;
+    return r;
+  }
+
+  // ---- what the cast says. Each line is a reaction to one audit-log row and is picked by that
+  //      row's sequence number, so a replay says the same thing every time (determinism applies to jokes too). ----
+  const LINES = {
+    read1: {
+      drawing: ["Where's the north arrow?", "What's the scale? Says so on the sheet.", "Who dimensions anything in inches?", "Dimension strings. My happy place.", "Is that a digit or a smudge?"],
+      spec: ["Another division. Riveting.", "How many coats? The spec says, or it's a question.", "Rep's phone number is not a requirement.", "Read every clause. Lived to tell.", "Submittals, submittals, submittals."],
+      photo: ["Nice gutter.", "That's not peeling, that's texture.", "No numbers from photos. House rule.", "Same wall, new angle. Bold.", "Someone loves their railing."],
+      correspondence: ["The estimator wrote ASAP. Define ASAP.", "Reply-all. Of course it's reply-all.", "The customer says 'as discussed'. Discussed where?"],
+      takeoff: ["Carry the one.", "Run minus two ends, over spacing. Breathe.", "Code does the arithmetic. I just write the formula.", "Count times the per. The row says which."],
+      codes: ["Allowlisted sites only. The broker is watching.", "Which chapter? The page will say.", "Wind zone? The code page decides."],
+      materials: ["Data sheet says so. Who am I to argue.", "Coverage per gallon, as printed. Not as hoped.", "Primer first. The sheet insists."],
+      default: ["On it.", "Reading.", "Let me see that."],
+    },
+    read2: ["Again? Fine. AGAIN.", "The boss said read it twice.", "Second pass. Same page. Still ugly.", "Redundancy, not judgment, they said."],
+    read3: ["THREE times. Three.", "I could draw this from memory now.", "Third read. The page hasn't changed. I have.", "Three reads and we still don't pick. We vote."],
+    readMore: ["Again? Still the same page.", "A spare read. Nobody asked me.", "Read it as often as you like. It won't change."],
+    write: ["Filed. Nobody can edit it now. Nobody.", "Into the cabinet it goes.", "Signed, dated, no take-backs.", "One row, one page, one locator. Next."],
+    flagged: {   // by the flag on the row
+      conflict: ["Two readings, zero decisions. Flag it.", "They disagree. Not my call. Flag it.", "Both readings go in. A human picks."],
+      unverified: ["Can't verify it from here. Flag it.", "Sticky note. Someone with a pulse checks.", "Unverified. Says so on the slip."],
+    },
+    register: {   // by the row's kind (its detail)
+      drawing: ["Another sheet. Hash it, stamp it, next.", "A drawing. Filed under its own hash."],
+      photo: ["Another photo of the same wall. Filed.", "A photo. Hashed. Next."],
+      spec: ["Another spec. Love that for me.", "A spec. Hashed, stamped, filed."],
+      correspondence: ["An email. Into the register it goes.", "Correspondence. Filed, not read."],
+      default: ["Hash it, stamp it, next.", "I never forget a hash."],
+    },
+    denied: ["Not your lane, pal.", "The access matrix says no.", "Nice try. Role check failed."],
+    deniedAudit: ["Only the Auditor touches that column.", "The audit field? Not yours."],
+    rejected: ["Doesn't pass the method rules. Back.", "Fill the slip in properly.", "The rules say no. Read them.", "Back. Try again."],
+    fetchUnsafe: ["Not a public address. No.", "That's not a site, that's a trap.", "Nothing local, nothing private. No."],   // the broker's own refusal: the address guard
+    fetchDenied: ["Not on the list. Can't open it.", "Allowlisted domains only. Not that one.", "The fetcher says no."],      // the fetcher refused the site
+    fetchFailed: ["Didn't open. Nothing to quote.", "Dead link. Moving on.", "Site's down. I'm not guessing."],              // the site did not open or had no text
+    fetch: ["Allowlisted. Go ahead.", "Reading it off the site, not from memory.", "Quote it word for word or not at all."],
+    audit: ["Opening the source. Every time.", "Show me the page.", "Cited? Let's see it."],
+    owner: {
+      haiku: ["Haiku. Good. Cheap.", "Small model, small bill.", "Frugal. The word is frugal."],
+      sonnet: ["Sonnet? Who approved Sonnet?", "That's a Sonnet call. I felt that."],
+      sonnetTakeoff: ["Sonnet for the Takeoff. Fine. FINE.", "The Takeoff gets Sonnet. Nobody else."],
+      other: ["Cha-ching. That was my money.", "Was that billed? Tell me it wasn't billed."],
+      unpriced: ["Billed. Priced? Nobody knows.", "What did that cost? Exactly. Nobody can say."],
+      replay: ["Recorded answers. Free. Keep going.", "Replay run. Not a penny. Beautiful.", "Zero dollars. My favourite number."],
+      denied: ["Good. Bounce it.", "That's what the broker is for."],
+      backlog: ["Who's backed up? Them. Again.", "Why is there a pile? Why is there always a pile?"],
+      finale: {   // the last scene: the owner walks over with a bag of money, drops it at the bouncer, and goes back to his post
+        walk: ["Right. Let's see the damage.", "Done? Good. Nobody touch it.", "Out of my way. Bag coming through."],
+        pay: ["One bag of money. Don't count it.", "Here. That's the whole budget.", "Paid. In cash. Like a gentleman."],
+        leave: ["Back to work, all of you.", "Don't spend anything else today.", "Ladies. Gentlemen. Cat."],
+      },
+    },
+    est: {   // the estimator, the one person who releases a bid: takes it from the bouncer and walks it out by hand
+      take: ["Mine now. By hand, like the sign says.", "Thanks for the bag. I'll take the bid."],
+      leave: ["Off to the customer.", "Back by lunch."],
+      none: {   // by why there is no bid (run._end.why)
+        noDraft: ["Nothing to release yet.", "No draft, no bid."],
+        other: ["Not this one. Not yet.", "Nothing leaves until it's right."],
+      },
+    },
+    broker: {   // by whether the bag was counted and whether a bid goes out
+      paid: { counted: ["Counted. On the pile.", "Another one for the pile."], uncounted: ["Bag's here. Can't count what isn't priced.", "On the pile, uncounted."] },
+      ship: ["Bid goes with the estimator.", "Sign it out. By hand."],
+    },
+    bid: { waiting: ["Waiting to be released.", "By hand. The sign says so."], taken: ["Finally.", "Mind the bow tie."], leaving: ["Bye, everyone.", "Don't wait up."] },
+  };
+  const pick = (lines, seq) => lines[seq % lines.length];
+  const owner = { say: '', until: 0 };            // the owner, pacing by the door with a stopwatch
+  // the finale, in floor ms from the moment the last row lands: the owner walks to the bouncer (the estimator to the bid, when there is one),
+  // the bag goes down and the estimator takes the bid, the estimator walks it out while the owner goes back to his post, the door shuts
+  const FINALE = { walk: 2400, pay: 1800, exit: 3200, close: 800 }; FINALE.total = FINALE.walk + FINALE.pay + FINALE.exit + FINALE.close;
+  let finale = null;                              // { t0, dropped } once the run is done; null before
+  const today = new Date(), DAY = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`, BAGS_KEY = 'bidshop.bags.' + DAY;
+  let bags = 0; try { bags = parseInt(localStorage.getItem(BAGS_KEY) || '0', 10) || 0; } catch (e) { bags = 0; }   // runs finished on this page today (the viewer's date), this browser only
+  function bagDropped() { bags += 1; try { localStorage.setItem(BAGS_KEY, String(bags)); } catch (e) { /* no storage: the pile lasts the page */ } }
+  let doorOpen = 0;                               // 0 shut .. 1 open, set each frame from the finale
+  const broker = { arm: 0, nod: 0, say: '', until: 0 };   // the bouncer at the cabinet
+  const flaggedSoFar = () => { let n = 0; for (let i = 0; i < cursor; i++) { const e = events[i]; if (e.action === 'append' && run._claimIndex[e.subject] && run._claimIndex[e.subject].flag) n++; } return n; };
+
+  // ---- applying one audit-log row to the floor ----
+  const DUR = { 'model-call': 1100, append: 420, register: 260, denied: 700, rejected: 700, audit: 300, fetch: 500, default: 300 };
+  function apply(e) {
+    const w = workers[e.station] = workers[e.station] || {};
+    const d = did[e.principal] = did[e.principal] || { calls: 0, claims: 0, denied: 0 };
+    const dur = (DUR[e.action] || DUR.default);
+    if (e.action === 'register') {
+      slips.push({ from: 'packet', to: 'register', t0: clock, t1: clock + dur, kind: 'page', label: e.subject });
+      w.busy = clock + dur; w.bubble = `files ${e.subject}`; w.quip = pick(LINES.register[e.detail] || LINES.register.default, e.seq); d.claims += 1;
+      log(`${e.principal} registers ${e.subject} (${e.detail})`, e.action);
+    } else if (e.action === 'model-call') {
+      if (stacks[e.station]) { stacks[e.station].delete(e.subject); }
+      w.busy = clock + dur; w.bubble = `${e.replay ? 'replays' : 'reads'} ${e.subject}, run ${e.run || '?'}`;
+      w.quip = e.run > 3 ? pick(LINES.readMore, e.seq) : e.run === 3 ? pick(LINES.read3, e.seq) : e.run === 2 ? pick(LINES.read2, e.seq) : pick(LINES.read1[e.station] || LINES.read1.default, e.seq);
+      const m = (e.model || '').toLowerCase();
+      owner.say = pick(e.replay ? LINES.owner.replay : e.cost == null ? LINES.owner.unpriced : m.includes('haiku') ? LINES.owner.haiku
+        : m.includes('sonnet') ? (e.station === 'takeoff' ? LINES.owner.sonnetTakeoff : LINES.owner.sonnet) : LINES.owner.other, e.seq); owner.until = clock + dur;
+      if (stacks[e.station] && stacks[e.station].size >= 3 && e.seq % 3 === 0) { owner.say = pick(LINES.owner.backlog, e.seq); }
+      // a courier brings the station what its model reads: a page from the register, or rows from the cabinet; a fetched page needs no courier
+      const input = stationOf(e.station).input;
+      if (e.run === 1 && (input === 'sources' || input === 'ledger')) slips.push({ from: input === 'sources' ? 'register' : 'ledger', to: e.station, t0: clock, t1: clock + dur * 0.6, kind: 'page', label: e.subject });
+      d.calls += 1;
+      if (!e.replay) {
+        if (e.cost != null) { spend += e.cost; spendBy[e.station] = (spendBy[e.station] || 0) + e.cost; pricedCalls += 1; }
+        else { unpricedCalls += 1; unpricedWhy = e.unpriced || 'not priced by the export'; }
+      }
+      const u = e.usage;
+      log(`${e.principal} ${w.bubble}${u ? ` · ${(u.input_tokens||0) + (u.cache_read_input_tokens||0) + (u.cache_creation_input_tokens||0)} in, ${u.output_tokens||0} out` : e.replay ? '' : ` · ${e.unpriced}`}`, e.action);
+    } else if (e.action === 'append') {
+      slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'slip', label: e.subject });
+      d.claims += 1; if (done[e.station]) done[e.station].add(e.subject);
+      w.flash = 0;
+      w.busy = Math.max(w.busy || 0, clock + dur * 0.5); w.bubble = `writes ${e.subject}`;
+      const claim = run._claimIndex[e.subject]; slips[slips.length - 1].flag = !!(claim && claim.flag);
+      w.quip = claim && claim.flag ? pick(LINES.flagged[claim.flag] || LINES.flagged.unverified, e.seq) : pick(LINES.write, e.seq);
+      broker.nod = clock + dur;
+      log(`${e.principal} writes ${e.subject} (${e.detail})`, e.action);
+    } else if (e.action === 'denied' && e.subject === 'fetch') {
+      // the broker refused a URL before any fetch (a non-http scheme, credentials in it, a loopback or non-public address): nothing leaves the desk
+      w.flash = clock + dur; w.refusal = `fetch REFUSED: ${e.fetch_host || site(e.detail)}`; d.denied += 1;
+      broker.arm = clock + dur; broker.say = pick(LINES.fetchUnsafe, e.seq); broker.until = clock + dur * 1.5;
+      owner.say = pick(LINES.owner.denied, e.seq); owner.until = clock + dur * 1.5;
+      log(`${e.principal} fetch refused: ${e.detail}`, 'denied');
+    } else if (e.action === 'denied' || e.action === 'rejected') {
+      // denied: the access matrix said no. rejected: the slip failed the method rules. Both bounce.
+      slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'bounce', label: e.subject });
+      w.flash = clock + dur; w.refusal = e.action === 'rejected' ? `REJECTED ${e.subject}: ${e.detail}` : ''; d.denied += 1;
+      broker.arm = clock + dur; broker.say = pick(e.action === 'rejected' ? LINES.rejected : /audit/.test(e.subject) ? LINES.deniedAudit : LINES.denied, e.seq); broker.until = clock + dur * 1.5;
+      owner.say = pick(LINES.owner.denied, e.seq); owner.until = clock + dur * 1.5;
+      log(`${e.principal} ${e.action === 'rejected' ? 'rejected' : 'refused'}: ${e.subject}${e.action === 'rejected' ? ` (${e.detail})` : ''}`, 'denied');
+    } else if (e.action === 'fetch') {
+      // how the fetch ended, as the exporter read it off the fetcher's row: `read` (a page hash), `off-list` (the allowlist
+      // refused the host), `unsafe` (the address guard refused the URL) or `failed` (the page did not open or had nothing to read)
+      const kind = e.fetch || 'failed';
+      if (kind === 'read') {
+        w.busy = clock + dur; w.bubble = `fetches ${site(e.subject)}`; w.quip = pick(LINES.fetch, e.seq);
+        log(`${e.principal} fetches ${e.subject}`, e.action);
+      } else {
+        const refused = kind !== 'failed';
+        // the exporter names the refused host, which on a redirect is the hop's and not the page's
+        w.flash = clock + dur; w.refusal = `${refused ? 'fetch REFUSED' : 'did not open'}: ${(refused && e.fetch_host) || site(e.subject)}`;
+        w.quip = pick(kind === 'off-list' ? LINES.fetchDenied : kind === 'unsafe' ? LINES.fetchUnsafe : LINES.fetchFailed, e.seq);
+        if (refused) d.denied += 1;
+        log(`${e.principal} ${refused ? 'fetch refused' : 'fetch failed'}: ${e.subject} (${e.detail})`, 'denied');
+      }
+    } else if (e.action === 'audit') {
+      w.busy = clock + dur; w.bubble = `audits ${e.subject}: ${e.detail.split(':')[0]}`; w.quip = pick(LINES.audit, e.seq);
+      log(`${e.principal} audits ${e.subject}: ${e.detail}`, e.action);
+    } else {
+      w.busy = clock + dur; w.bubble = `${e.action} ${e.subject}`.trim();
+      log(`${e.principal} ${e.action} ${e.subject}`, e.action);
+    }
+    return dur;
+  }
+  const site = url => { try { return new URL(url).host; } catch (err) { return String(url).slice(0, 40); } };   // a URL on the floor is its host
+  function log(text, cls) {
+    const li = document.createElement('li'); li.textContent = text; li.className = cls; logEl.prepend(li);
+    while (logEl.children.length > 60) logEl.lastChild.remove();
+  }
+
+  let nextAt = 0;
+  function tick(now) {
+    if (!last) last = now; const dt = Math.min(100, now - last) * speed; last = now;
+    if (playing) {
+      clock += dt;
+      while (cursor < events.length && clock >= nextAt) { nextAt = clock + apply(events[cursor++]) * 0.9; }
+      if (cursor >= events.length && clock > nextAt + 1500) { playing = false; $('play').textContent = 'Play'; startFinale(); }
+      renderPanels();
+    } else if (finale && clock < finale.t0 + FINALE.total) {
+      clock += dt;   // the floor clock runs on through the finale, then stops with the door shut
+      if (!finale.dropped && clock - finale.t0 >= FINALE.walk) {   // the bag lands at the bouncer's feet, once
+        finale.dropped = true; bagDropped(); broker.nod = clock + 900; broker.until = clock + FINALE.pay * 0.45;
+        broker.say = pick(unpricedCalls ? LINES.broker.paid.uncounted : LINES.broker.paid.counted, events.length);
+      }
+      if (clock >= finale.t0 + FINALE.total) $('caption').textContent += ` The owner dropped the bag at the bouncer${run._end.ships ? ' and the estimator walked the bid out by hand' : ''} (staged: no row records this). ${bags} run${bags === 1 ? '' : 's'} finished here today.`;
+    }
+    draw();
+    requestAnimationFrame(tick);
+  }
+  function startFinale() { owner.say = ''; owner.until = 0; finale = { t0: clock }; $('caption').textContent = `Done: ${(run.claims||[]).length} claims on the ledger. ${finishLine()}`; }
+  // where everyone is in the finale at this floor clock; null before the run is done
+  function finaleState(s) {
+    if (!finale) return null;
+    const o = pos('owner'), e0 = pos('estimator'), d = pos('ships'), b = pos('bid'), ft = clock - finale.t0, n = events.length;
+    const payAt = { x: b.x + 40 * s, y: b.y + 1 };                                    // the owner's spot beside the bouncer
+    const takeAt = { x: b.x - 36 * s, y: b.y + 1 };                                   // the estimator's spot, the other side of the bid
+    const f = { owner: { x: payAt.x, y: payAt.y, walking: false, bag: true, dropped: false, say: '', sub: '' },
+                est: { x: e0.x, y: e0.y, walking: false, alpha: 1, gone: false, say: '' },
+                bid: run._end.ships ? { x: b.x, y: b.y, walking: false, happy: false, say: '', sub: '' } : null, door: 0 };
+    if (ft < FINALE.walk) {
+      const k = ease(ft / FINALE.walk); f.owner.walking = true; f.owner.x = o.x + (payAt.x - o.x) * k; f.owner.y = o.y + (payAt.y - o.y) * k;
+      if (k < 0.5) f.owner.say = pick(LINES.owner.finale.walk, n);                   // one voice at a time
+      if (f.bid) { f.est.walking = true; f.est.x = e0.x + (takeAt.x - e0.x) * k; f.est.y = e0.y + (takeAt.y - e0.y) * k; [f.bid.say, f.bid.sub] = LINES.bid.waiting; }
+      else if (k >= 0.5) f.est.say = pick(run._end.drafted ? LINES.est.none.other : LINES.est.none.noDraft, n);
+    } else if (ft < FINALE.walk + FINALE.pay) {
+      // the bag goes down at the bouncer's feet and the bouncer counts it; then the owner says what the bag held and the estimator takes the bid
+      f.owner.bag = false; f.owner.dropped = true;
+      if (f.bid) { f.est.x = takeAt.x; f.est.y = takeAt.y; f.bid.happy = true; [f.bid.say, f.bid.sub] = LINES.bid.taken; }
+      if (ft >= FINALE.walk + FINALE.pay * 0.45) {
+        f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine();
+        if (f.bid) { f.bid.say = ''; f.bid.sub = ''; f.est.say = pick(LINES.est.take, n); }
+      }
+      if (f.bid && ft >= FINALE.walk + FINALE.pay * 0.45 && broker.until <= clock) { broker.say = pick(LINES.broker.ship, n); broker.until = clock + 1; }
+    } else if (ft < FINALE.walk + FINALE.pay + FINALE.exit) {
+      const k = (ft - FINALE.walk - FINALE.pay) / FINALE.exit, far = d.x + 30 * s;
+      f.owner.bag = false; f.owner.dropped = true; f.owner.walking = true;            // the owner goes back to his post
+      f.owner.x = payAt.x + (o.x - payAt.x) * ease(k); f.owner.y = payAt.y + (o.y - payAt.y) * ease(k);
+      if (k < 0.2) { f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine(); } else if (k < 0.5) f.owner.say = pick(LINES.owner.finale.leave, n);
+      if (f.bid) {                                                                     // the estimator walks the bid out through the door
+        f.est.walking = true; f.bid.walking = true; f.bid.happy = true;
+        f.est.x = takeAt.x + (far - takeAt.x) * k; f.est.y = takeAt.y + (d.y + 1 - takeAt.y) * k;
+        f.bid.x = f.est.x - 34 * s; f.bid.y = f.est.y - 1;                             // the bid walks at the estimator's side
+        f.door = clamp((f.est.x - (d.x - 150 * s)) / (90 * s)); f.est.alpha = clamp(1 - (f.est.x - (d.x - 6 * s)) / (28 * s));
+        if (k >= 0.3 && k < 0.6) f.est.say = pick(LINES.est.leave, n);
+        if (k >= 0.5 && k < 0.75) f.bid.say = pick(LINES.bid.leaving, n);
+      }
+    } else {
+      f.owner.x = o.x; f.owner.y = o.y; f.owner.bag = false; f.owner.dropped = true;
+      if (f.bid) { f.bid = null; f.est.gone = true; f.est.alpha = 0; f.door = Math.max(0, 1 - (ft - FINALE.walk - FINALE.pay - FINALE.exit) / FINALE.close); }
+    }
+    return f;
+  }
+  const bagLine = () => !run._billed ? (run._calls ? 'The bag is empty: a replay run bills no tokens.' : 'The bag is empty: no model call in this run.')
+    : unpricedCalls ? `${unpricedCalls} of ${pricedCalls + unpricedCalls} calls not priced, so the bag is not counted.`
+    : `In the bag: $${spend.toFixed(4)}, this run's meter.`;
+  function finishLine() {
+    const flagged = (run.claims || []).filter(c => c.flag).length, r = run._end;
+    const parts = [flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.'];
+    parts.push(r.scope_runs ? `Scope Writer ran: ${r.valid} of ${r.scope_runs} run${r.scope_runs === 1 ? '' : 's'} valid; draft in the run folder: ${r.draft ? 'yes' : 'no'}.` : 'The Scope Writer did not run.');
+    parts.push(r.audits ? `Ledger rows audited: ${r.passed} pass, ${r.unverified} unverified, ${r.failed} fail (the auditor's orphan-figure and source-hash checks are not in the log${r.verdict === 'missing' ? '; no verdict in bid.txt' : r.verdict ? `; bid.txt says ${r.verdict}` : ''}).` : 'No audit rows.');
+    parts.push(r.ships ? 'The estimator takes the bid out by hand.' : `No bid on the floor: ${r.why}.`);
+    return parts.join(' ');
+  }
+
+  // ---- side panels ----
+  function renderPanels() {
+    if (unpricedCalls) {
+      $('cost').textContent = `${unpricedCalls}/${pricedCalls + unpricedCalls} unpriced`;
+      $('costsub').textContent = `${unpricedWhy}; ${pricedCalls ? `$${spend.toFixed(4)} for the ${pricedCalls} priced` : 'no figure shown'}`;
+    } else { $('cost').textContent = '$' + spend.toFixed(4); $('costsub').textContent = 'model spend so far'; }
+    const tb = $('costtable').tBodies[0]; tb.innerHTML = '';
+    const rows = Object.entries(spendBy).sort((a, b) => b[1] - a[1]);
+    const max = rows.length ? rows[0][1] : 0;
+    for (const [st, v] of rows) {
+      const tr = tb.insertRow(); tr.insertCell().textContent = nameOf(st);
+      const c = tr.insertCell(); c.className = 'n'; c.textContent = '$' + v.toFixed(4);
+      const b = tr.insertCell(); b.innerHTML = `<div class="bar"><i style="width:${max ? (100 * v / max).toFixed(0) : 0}%"></i></div>`;
+    }
+    if (!rows.length) { const tr = tb.insertRow(); const c = tr.insertCell(); c.colSpan = 3; c.className = 'sub'; c.textContent = run._billed ? (unpricedCalls ? 'no priced call yet' : 'spend appears as calls are made') : run._calls ? 'replay run: recorded answers, no tokens billed' : 'no model call in this run'; }
+    const bl = $('backlog').tBodies[0]; bl.innerHTML = '';
+    const items = Object.keys(stacks).map(st => ({ st, waiting: stacks[st].size, busy: workers[st] && workers[st].busy > clock }))
+      .sort((a, b) => b.waiting - a.waiting);
+    for (const it of items) {
+      const tr = bl.insertRow(); tr.insertCell().textContent = nameOf(it.st);
+      const c = tr.insertCell(); c.className = 'n'; c.textContent = it.waiting ? `${it.waiting} waiting` : 'clear';
+      const p = tr.insertCell(); p.innerHTML = it.busy ? '<span class="pill hot">working</span>' : it.waiting ? '<span class="pill">queued</span>' : '<span class="pill">idle</span>';
+    }
+    if (!items.length) { const tr = bl.insertRow(); const c = tr.insertCell(); c.className = 'sub'; c.textContent = 'no reader work in this run'; }
+    const wd = $('whodid').tBodies[0]; wd.innerHTML = '';
+    const head = wd.insertRow(); for (const h of ['who', 'calls', 'rows filed', 'refused']) { const th = document.createElement('th'); th.textContent = h; if (h !== 'who') th.className = 'n'; head.appendChild(th); }
+    for (const [p, d] of Object.entries(did)) {
+      const tr = wd.insertRow(); tr.insertCell().textContent = p.replace(/_/g, ' ');
+      for (const k of ['calls', 'claims', 'denied']) { const c = tr.insertCell(); c.className = 'n'; c.textContent = d[k]; }
+    }
+  }
+
+  // ---- drawing: an oblique view of the shop, every object a small box with a top and a front ----
+  const cv = $('floor'); const ctx = cv.getContext('2d');
+  function fit() {
+    // on a phone the floor keeps a readable size and scrolls sideways inside its box
+    const box = cv.parentElement.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(box.width, window.innerWidth < 860 ? 820 : 0), h = box.height;
+    cv.style.width = w + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); cv._w = w; cv._h = h;
+  }
+  function pos(st) { const p = PLAN[st] || EXTRAS[st] || { x: 500, y: 280 }; const s = Math.min(cv._w / 1000, cv._h / 560); const ox = (cv._w - 1000 * s) / 2, oy = (cv._h - 560 * s) / 2; return { x: ox + p.x * s, y: oy + p.y * s, s }; }
+  function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+  const DEPTH = 0.55;                 // the receding axis goes up and to the right, this much per unit
+  function shade(hex, k) {            // k > 0 lighter, k < 0 darker
+    const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    const f = c => Math.max(0, Math.min(255, Math.round(k > 0 ? c + (255 - c) * k : c * (1 + k))));
+    return `rgb(${f(r)},${f(g)},${f(b)})`;
+  }
+  function poly(pts) { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); }
+  // a box standing on the floor: front-bottom centre at (x, y), width w, depth d, height h
+  function box3d(x, y, w, d, h, color, edge) {
+    const dx = d * DEPTH, dy = -d * DEPTH;
+    ctx.fillStyle = shade(color, 0.28); poly([[x - w / 2, y - h], [x + w / 2, y - h], [x + w / 2 + dx, y - h + dy], [x - w / 2 + dx, y - h + dy]]); ctx.fill();
+    ctx.fillStyle = shade(color, -0.3); poly([[x + w / 2, y - h], [x + w / 2 + dx, y - h + dy], [x + w / 2 + dx, y + dy], [x + w / 2, y]]); ctx.fill();
+    ctx.fillStyle = color; ctx.fillRect(x - w / 2, y - h, w, h);
+    if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.strokeRect(x - w / 2, y - h, w, h); poly([[x - w / 2, y - h], [x + w / 2, y - h], [x + w / 2 + dx, y - h + dy], [x - w / 2 + dx, y - h + dy]]); ctx.stroke(); }
+  }
+  function shadow(x, y, rx, ry, a) { ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fill(); }
+  // shrink the current font until `text` fits in `maxW`: the page loads no font, so the viewer's fallback face may be wider than the one it was drawn for
+  function fitText(text, maxW) {
+    let px = parseFloat((ctx.font.match(/(\d+(?:\.\d+)?)px/) || [0, 12])[1]);
+    while (ctx.measureText(text).width > maxW && px > 6) { px *= 0.93; ctx.font = ctx.font.replace(/\d+(?:\.\d+)?px/, px.toFixed(1) + 'px'); }
+  }
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  let C = {};                                   // the palette, read from CSS each frame
+  const INK = '#1f2a36', BLACK = '#23262b';      // printed paper and the bouncer's shirt stay dark in both themes
+  function palette() {
+    C = { fg: css('--fg'), muted: css('--muted'), line: css('--line'), accent: css('--accent'), ledger: css('--ledger'), warn: css('--warn'), ink: css('--ink'), panel: css('--panel'),
+          wall: css('--wall'), plank: css('--plank'), plank2: css('--plank2'), wood: css('--wood'), steel: css('--steel'), skin: css('--skin'), vest: css('--vest'), paper: css('--paper') };
+  }
+
+  function drawFloor(s) {
+    const W = cv._w, H = cv._h, wallH = Math.min(96 * s, H * 0.2);
+    // back wall with a window strip and the shop sign
+    ctx.fillStyle = C.wall; ctx.fillRect(0, 0, W, wallH);
+    ctx.fillStyle = shade(C.wall, -0.18); ctx.fillRect(0, wallH - 6 * s, W, 6 * s);      // skirting
+    const posters = [['SAFETY FIRST', 'NO NUMBER WITHOUT A PAGE'], ['REDUNDANCY,', 'NOT JUDGMENT (p.9)'], ['FLAGGED FOR', 'A SECOND LOOK', String(flaggedSoFar())]];
+    const firstPoster = W - 290 * s - 3 * 100 * s;
+    posters.forEach((po, i) => {
+      const x = firstPoster + i * 100 * s;
+      ctx.fillStyle = C.paper; ctx.fillRect(x, 16 * s, 92 * s, wallH - 36 * s); ctx.strokeStyle = shade(C.wall, -0.35); ctx.lineWidth = 1.5; ctx.strokeRect(x, 16 * s, 92 * s, wallH - 36 * s);
+      ctx.fillStyle = po.length > 2 ? C.warn : C.accent; ctx.fillRect(x, 16 * s, 92 * s, 5 * s);
+      ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = `700 ${Math.max(8, 10 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; fitText(po[0], 86 * s);
+      ctx.fillText(po[0], x + 46 * s, 24 * s); ctx.font = `${Math.max(8, 9 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; fitText(po[1], 86 * s); ctx.fillText(po[1], x + 46 * s, 36 * s);
+      if (po[2] !== undefined) { ctx.fillStyle = C.warn; ctx.font = `700 ${Math.max(12, 16 * s)}px "IBM Plex Mono", monospace`; ctx.fillText(po[2], x + 46 * s, 46 * s); }
+    });
+    for (let x = 60 * s; x + 80 * s < firstPoster; x += 150 * s) {   // windows up to the posters
+      ctx.fillStyle = shade(C.ink, 0.55); ctx.fillRect(x, 14 * s, 70 * s, wallH - 36 * s);
+      ctx.strokeStyle = shade(C.wall, -0.3); ctx.lineWidth = 2; ctx.strokeRect(x, 14 * s, 70 * s, wallH - 36 * s);
+      ctx.beginPath(); ctx.moveTo(x + 35 * s, 14 * s); ctx.lineTo(x + 35 * s, wallH - 22 * s); ctx.moveTo(x, (14 * s + wallH - 22 * s) / 2); ctx.lineTo(x + 70 * s, (14 * s + wallH - 22 * s) / 2); ctx.stroke();
+    }
+    ctx.fillStyle = C.accent; roundRect(W - 230 * s, 16 * s, 190 * s, 38 * s, 4 * s); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(12, 20 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    fitText('CONTRACTOR CO. BID SHOP', 178 * s); ctx.fillText('CONTRACTOR CO. BID SHOP', W - 135 * s, 35 * s); ctx.textBaseline = 'top';
+    // the wall clock runs on floor time
+    const cx = W - 262 * s, cy = 36 * s, cr = 16 * s;
+    ctx.fillStyle = C.paper; ctx.beginPath(); ctx.arc(cx, cy, cr, 0, 7); ctx.fill(); ctx.strokeStyle = C.fg; ctx.lineWidth = 2; ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(clock / 60000 * 2 * Math.PI) * cr * 0.5, cy - Math.cos(clock / 60000 * 2 * Math.PI) * cr * 0.5); ctx.stroke();
+    ctx.strokeStyle = C.warn; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(clock / 1000 * 2 * Math.PI / 60) * cr * 0.8, cy - Math.cos(clock / 1000 * 2 * Math.PI / 60) * cr * 0.8); ctx.stroke();
+    // floor planks, darker toward the back
+    const rows = Math.ceil((H - wallH) / (22 * s));
+    for (let i = 0; i < rows; i++) {
+      const y = wallH + i * 22 * s; const far = 1 - i / rows;
+      ctx.fillStyle = shade(i % 2 ? C.plank : C.plank2, -0.18 * far); ctx.fillRect(0, y, W, 22 * s);
+      ctx.strokeStyle = shade(C.plank, -0.25); ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+      const off = (i % 3) * 110 * s; for (let x = off; x < W; x += 330 * s) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 22 * s); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+    }
+    // walkways between the stations, painted on the floor
+    ctx.strokeStyle = shade(C.plank, -0.35); ctx.lineWidth = 7 * s; ctx.lineCap = 'round'; ctx.globalAlpha = 0.35;
+    for (const e of run.edges || []) { if (!PLAN[e.from] || !PLAN[e.to]) continue; const a = pos(e.from), b = pos(e.to); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    ctx.globalAlpha = 1; ctx.lineCap = 'butt';
+    ctx.strokeStyle = C.accent; ctx.lineWidth = 1.2 * s; ctx.setLineDash([5 * s, 9 * s]); ctx.globalAlpha = 0.5;
+    for (const e of run.edges || []) { if (!PLAN[e.from] || !PLAN[e.to]) continue; const a = pos(e.from), b = pos(e.to); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+  }
+
+  function draw() {
+    if (!run) return;
+    palette();
+    ctx.clearRect(0, 0, cv._w, cv._h);
+    const s = pos('intake').s;
+    const fs = finaleState(s); doorOpen = fs ? fs.door : 0;
+    drawFloor(s);
+    const items = [];                     // everything on the floor, sorted by its foot so nearer things draw later
+    for (const st in PLAN) {
+      const p = PLAN[st], q = pos(st); const w = workers[st] || {};
+      const busy = (w.busy || 0) > clock, flash = (w.flash || 0) > clock;
+      items.push({ y: q.y, fn: () => drawStation(st, p, q, s, w, busy, flash) });
+      if (busy || flash) items.push({ y: 1e9, fn: () => { if (w.bubble || flash) bubble(q.x, q.y - (p.kind === 'bench' ? 96 : 92) * s, s, flash ? (w.refusal || 'REFUSED by the broker') : w.bubble, flash, flash ? '' : w.quip); } });
+    }
+    const ownerAt = fs ? fs.owner : pos('owner'), estAt = fs ? fs.est : { ...pos('estimator'), alpha: 1, walking: false }, brokerAt = pos('broker'), catAt = pos('cat'), pileAt = pos('pile');
+    items.push({ y: ownerAt.y, fn: () => drawOwner(ownerAt.x, ownerAt.y, s, fs && fs.owner) });
+    if (!estAt.gone) items.push({ y: estAt.y, fn: () => drawEstimator(estAt.x, estAt.y, s, estAt) });
+    items.push({ y: brokerAt.y, fn: () => drawBroker(brokerAt.x, brokerAt.y, s) });
+    items.push({ y: catAt.y + 40 * s, fn: () => drawCat(catAt.y + 40 * s, s) });
+    if (fs) {
+      if (fs.owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, fs.owner.say, false, fs.owner.sub) });
+      if (fs.est.say && fs.est.alpha > 0.3) items.push({ y: 1e9, fn: () => bubble(estAt.x, estAt.y - 78 * s, s, fs.est.say, false) });
+    } else if (owner.until > clock && owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, owner.say, false) });
+    if (broker.until > clock && broker.say) items.push({ y: 1e9, fn: () => bubble(brokerAt.x, brokerAt.y - 84 * s, s, broker.say, true) });
+    if (bags > 0) items.push({ y: pileAt.y, fn: () => drawPile(pileAt.x, pileAt.y, s, bags) });   // the day's bags, at the bouncer's feet
+    // the finished bid waits at the bouncer only when the export's ending says the run got that far (every Scope Writer run valid, a draft, an audit with no fail, bid.txt OK on a whole bid); then the estimator takes it out
+    const bidUp = run._end.ships && (fs ? !!fs.bid : (cursor >= events.length && events.length > 0));
+    if (bidUp) {
+      const b = fs ? fs.bid : { ...pos('bid'), walking: false, happy: false, say: LINES.bid.waiting[0], sub: LINES.bid.waiting[1] };
+      items.push({ y: b.y, fn: () => drawBid(b.x, b.y, s, b.happy, b.walking, fs ? fs.est.alpha : 1) });
+      if (b.say && (!fs || fs.est.alpha > 0.3)) items.push({ y: 1e9, fn: () => bubble(b.x, b.y - 70 * s, s, b.say, false, b.sub) });
+    }
+    for (let i = slips.length - 1; i >= 0; i--) {
+      const sl = slips[i]; const t = (clock - sl.t0) / (sl.t1 - sl.t0);
+      if (sl.kind === 'page' && t >= 1 && !sl.back) {   // paperwork dropped off: the courier walks back with a beer
+        sl.back = true; slips.push({ from: sl.to, to: sl.from, t0: sl.t1, t1: sl.t1 + (sl.t1 - sl.t0) * 1.6, kind: 'beer' });
+      }
+      if (t >= 1.3) { slips.splice(i, 1); continue; }
+      const a = pos(sl.from), b = pos(sl.to); let k = ease(Math.min(1, Math.max(0, t)));
+      if (sl.kind === 'bounce' && t > 0.5) k = ease(1 - (t - 0.5));
+      const x = a.x + (b.x - a.x) * k, y = a.y + (b.y - a.y) * k;
+      if (sl.kind === 'page') items.push({ y: y + 1, fn: () => drawCourier(x, y, s, b.x >= a.x, sl.label) });
+      else if (sl.kind === 'beer') items.push({ y: y + 1, fn: () => drawCourier(x, y, s, b.x >= a.x, '', true) });
+      else items.push({ y: y + 1, fn: () => drawSlip(x, y - Math.sin(Math.PI * Math.min(1, k)) * 40 * s, s, k, sl.kind, y, sl.flag) });
+    }
+    items.sort((a, b) => a.y - b.y);
+    for (const it of items) it.fn();
+    // a vignette so the floor sits in the room
+    const g = ctx.createRadialGradient(cv._w / 2, cv._h / 2, cv._h * 0.4, cv._w / 2, cv._h / 2, cv._h * 1.1);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.22)'); ctx.fillStyle = g; ctx.fillRect(0, 0, cv._w, cv._h);
+  }
+
+  function label(text, x, y, s, dim) {
+    ctx.font = `700 ${Math.max(10, 12 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const w = ctx.measureText(text).width + 10 * s;
+    ctx.fillStyle = dim ? C.muted : C.fg; ctx.globalAlpha = dim ? 0.5 : 0.85; roundRect(x - w / 2, y, w, 15 * s, 3 * s); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = C.panel; ctx.fillText(text, x, y + 2 * s);
+  }
+
+  function drawStation(st, p, q, s, w, busy, flash) {
+    const info = stationOf(st), dim = info.status === 'planned' && !(stacks[st] && stacks[st].size);
+    ctx.save(); if (dim) ctx.globalAlpha = 0.4;
+    if (busy) { const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, 70 * s); g.addColorStop(0, 'rgba(255,200,80,0.35)'); g.addColorStop(1, 'rgba(255,200,80,0)'); ctx.fillStyle = g; ctx.fillRect(q.x - 70 * s, q.y - 70 * s, 140 * s, 140 * s); }
+    if (p.kind === 'cabinet') drawCabinet(q.x, q.y, s, (run.claims || []).length);
+    else if (p.kind === 'door') drawDoor(q.x, q.y, s);
+    else if (p.kind === 'tray') drawTray(st, q.x, q.y, s);
+    else drawDesk(st, p, q, s, w, busy, flash);
+    ctx.restore();
+    const lx = q.x - (p.kind === 'cabinet' ? 8 : 0) * s, ly = q.y + (p.kind === 'cabinet' ? 14 : p.kind === 'door' ? 10 : 8) * s;
+    label(nameOf(st).toUpperCase(), lx, ly, s, dim);
+    if (info.status === 'planned' || info.status === 'replay-only') {   // what pipeline/dag.py says about the station
+      ctx.fillStyle = C.muted; ctx.font = `${Math.max(8, 9 * s)}px "IBM Plex Mono", ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(info.status, lx, ly + 16 * s);
+    }
+  }
+
+  function drawDesk(st, p, q, s, w, busy, flash) {
+    const dw = (p.kind === 'bench' ? 92 : 74) * s, dd = 26 * s, dh = 24 * s;
+    shadow(q.x + 8 * s, q.y + 2 * s, dw * 0.6, 8 * s, 0.18);
+    // the worker sits behind the desk; the desk's front is drawn over the lower body
+    drawWorker(q.x - 4 * s, q.y - dh - 2 * s, s, p.hat, busy, clock, st);
+    box3d(q.x, q.y, dw, dd, dh, flash ? C.warn : C.wood, shade(C.wood, -0.45));
+    if (busy || flash) { ctx.strokeStyle = flash ? C.warn : C.accent; ctx.lineWidth = 2.5; ctx.strokeRect(q.x - dw / 2, q.y - dh, dw, dh); }
+    drawProp(st, q.x + dw / 2 - 16 * s, q.y - dh - 2 * s, s, busy);
+    // waiting packets stacked beside the desk
+    const waiting = stacks[st] ? stacks[st].size : 0;
+    for (let i = 0; i < Math.min(waiting, 6); i++) box3d(q.x + dw / 2 + 16 * s, q.y - i * 4 * s, 18 * s, 12 * s, 3.5 * s, C.paper, shade(C.paper, -0.35));
+    if (waiting > 6) { ctx.fillStyle = C.fg; ctx.font = `${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.fillText('+' + (waiting - 6), q.x + dw / 2 + 28 * s, q.y - 38 * s); }
+    if (waiting >= 3) {                       // backed up: sweat, and a sign on the pile
+      ctx.fillStyle = '#6fb7ff'; for (let i = 0; i < 3; i++) { const ph = (clock / 500 + i * 0.7) % 1; ctx.globalAlpha = 1 - ph; ctx.beginPath(); ctx.ellipse(q.x - 18 * s + i * 7 * s, q.y - dh - 60 * s + ph * 14 * s, 2 * s, 3 * s, 0, 0, 7); ctx.fill(); } ctx.globalAlpha = 1;
+      ctx.save(); ctx.translate(q.x + dw / 2 + 16 * s, q.y - 30 * s); ctx.rotate(-0.15 + Math.sin(clock / 300) * 0.05);
+      ctx.fillStyle = C.paper; ctx.strokeStyle = C.warn; ctx.lineWidth = 1.5; ctx.fillRect(-14 * s, -8 * s, 28 * s, 12 * s); ctx.strokeRect(-14 * s, -8 * s, 28 * s, 12 * s);
+      ctx.fillStyle = C.warn; ctx.font = `700 ${Math.max(8, 9 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('HELP', 0, -2 * s); ctx.textBaseline = 'top'; ctx.restore();
+    }
+    const finished = done[st] ? done[st].size : 0;
+    if (finished) { ctx.fillStyle = C.ledger; ctx.font = `700 ${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.fillText(`${finished} done`, q.x + dw / 2 + 6 * s, q.y - dh - 12 * s); }
+  }
+
+  // what sits on each desk: a thing a person at that station would have
+  function drawProp(st, x, y, s, busy) {
+    ctx.save(); ctx.translate(x, y); ctx.lineWidth = 1; ctx.strokeStyle = shade(C.fg, -0.2);
+    const kind = { drawing: 'roll', spec: 'binder', photo: 'camera', correspondence: 'letters', takeoff: 'calc', codes: 'book', materials: 'swatch', customer: 'binder', scope_writer: 'typewriter', auditor: 'glass', orchestrator: 'board', intake: 'scanner' }[st] || 'screen';
+    if (kind === 'roll') { ctx.fillStyle = shade(C.ink, 0.5); ctx.fillRect(-12 * s, -6 * s, 24 * s, 7 * s); ctx.fillStyle = C.paper; ctx.beginPath(); ctx.ellipse(12 * s, -2.5 * s, 3 * s, 3.5 * s, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.strokeRect(-12 * s, -6 * s, 24 * s, 7 * s); }
+    else if (kind === 'binder') { ctx.fillStyle = C.ink; ctx.fillRect(-7 * s, -14 * s, 12 * s, 14 * s); ctx.fillStyle = C.paper; ctx.fillRect(-5 * s, -12 * s, 8 * s, 10 * s); ctx.strokeRect(-7 * s, -14 * s, 12 * s, 14 * s); }
+    else if (kind === 'camera') { ctx.fillStyle = shade(C.fg, 0.1); roundRect(-10 * s, -9 * s, 18 * s, 10 * s, 2 * s); ctx.fill(); ctx.fillStyle = C.steel; ctx.beginPath(); ctx.arc(-1 * s, -4 * s, 3.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = busy ? C.accent : C.muted; ctx.fillRect(4 * s, -8 * s, 2 * s, 2 * s); }
+    else if (kind === 'letters') { for (let i = 0; i < 3; i++) { ctx.fillStyle = C.paper; ctx.fillRect(-10 * s + i * 3 * s, -8 * s - i * 2 * s, 16 * s, 9 * s); ctx.strokeRect(-10 * s + i * 3 * s, -8 * s - i * 2 * s, 16 * s, 9 * s); } ctx.beginPath(); ctx.moveTo(-4 * s, -12 * s); ctx.lineTo(4 * s, -7 * s); ctx.lineTo(12 * s, -12 * s); ctx.stroke(); }
+    else if (kind === 'calc') { ctx.fillStyle = C.steel; roundRect(-8 * s, -14 * s, 14 * s, 14 * s, 2 * s); ctx.fill(); ctx.fillStyle = busy ? '#b8e986' : C.paper; ctx.fillRect(-6 * s, -12 * s, 10 * s, 4 * s); ctx.fillStyle = C.fg; for (let i = 0; i < 6; i++) ctx.fillRect(-6 * s + (i % 3) * 3.5 * s, -6 * s + Math.floor(i / 3) * 3 * s, 2 * s, 2 * s); }
+    else if (kind === 'book') { ctx.fillStyle = '#8b2e2e'; ctx.fillRect(-9 * s, -12 * s, 16 * s, 12 * s); ctx.fillStyle = C.paper; ctx.fillRect(-7 * s, -12 * s, 12 * s, 1.5 * s); ctx.fillStyle = '#e5c97a'; ctx.fillRect(-9 * s, -8 * s, 16 * s, 1.5 * s); }
+    else if (kind === 'swatch') { const cs = ['#d9a066', '#8fb7a6', '#c86b5c', '#e6d8b8']; for (let i = 0; i < 4; i++) { ctx.fillStyle = cs[i]; ctx.save(); ctx.translate(-6 * s, -2 * s); ctx.rotate(-0.35 * i); ctx.fillRect(0, -3 * s, 16 * s, 5 * s); ctx.strokeRect(0, -3 * s, 16 * s, 5 * s); ctx.restore(); } }
+    else if (kind === 'typewriter') { ctx.fillStyle = shade(C.fg, 0.25); roundRect(-11 * s, -9 * s, 22 * s, 9 * s, 2 * s); ctx.fill(); ctx.fillStyle = C.paper; ctx.fillRect(-6 * s, -18 * s + (busy ? Math.sin(clock / 70) * 1.5 * s : 0), 12 * s, 10 * s); ctx.fillStyle = C.muted; for (let i = 0; i < 8; i++) ctx.fillRect(-9 * s + i * 2.5 * s, -6 * s, 1.5 * s, 1.5 * s); }
+    else if (kind === 'glass') { ctx.strokeStyle = C.steel; ctx.lineWidth = 2.5 * s; ctx.beginPath(); ctx.arc(-2 * s, -8 * s, 5 * s, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.moveTo(2 * s, -4 * s); ctx.lineTo(8 * s, 1 * s); ctx.stroke(); ctx.fillStyle = 'rgba(160,210,255,0.5)'; ctx.beginPath(); ctx.arc(-2 * s, -8 * s, 4 * s, 0, 7); ctx.fill(); }
+    else if (kind === 'board') { ctx.fillStyle = C.paper; ctx.fillRect(-16 * s, -22 * s, 22 * s, 22 * s); ctx.strokeRect(-16 * s, -22 * s, 22 * s, 22 * s); ctx.strokeStyle = C.ink; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-13 * s, -18 * s + i * 5 * s); ctx.lineTo(-13 * s + (8 + (i * 7) % 9) * s, -18 * s + i * 5 * s); ctx.stroke(); } ctx.fillStyle = C.accent; ctx.fillRect(-13 * s, -18 * s + 2 * 5 * s - 1 * s, 2 * s, 2 * s); }
+    else if (kind === 'scanner') { ctx.fillStyle = C.steel; roundRect(-12 * s, -8 * s, 24 * s, 8 * s, 2 * s); ctx.fill(); ctx.fillStyle = busy ? '#8ff' : shade(C.steel, 0.3); ctx.fillRect(-10 * s, -6 * s, 20 * s, 2 * s); if (busy) { ctx.fillStyle = 'rgba(120,255,255,0.35)'; ctx.fillRect(-10 * s + ((clock / 12) % 18) * s, -14 * s, 2 * s, 8 * s); } }
+    else { ctx.fillStyle = shade(C.fg, 0.15); ctx.fillRect(-8 * s, -14 * s, 16 * s, 11 * s); ctx.fillStyle = C.paper; ctx.fillRect(-7 * s, -13 * s, 14 * s, 9 * s); }
+    ctx.restore();
+  }
+
+  function drawWorker(x, y, s, hat, busy, t, st) {
+    // y is the belt line; the head is above it. Idle workers breathe; busy ones work with their hands.
+    const breathe = Math.sin(t / 600 + (st ? st.length : 0)) * 0.6 * s, bob = busy ? Math.sin(t / 110) * 1.2 * s : breathe;
+    ctx.save(); ctx.translate(x, y + bob);
+    const vest = C.vest;
+    ctx.fillStyle = vest; roundRect(-13 * s, -22 * s, 26 * s, 26 * s, 5 * s); ctx.fill();                  // torso in a hi-vis vest
+    ctx.fillStyle = '#d8d8d8'; ctx.fillRect(-13 * s, -12 * s, 26 * s, 2.5 * s); ctx.fillRect(-13 * s, -6 * s, 26 * s, 2.5 * s);   // reflective stripes
+    ctx.fillStyle = shade(C.fg, 0.35); ctx.fillRect(-4 * s, -22 * s, 8 * s, 10 * s);                      // shirt under the vest
+    // arms: busy workers' hands move over the desk; idle ones rest
+    ctx.strokeStyle = vest; ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
+    const reach = busy ? Math.sin(t / 90) * 4 * s : 0, reach2 = busy ? Math.cos(t / 90) * 4 * s : 0;
+    ctx.beginPath(); ctx.moveTo(-11 * s, -16 * s); ctx.lineTo(-18 * s + reach, 0); ctx.moveTo(11 * s, -16 * s); ctx.lineTo(18 * s + reach2, 0); ctx.stroke();
+    ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(-18 * s + reach, 0, 3 * s, 0, 7); ctx.arc(18 * s + reach2, 0, 3 * s, 0, 7); ctx.fill();   // hands
+    ctx.fillStyle = C.skin; ctx.fillRect(-3 * s, -27 * s, 6 * s, 6 * s);                                  // neck
+    ctx.beginPath(); ctx.arc(0, -34 * s, 10 * s, 0, 7); ctx.fill();                                       // head
+    ctx.fillStyle = C.fg; const blink = Math.sin(t / 900 + (st ? st.length * 1.7 : 0)) > 0.97;
+    if (blink) ctx.fillRect(-5 * s, -35 * s, 3 * s, 1 * s), ctx.fillRect(2 * s, -35 * s, 3 * s, 1 * s);
+    else { ctx.beginPath(); ctx.arc(-3.5 * s, -35 * s, 1.2 * s, 0, 7); ctx.arc(3.5 * s, -35 * s, 1.2 * s, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = shade(C.skin, -0.4); ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.arc(0, -31 * s, 3 * s, busy ? 0.3 : 0.2, busy ? 2.8 : 2.9); ctx.stroke();   // mouth
+    const hatColor = HAT[hat] || C.accent;                                                                // hard hat with a brim
+    ctx.fillStyle = hatColor; ctx.beginPath(); ctx.arc(0, -36 * s, 10.5 * s, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = shade(hatColor, -0.25); roundRect(-13 * s, -37.5 * s, 26 * s, 3 * s, 1.5 * s); ctx.fill();
+    ctx.fillStyle = shade(hatColor, 0.45); ctx.fillRect(-2 * s, -45 * s, 4 * s, 7 * s);                   // the ridge on top
+    ctx.restore();
+  }
+
+  // a runner carrying a page from the register to a reader's desk
+  // `beer`: the way back, paperwork delivered, a pint in the front hand, a sip now and then
+  function drawCourier(x, y, s, right, text, beer) {
+    const step = Math.sin(clock / (beer ? 95 : 70));
+    shadow(x, y + 2 * s, 9 * s, 3.5 * s, 0.22);
+    ctx.save(); ctx.translate(x, y - Math.abs(step) * 1.5 * s); if (!right) ctx.scale(-1, 1);
+    ctx.strokeStyle = shade(C.fg, 0.3); ctx.lineWidth = 4 * s; ctx.lineCap = 'round';                   // legs
+    ctx.beginPath(); ctx.moveTo(-3 * s, -8 * s); ctx.lineTo(-3 * s + step * 6 * s, 0); ctx.moveTo(3 * s, -8 * s); ctx.lineTo(3 * s - step * 6 * s, 0); ctx.stroke();
+    ctx.fillStyle = C.vest; roundRect(-8 * s, -24 * s, 16 * s, 17 * s, 4 * s); ctx.fill();               // vest
+    ctx.fillStyle = '#d8d8d8'; ctx.fillRect(-8 * s, -16 * s, 16 * s, 2 * s);
+    if (beer) {
+      const sip = Math.max(0, Math.sin(clock / 420) - 0.6) * 2.2;                                        // the glass tips up now and then
+      ctx.strokeStyle = C.vest; ctx.lineWidth = 4 * s; ctx.beginPath(); ctx.moveTo(6 * s, -20 * s); ctx.lineTo(12 * s - sip * 6 * s, -16 * s - sip * 10 * s); ctx.stroke();   // arm, raised for a sip
+      ctx.save(); ctx.translate(12 * s - sip * 6 * s, -16 * s - sip * 10 * s); ctx.rotate(-sip * 0.9);
+      ctx.fillStyle = '#f0a81e'; ctx.fillRect(-4.5 * s, -14 * s, 9 * s, 14 * s);                            // the beer
+      ctx.fillStyle = '#fff6dc'; ctx.fillRect(-4.5 * s, -18 * s, 9 * s, 4.5 * s);                           // the head
+      ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.strokeRect(-4.5 * s, -18 * s, 9 * s, 18 * s);          // the glass
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.moveTo(-2.5 * s, -12 * s); ctx.lineTo(-2.5 * s, -3 * s); ctx.stroke();   // a shine
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = C.vest; ctx.lineWidth = 4 * s; ctx.beginPath(); ctx.moveTo(6 * s, -20 * s); ctx.lineTo(14 * s, -14 * s); ctx.stroke();   // arm out front
+      ctx.fillStyle = C.paper; ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.fillRect(10 * s, -24 * s, 14 * s, 18 * s); ctx.strokeRect(10 * s, -24 * s, 14 * s, 18 * s);   // the page
+      ctx.strokeStyle = C.muted; ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(12 * s, -21 * s + i * 4 * s); ctx.lineTo(22 * s - (i % 2) * 4 * s, -21 * s + i * 4 * s); } ctx.stroke();
+    }
+    ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(0, -31 * s, 7 * s, 0, 7); ctx.fill();               // head
+    ctx.fillStyle = '#f2c200'; ctx.beginPath(); ctx.arc(0, -32 * s, 7.5 * s, Math.PI, 0); ctx.fill(); ctx.fillRect(-9 * s, -33 * s, 18 * s, 2 * s);   // yellow hat
+    ctx.restore();
+    if (text) { ctx.fillStyle = C.fg; ctx.font = `${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(text, x, y + 6 * s); }
+  }
+
+  // a claim slip tossed toward the ledger (green) or bounced back by the broker (red)
+  function drawSlip(x, y, s, k, kind, floorY, flag) {
+    shadow(x, floorY + 2 * s, 8 * s, 3 * s, 0.12 + 0.1 * (1 - Math.min(1, Math.abs(floorY - y) / (40 * s))));
+    ctx.save(); ctx.translate(x, y); ctx.rotate((k - 0.5) * 0.9);
+    ctx.fillStyle = kind === 'bounce' ? '#ffd9d6' : '#fff6d6'; ctx.strokeStyle = kind === 'bounce' ? C.warn : C.ledger; ctx.lineWidth = 1.2;
+    ctx.fillRect(-11 * s, -7 * s, 22 * s, 14 * s); ctx.strokeRect(-11 * s, -7 * s, 22 * s, 14 * s);
+    ctx.strokeStyle = C.muted; ctx.beginPath(); ctx.moveTo(-7 * s, -3 * s); ctx.lineTo(7 * s, -3 * s); ctx.moveTo(-7 * s, 1 * s); ctx.lineTo(4 * s, 1 * s); ctx.moveTo(-7 * s, 5 * s); ctx.lineTo(6 * s, 5 * s); ctx.stroke();
+    if (kind === 'bounce') { ctx.strokeStyle = C.warn; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-6 * s, -5 * s); ctx.lineTo(6 * s, 5 * s); ctx.moveTo(6 * s, -5 * s); ctx.lineTo(-6 * s, 5 * s); ctx.stroke(); }
+    if (flag) { ctx.fillStyle = '#ffd34d'; ctx.fillRect(2 * s, -11 * s, 10 * s, 10 * s); ctx.fillStyle = INK; ctx.font = `700 ${Math.max(8, 9 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', 7 * s, -6 * s); ctx.textBaseline = 'top'; }
+    ctx.restore();
+  }
+
+  function bubble(x, y, s, text, warn, sub) {
+    ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; const w1 = ctx.measureText(text).width;
+    ctx.font = `italic ${Math.max(10, 12 * s)}px "Source Sans 3", "Segoe UI", sans-serif`; const w2 = sub ? ctx.measureText(sub).width : 0;
+    const w = Math.max(w1, w2) + 16 * s, h = sub ? 38 * s : 22 * s, tail = x;
+    x = Math.min(cv._w - w / 2 - 4, Math.max(w / 2 + 4, x));
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetY = 3 * s;
+    ctx.fillStyle = C.panel; roundRect(x - w / 2, y - h, w, h, 6 * s); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = warn ? C.warn : C.line; ctx.lineWidth = 1.2; roundRect(x - w / 2, y - h, w, h, 6 * s); ctx.stroke();
+    ctx.fillStyle = C.panel; ctx.beginPath(); ctx.moveTo(tail - 5 * s, y - 1); ctx.lineTo(tail, y + 7 * s); ctx.lineTo(tail + 5 * s, y - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = warn ? C.warn : C.fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.fillText(text, x, y - h + 11 * s);
+    if (sub) { ctx.fillStyle = C.muted; ctx.font = `italic ${Math.max(10, 12 * s)}px "Source Sans 3", "Segoe UI", sans-serif`; ctx.fillText(sub, x, y - 10 * s); }
+    ctx.textBaseline = 'top';
+  }
+
+  // the owner: no hard hat, a tie, a stopwatch, and a foot that taps faster the more is spent.
+  // In the finale (`f`) he walks over with the bag of money, drops it at the bouncer, and goes back to his post.
+  // The finale is the one staged scene: no audit-log row records a release (the estimator does that by hand, off the floor).
+  function drawOwner(x, y, s, f) {
+    const tap = Math.sin(clock / (spend > 0 ? 90 : 260)), step = f && f.walking ? Math.sin(clock / 80) : 0;
+    ctx.save();
+    shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
+    ctx.translate(x, y);
+    ctx.strokeStyle = '#3a3f47'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
+    ctx.beginPath();
+    if (f && f.walking) { ctx.moveTo(-4 * s, -10 * s); ctx.lineTo(-5 * s + step * 5 * s, 0); ctx.moveTo(4 * s, -10 * s); ctx.lineTo(6 * s - step * 5 * s, 0); }   // legs, striding
+    else { ctx.moveTo(-4 * s, -10 * s); ctx.lineTo(-5 * s, 0); ctx.moveTo(4 * s, -10 * s); ctx.lineTo(6 * s, -Math.max(0, tap) * 4 * s); }   // legs, one tapping
+    ctx.stroke();
+    ctx.fillStyle = '#2d4a6b'; roundRect(-11 * s, -32 * s, 22 * s, 24 * s, 4 * s); ctx.fill();                    // jacket
+    ctx.fillStyle = C.paper; ctx.fillRect(-3 * s, -32 * s, 6 * s, 12 * s); ctx.fillStyle = C.warn; ctx.fillRect(-1.5 * s, -32 * s, 3 * s, 11 * s);   // shirt and tie
+    ctx.strokeStyle = '#2d4a6b'; ctx.lineWidth = 4.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -27 * s); ctx.lineTo(-16 * s, -16 * s); ctx.moveTo(9 * s, -27 * s); ctx.lineTo(16 * s, -18 * s); ctx.stroke();   // arms
+    if (f && f.bag) drawBag(-18 * s, 2 * s, s * 0.9);   // the bag of money, in the stopwatch hand
+    else if (!f) {
+      ctx.fillStyle = C.steel; ctx.beginPath(); ctx.arc(-17 * s, -14 * s, 4.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = C.paper; ctx.beginPath(); ctx.arc(-17 * s, -14 * s, 3 * s, 0, 7); ctx.fill();   // stopwatch
+      ctx.strokeStyle = C.fg; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-17 * s, -14 * s); ctx.lineTo(-17 * s + Math.cos(clock / 160) * 2.5 * s, -14 * s + Math.sin(clock / 160) * 2.5 * s); ctx.stroke();
+    }
+    ctx.fillStyle = C.paper; ctx.fillRect(13 * s, -24 * s, 9 * s, 12 * s); ctx.strokeStyle = C.muted; ctx.strokeRect(13 * s, -24 * s, 9 * s, 12 * s);   // clipboard
+    ctx.fillStyle = C.skin; ctx.fillRect(-3 * s, -37 * s, 6 * s, 6 * s); ctx.beginPath(); ctx.arc(0, -44 * s, 9 * s, 0, 7); ctx.fill();   // neck, bald head
+    ctx.fillStyle = INK; const worried = spend > 0;
+    ctx.beginPath(); ctx.arc(-3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.arc(3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.2 * s; ctx.beginPath();                                                   // eyebrows: up when money moves
+    ctx.moveTo(-6 * s, (worried ? -50 : -48) * s); ctx.lineTo(-1.5 * s, (worried ? -48.5 : -48) * s); ctx.moveTo(1.5 * s, (worried ? -48.5 : -48) * s); ctx.lineTo(6 * s, (worried ? -50 : -48) * s); ctx.stroke();
+    ctx.fillStyle = INK; ctx.fillRect(-4 * s, -41 * s, 8 * s, 1.6 * s);                                                  // moustache
+    if (f && f.dropped) { ctx.strokeStyle = INK; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.arc(0, -40 * s, 3 * s, 0.2, Math.PI - 0.2); ctx.stroke(); }   // the one smile of the day
+    ctx.translate(-x, -y);
+    if (!(f && f.walking)) label('THE OWNER', x, y + 8 * s, s, false);
+    ctx.restore();
+  }
+
+  // the estimator: the one person who releases a bid (the ships station's principal). Flannel shirt, a cap, a tape measure on
+  // the belt and a pencil behind the ear; stands by the door until a bid is ready, then walks it out by hand.
+  function drawEstimator(x, y, s, f) {
+    const step = f && f.walking ? Math.sin(clock / 80) : 0, idle = Math.sin(clock / 700) * 0.6 * s;
+    ctx.save(); ctx.globalAlpha = f && f.alpha != null ? f.alpha : 1;
+    shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
+    ctx.translate(x, y + (f && f.walking ? 0 : idle));
+    ctx.strokeStyle = '#3b4a63'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round'; ctx.beginPath();                      // jeans
+    ctx.moveTo(-4 * s, -10 * s); ctx.lineTo(-5 * s + step * 5 * s, 0); ctx.moveTo(4 * s, -10 * s); ctx.lineTo(6 * s - step * 5 * s, 0); ctx.stroke();
+    ctx.fillStyle = '#9b3b3b'; roundRect(-11 * s, -32 * s, 22 * s, 24 * s, 4 * s); ctx.fill();                      // flannel shirt
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = -8; i <= 8; i += 5) { ctx.moveTo(i * s, -32 * s); ctx.lineTo(i * s, -8 * s); } for (let j = -29; j <= -10; j += 5) { ctx.moveTo(-11 * s, j * s); ctx.lineTo(11 * s, j * s); } ctx.stroke();   // the check
+    ctx.strokeStyle = '#9b3b3b'; ctx.lineWidth = 4.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -27 * s); ctx.lineTo(-15 * s, -15 * s); ctx.moveTo(9 * s, -27 * s); ctx.lineTo(15 * s, -16 * s); ctx.stroke();   // arms
+    ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(-15 * s, -14 * s, 2.8 * s, 0, 7); ctx.arc(15 * s, -15 * s, 2.8 * s, 0, 7); ctx.fill();   // hands
+    ctx.fillStyle = '#4a3b2a'; ctx.fillRect(-11 * s, -11 * s, 22 * s, 3 * s);                                         // belt
+    ctx.fillStyle = '#f2c200'; roundRect(6 * s, -13 * s, 7 * s, 7 * s, 1.5 * s); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.strokeRect(6 * s, -13 * s, 7 * s, 7 * s);   // the tape measure
+    ctx.fillStyle = C.skin; ctx.fillRect(-3 * s, -37 * s, 6 * s, 6 * s); ctx.beginPath(); ctx.arc(0, -44 * s, 9 * s, 0, 7); ctx.fill();   // neck, head
+    ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(-3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.arc(3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.fill();   // eyes
+    ctx.strokeStyle = shade(C.skin, -0.4); ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.arc(0, -41 * s, 3 * s, 0.2, Math.PI - 0.2); ctx.stroke();   // an easy smile
+    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(0, -46 * s, 9.5 * s, Math.PI, 0); ctx.fill(); ctx.fillRect(-2 * s, -47 * s, 14 * s, 2.5 * s);   // cap and brim, facing the door
+    ctx.strokeStyle = '#f2c200'; ctx.lineWidth = 1.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -45 * s); ctx.lineTo(-7 * s, -38 * s); ctx.stroke();   // pencil behind the ear
+    ctx.restore();
+    if (!(f && f.walking)) label('THE ESTIMATOR', x, y + 8 * s, s, false);
+  }
+
+  // the bag of money: burlap, a tied neck and a dollar sign. What is in it is the meter's total, said out loud when it is set down.
+  function drawBag(x, y, s) {
+    shadow(x, y + 1 * s, 10 * s, 3.5 * s, 0.2);
+    const burlap = '#c9a66b';                                                                                          // one burlap on either floor
+    ctx.fillStyle = burlap; ctx.beginPath(); ctx.ellipse(x, y - 11 * s, 10 * s, 11 * s, 0, 0, 7); ctx.fill();          // the sack
+    ctx.strokeStyle = '#7a5a2e'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#a8864f'; ctx.beginPath(); ctx.ellipse(x, y - 23 * s, 4.5 * s, 3 * s, 0, 0, 7); ctx.fill();       // the neck
+    ctx.strokeStyle = C.warn; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(-5 * s + x, -21 * s + y); ctx.lineTo(5 * s + x, -21 * s + y); ctx.stroke();   // the tie
+    ctx.fillStyle = '#2a1d0c'; ctx.font = `700 ${Math.max(10, 13 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', x, y - 10 * s); ctx.textBaseline = 'top';
+  }
+
+  // the broker: the bouncer at the cabinet. Nods a row in; stiff-arms a row from the wrong principal.
+  function drawBroker(x, y, s) {
+    const nod = broker.nod > clock ? Math.sin(clock / 80) * 2 * s : 0, arm = broker.arm > clock;
+    shadow(x, y + 2 * s, 16 * s, 5 * s, 0.22);
+    ctx.save(); ctx.translate(x, y + nod);
+    ctx.strokeStyle = BLACK; ctx.lineWidth = 7 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-6 * s, -12 * s); ctx.lineTo(-7 * s, 0); ctx.moveTo(6 * s, -12 * s); ctx.lineTo(7 * s, 0); ctx.stroke();
+    ctx.fillStyle = BLACK; roundRect(-16 * s, -40 * s, 32 * s, 30 * s, 6 * s); ctx.fill();                   // a big black shirt
+    ctx.strokeStyle = BLACK; ctx.lineWidth = 7 * s;
+    if (arm) { ctx.beginPath(); ctx.moveTo(-13 * s, -34 * s); ctx.lineTo(-34 * s, -34 * s); ctx.stroke(); ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(-36 * s, -34 * s, 4.5 * s, 0, 7); ctx.fill(); }   // the stiff arm
+    else { ctx.beginPath(); ctx.moveTo(-13 * s, -34 * s); ctx.lineTo(8 * s, -24 * s); ctx.moveTo(13 * s, -34 * s); ctx.lineTo(-8 * s, -24 * s); ctx.stroke(); }   // arms crossed
+    ctx.beginPath(); ctx.moveTo(13 * s, -34 * s); ctx.lineTo(18 * s, -20 * s); ctx.stroke();
+    ctx.fillStyle = '#f2c200'; ctx.fillRect(-14 * s, -38 * s, 10 * s, 5 * s); ctx.fillStyle = INK; ctx.font = `700 ${Math.max(5, 4 * s)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BROKER', -9 * s, -35.5 * s); ctx.textBaseline = 'top';
+    ctx.fillStyle = C.skin; ctx.fillRect(-5 * s, -46 * s, 10 * s, 7 * s); ctx.beginPath(); ctx.arc(0, -53 * s, 10 * s, 0, 7); ctx.fill();   // thick neck, head
+    ctx.fillStyle = BLACK; ctx.fillRect(-9 * s, -56 * s, 7 * s, 4 * s); ctx.fillRect(2 * s, -56 * s, 7 * s, 4 * s); ctx.fillRect(-2 * s, -55 * s, 4 * s, 1.5 * s);   // sunglasses
+    ctx.strokeStyle = shade(C.skin, -0.4); ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-3 * s, -47 * s); ctx.lineTo(3 * s, -47 * s); ctx.stroke();   // no smile
+    ctx.restore();
+    label('THE BROKER', x, y + 8 * s, s, false);
+  }
+
+  // the day's bags of money, stacked at the bouncer's feet: one per run finished on this page today (not in any ledger)
+  function drawPile(x, y, s, n) {
+    const shown = Math.min(n, 10);
+    for (let i = 0; i < shown; i++) { const row = Math.floor(i / 4), col = i % 4; drawBag(x + (col - 1.5) * 15 * s + (row % 2) * 7 * s, y - row * 11 * s, s * 0.7); }
+    ctx.fillStyle = C.fg; ctx.font = `700 ${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(`${n} run${n === 1 ? '' : 's'} finished here today`, x, y + 6 * s);
+  }
+
+  // the finished bid, waiting at the bouncer: the pipeline never releases it, the estimator walks it out (staged; no row records this)
+  function drawBid(x, y, s, happy, walking, alpha) {
+    const tap = Math.max(0, Math.sin(clock / 120)), step = walking ? Math.sin(clock / 80) : 0;
+    ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha;
+    shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
+    ctx.translate(x, y);
+    ctx.strokeStyle = INK; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(-6 * s + step * 5 * s, 0); ctx.moveTo(5 * s, -6 * s); ctx.lineTo(6 * s - step * 5 * s, walking ? 0 : -tap * 4 * s); ctx.stroke();
+    ctx.fillStyle = C.paper; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.fillRect(-14 * s, -44 * s, 28 * s, 38 * s); ctx.strokeRect(-14 * s, -44 * s, 28 * s, 38 * s);
+    ctx.strokeStyle = C.muted; ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(-10 * s, -20 * s + i * 4 * s); ctx.lineTo(10 * s - (i % 2) * 5 * s, -20 * s + i * 4 * s); } ctx.stroke();
+    ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(-5 * s, -34 * s, 1.5 * s, 0, 7); ctx.arc(5 * s, -34 * s, 1.5 * s, 0, 7); ctx.fill();   // eyes
+    ctx.strokeStyle = INK; ctx.lineWidth = 1 * s; ctx.beginPath();
+    if (happy) ctx.arc(0, -29 * s, 3 * s, 0.2, Math.PI - 0.2); else { ctx.moveTo(-3 * s, -28 * s); ctx.lineTo(3 * s, -28 * s); }   // a straight mouth, until the owner comes
+    ctx.stroke();
+    ctx.fillStyle = C.warn; ctx.beginPath(); ctx.moveTo(-6 * s, -4 * s); ctx.lineTo(0, -1 * s); ctx.lineTo(-6 * s, 2 * s); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(6 * s, -4 * s); ctx.lineTo(0, -1 * s); ctx.lineTo(6 * s, 2 * s); ctx.closePath(); ctx.fill();   // bow tie
+    ctx.fillStyle = C.ledger; ctx.font = `700 ${Math.max(7, 8 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.fillText('BID', 0, -43 * s);
+    ctx.restore();
+  }
+
+  // the shop cat: the one thing on the floor that is not in the ledger. Walks the front of the shop on the floor clock.
+  function drawCat(y, s) {
+    const W = cv._w, ph = clock / 14000, x = W / 2 + Math.sin(ph) * (W / 2 - 60 * s), moving = Math.abs(Math.cos(ph)) > 0.25, right = Math.cos(ph) > 0;
+    shadow(x, y + 1 * s, 12 * s, 3 * s, 0.18);
+    ctx.save(); ctx.translate(x, y); if (!right) ctx.scale(-1, 1);
+    const fur = shade(C.wood, -0.55), step = moving ? Math.sin(clock / 90) : 0;
+    ctx.strokeStyle = fur; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round';
+    if (moving) { ctx.beginPath(); ctx.moveTo(-8 * s, -4 * s); ctx.lineTo(-8 * s + step * 3 * s, 0); ctx.moveTo(6 * s, -4 * s); ctx.lineTo(6 * s - step * 3 * s, 0); ctx.stroke(); }
+    ctx.fillStyle = fur; ctx.beginPath(); ctx.ellipse(0, -7 * s, 12 * s, moving ? 5 * s : 6.5 * s, 0, 0, 7); ctx.fill();            // body
+    ctx.beginPath(); ctx.arc(12 * s, -11 * s, 5 * s, 0, 7); ctx.fill();                                                       // head
+    ctx.beginPath(); ctx.moveTo(9 * s, -14 * s); ctx.lineTo(10 * s, -19 * s); ctx.lineTo(13 * s, -15 * s); ctx.moveTo(14 * s, -15 * s); ctx.lineTo(16 * s, -19 * s); ctx.lineTo(17 * s, -14 * s); ctx.fill();   // ears
+    ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(-11 * s, -8 * s); ctx.quadraticCurveTo(-20 * s, -8 * s + Math.sin(clock / 400) * 4 * s, -17 * s, -20 * s); ctx.stroke();   // tail
+    ctx.fillStyle = '#9fe36a'; ctx.beginPath(); ctx.arc(13.5 * s, -12 * s, 1 * s, 0, 7); ctx.arc(10.5 * s, -12 * s, 1 * s, 0, 7); ctx.fill();   // eyes
+    ctx.restore();
+  }
+
+  function drawTray(st, x, y, s) {
+    shadow(x + 6 * s, y + 2 * s, 34 * s, 7 * s, 0.16);
+    box3d(x, y, 64 * s, 22 * s, 8 * s, C.steel, shade(C.steel, -0.4));
+    // the draft tray: paper only once this run's draft exists (the export's `drafted`: every Scope Writer run valid, this run's proposal.md in the folder) and the last Scope Writer row has landed
+    const n = st === 'register' ? countRegistered() : st === 'draft' ? (run._end.drafted && cursor > run._end.lastScope ? 3 : 0) : 5;
+    for (let i = 0; i < Math.min(n, 9); i++) box3d(x + i * 1.5 * s, y - 8 * s - i * 2.5 * s, 50 * s, 16 * s, 2.5 * s, i % 2 ? C.paper : shade(C.paper, -0.08), shade(C.paper, -0.3));
+    if (st === 'register' && n) { ctx.fillStyle = C.fg; ctx.font = `700 ${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`${n} filed`, x, y - 52 * s); }
+    if (st === 'packet') { ctx.fillStyle = C.accent; ctx.font = `700 ${Math.max(9, 11 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.fillText('IN', x - 22 * s, y - 34 * s); }
+  }
+
+  function drawDoor(x, y, s) {
+    shadow(x + 8 * s, y + 2 * s, 30 * s, 7 * s, 0.16);
+    box3d(x, y, 54 * s, 14 * s, 88 * s, shade(C.wall, -0.1), shade(C.wall, -0.4));   // frame
+    ctx.fillStyle = shade(C.wall, -0.75); ctx.fillRect(x - 22 * s, y - 80 * s, 44 * s, 80 * s);                      // the opening behind the door
+    const w = 44 * s * (1 - 0.72 * doorOpen);                                                                        // the door, swung on its left hinge in the finale
+    ctx.fillStyle = shade(C.wood, -0.1 - 0.2 * doorOpen); ctx.fillRect(x - 22 * s, y - 80 * s, w, 80 * s);
+    ctx.strokeStyle = shade(C.wood, -0.45); ctx.lineWidth = 1; ctx.strokeRect(x - 16 * s, y - 72 * s, w - 12 * s, 30 * s); ctx.strokeRect(x - 16 * s, y - 36 * s, w - 12 * s, 30 * s);
+    ctx.fillStyle = '#f2c200'; ctx.beginPath(); ctx.arc(x - 22 * s + w - 7 * s, y - 40 * s, 3 * s, 0, 7); ctx.fill();   // handle
+    ctx.fillStyle = C.ledger; roundRect(x - 20 * s, y - 100 * s, 40 * s, 12 * s, 2 * s); ctx.fill();                  // exit sign
+    ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(8, 9 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitText('RELEASED BY HAND', 38 * s); ctx.fillText('RELEASED BY HAND', x, y - 94 * s); ctx.textBaseline = 'top';
+  }
+
+  function drawCabinet(x, y, s, total) {
+    const n = appended(); const recent = events.slice(Math.max(0, cursor - 1), cursor)[0];
+    const open = recent && recent.action === 'append' && clock - nextAt < 0 ? Math.max(0, 1 - (nextAt - clock) / 400) : 0;
+    shadow(x + 14 * s, y + 2 * s, 46 * s, 9 * s, 0.2);
+    box3d(x, y, 76 * s, 30 * s, 96 * s, C.ledger, shade(C.ledger, -0.45));
+    for (let i = 0; i < 4; i++) {
+      const dy = y - 90 * s + i * 22 * s, slide = i === 0 ? open * 10 * s : 0;
+      ctx.fillStyle = shade(C.ledger, 0.12); ctx.fillRect(x - 32 * s, dy + slide, 64 * s, 18 * s);
+      ctx.strokeStyle = shade(C.ledger, -0.5); ctx.lineWidth = 1; ctx.strokeRect(x - 32 * s, dy + slide, 64 * s, 18 * s);
+      ctx.fillStyle = C.steel; roundRect(x - 8 * s, dy + 7 * s + slide, 16 * s, 4 * s, 2 * s); ctx.fill();
+      ctx.fillStyle = C.paper; ctx.fillRect(x - 14 * s, dy + 2 * s + slide, 28 * s, 3 * s);                             // the label card
+    }
+    // the fill gauge: rows on the ledger so far
+    const frac = total ? Math.min(1, n / total) : 0;
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x + 44 * s, y - 92 * s, 6 * s, 90 * s);
+    ctx.fillStyle = '#ffd34d'; ctx.fillRect(x + 44 * s, y - 2 * s - 90 * s * frac, 6 * s, 90 * s * frac);
+    ctx.fillStyle = C.fg; ctx.font = `700 ${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(`${n}/${total}`, x + 54 * s, y - 92 * s);
+  }
+  function countRegistered() { let n = 0; for (let i = 0; i < cursor; i++) if (events[i].action === 'register') n++; return n; }
+  function appended() { let n = 0; for (let i = 0; i < cursor; i++) if (events[i].action === 'append') n++; return n; }
+
+  // ---- controls ----
+  $('play').addEventListener('click', () => { if (cursor >= events.length) { load(run); } playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; if (playing && cursor === 0) nextAt = clock; });
+  $('step').addEventListener('click', () => { playing = false; $('play').textContent = 'Play'; if (cursor < events.length) { clock = Math.max(clock, nextAt); nextAt = clock + apply(events[cursor++]); renderPanels(); if (cursor >= events.length) startFinale(); } });
+  $('reset').addEventListener('click', () => load(run));
+  $('speed').addEventListener('input', e => { speed = parseFloat(e.target.value); });
+  $('job').addEventListener('change', e => { const r = RUNS[e.target.value]; if (r) load(r); });
+  $('loadbtn').addEventListener('click', () => $('loadfile').click());
+  $('loadfile').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return; const rd = new FileReader();
+    rd.onload = () => { try { const r = JSON.parse(rd.result); if (!r.events) throw new Error('no events'); RUNS[f.name] = r; const o = document.createElement('option'); o.value = f.name; o.textContent = `${r.job || f.name} (loaded)`; $('job').appendChild(o); $('job').value = f.name; load(r); }
+      catch (err) { $('caption').textContent = `Could not read ${f.name}: expected a timeline.json from tools/export_run.py (${err.message}).`; } };
+    rd.readAsText(f);
+  });
+  window.addEventListener('resize', () => { fit(); draw(); });
+  const mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', draw);
+
+  // ---- boot ----
+  for (const key of Object.keys(RUNS)) { const o = document.createElement('option'); o.value = key; o.textContent = RUNS[key].title || key; $('job').appendChild(o); }
+  fit();
+  const first = Object.keys(RUNS)[0]; if (first) load(RUNS[first]);
+  requestAnimationFrame(tick);
+})();
+</script>

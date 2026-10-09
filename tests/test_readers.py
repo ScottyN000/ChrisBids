@@ -1,5 +1,6 @@
 """The reader layer: schemas, arithmetic, the vote, the method rules and the golden replay."""
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -92,11 +93,10 @@ class SchemaCase(unittest.TestCase):
         """Takeoff derives the spaces only when the run, the spacing and the end offset are
         labelled as such; two live runs that labelled 11" as a wall dimension lost the row.
         The example's labels are the golden recording's, so the vote key (kind, label) lines up."""
-        import re
         text = (ROOT / "pipeline" / "readers" / "prompts" / "drawing.md").read_text()
         plan = json.loads(re.findall(r"```json\n(.*?)```", text, re.S)[0])
         labels = {it["text"]: it["label"] for it in plan["items"] if it["kind"] == "dimension"}
-        recorded = json.load(open(ROOT / "fixtures" / "nantucket" / "recordings" / "drawing.json"))
+        recorded = json.loads((ROOT / "fixtures" / "nantucket" / "recordings" / "drawing.json").read_text())
         fnd = next(u for u in recorded["units"] if u["unit_id"] == "S-1#Fnd")
         want = {it["text"]: it["label"] for it in fnd["runs"][0]["items"]
                 if it["kind"] == "dimension" and it["text"] in ("15'-2\"", "2'-8\"", "11\"")}

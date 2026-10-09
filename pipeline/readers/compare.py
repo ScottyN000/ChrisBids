@@ -10,12 +10,15 @@ Scaled and observed rows are judgment calls and allowed to vary between runs
 """
 from __future__ import annotations
 
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 
 from ..schema import CALC_REF, Claim
 
 EXACT = ("dimensioned", "counted")
+# How Takeoff marks a derived row not every run produced (takeoff.derived_claim).
+SPLIT = re.compile(r"seen in (\d+) of (\d+) runs")
 REPORTED = ("scaled", "observed")
 
 
@@ -99,8 +102,9 @@ def add_derived(comparison: Comparison, produced_by_id: dict[str, Claim], produc
     * a fixture quantity that the readers already wrote as a counted figure
       (6 brackets is also the 6 symbols drawn) is matched by that figure, since
       Takeoff is told not to derive a number that is already a row;
-    * a fixture quantity Takeoff wrote twice, by a different route in each run,
-      is matched once and the second row is not reported extra.
+    * a fixture quantity Takeoff wrote twice, by a different route in each run
+      (so each row is flagged "seen in 1 of 2 runs"), is matched once and the
+      second row is not reported extra; a surplus row every run wrote stays extra.
     """
     known = {key(c) for c in reader_rows(fixture, present_sources)}
     want = Counter(derived_key(c) for c in fixture_derived(fixture, present_sources))
@@ -116,7 +120,10 @@ def add_derived(comparison: Comparison, produced_by_id: dict[str, Claim], produc
     # The same figure reached by a second route in another run (18 bolts as 3 x 6
     # symbols and as 3 x the brackets the dimensions space out) is one figure,
     # not an extra: each row rests on fixture figures, and the route is not compared.
-    again = Counter({k: n - want[k] for k, n in got.items() if k in want and n > want[k]})
+    # Only rows the vote split ("seen in 1 of 2 runs") can be that second route; a
+    # surplus figure every run wrote is a quantity the fixture lacks, and stays extra.
+    split = Counter(derived_key(c) for c in produced if c.calc and SPLIT.search(c.derivation))
+    again = Counter({k: min(n - want[k], split[k]) for k, n in got.items() if k in want and n > want[k]})
     got -= again
     counted = Counter(("counted", "derived", c.value, c.unit) for c in produced_by_id.values()
                       if c.method == "counted" and not c.calc and not c.flag and key(c) in known)

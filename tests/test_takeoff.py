@@ -344,12 +344,21 @@ class GoldenCompareCase(unittest.TestCase):
     def test_the_same_figure_by_a_second_route_is_not_extra(self):
         """Run 1 wrote 18 anchors as 3 x the 6 symbols, run 2 as 3 x the brackets the
         dimensions space out (live run 37938174100): one fixture figure, not one extra."""
-        cmp = self.compare([self.q("T1", 5, "spaces", SPACES),
-                            self.q("T2", 18, "each", f"{{{ANCH}}} * {{{self.BRACKETS}}}"),
-                            self.q("T3", 18, "each", f"{{{ANCH}}} * ({SPACES} + 1)")])
+        split = lambda c: Claim(**{**c.__dict__, "flag": "unverified", "derivation": c.derivation + "; seen in 1 of 2 runs"})
+        t2 = self.q("T2", 18, "each", f"{{{ANCH}}} * {{{self.BRACKETS}}}")
+        t3 = self.q("T3", 18, "each", f"{{{ANCH}}} * ({SPACES} + 1)")
+        cmp = self.compare([self.q("T1", 5, "spaces", SPACES), split(t2), split(t3)])
         self.assertTrue(cmp.exact_ok, cmp.text())
         self.assertEqual(cmp.extra, [])
         self.assertEqual(cmp.matched.count(("counted", "derived", "18", "each")), 1)
+        # The same pair written by every run is a second 18 the fixture lacks: one extra.
+        cmp = self.compare([self.q("T1", 5, "spaces", SPACES), t2, t3])
+        self.assertFalse(cmp.exact_ok)
+        self.assertEqual(cmp.extra, [("counted", "derived", "18", "each")])
+        # One split row covers one surplus: a third 18 every run wrote is still extra.
+        cmp = self.compare([self.q("T1", 5, "spaces", SPACES), t2, split(t3),
+                            self.q("T4", 18, "each", f"{{{ANCH}}} * 6")])
+        self.assertEqual(cmp.extra, [("counted", "derived", "18", "each")])
         # A figure the fixture lacks is still extra, however many routes reach it.
         cmp = self.compare([self.q("T1", 5, "spaces", SPACES), self.q("T2", 21, "each", f"{{{ANCH}}} * 7"),
                             self.q("T3", 21, "each", f"({{{ANCH}}} + 4) * 3")])

@@ -18,7 +18,7 @@ phrases:
     text: "Contractor Co.\nAddress: 100 Example Ave. Ocean City MD 21842\nPh: 1-555-555-0100\nEmail: info@example.com"
   license_line:
     loc: p.1
-    text: "FL CGC. License# CGC0000000 MHIC#000000 DE#0000000000 • Mailing Address: 100 Example Ct, Merritt Island FL 32953"
+    text: "FL CGC. License# CGC0000000 MHIC#000000 DE#0000000000 • Mailing Address: 100 Example Ct, Example FL 00000"
 
   # Division 01, p.1-2. The example is one paragraph; it is split into
   # sentences here so a job selects only the sentences that apply.

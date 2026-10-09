@@ -2,7 +2,7 @@
 
 _Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only the estimator releases a bid. No drawings exist for this job, so every allowance is FIELD._
 
-FL CGC. License# CGC0000000 MHIC#000000 DE#0000000000 • Mailing Address: 100 Example Ct, Merritt Island FL 32953
+FL CGC. License# CGC0000000 MHIC#000000 DE#0000000000 • Mailing Address: 100 Example Ct, Example FL 00000
 
 Job Address:  
 2515 Hwy A1A, Cocoa Beach, Florida 32931 (SW p.1)

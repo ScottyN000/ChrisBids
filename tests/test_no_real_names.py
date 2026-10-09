@@ -11,8 +11,10 @@ import hashlib
 import re
 import shutil
 import subprocess
+import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -40,7 +42,9 @@ def hits(text: str) -> list[str]:
 
 class NoRealNamesCase(unittest.TestCase):
     def test_the_guard_catches_a_hashed_name(self):
-        self.assertEqual(hits("Signed, " + "Tcher" + "nyshev"), ["tcher" + "nyshev"])   # a prefix match; split so this file passes its own scan
+        # a made-up word, so no guarded name appears here in any form; the match is on its 6-letter prefix
+        with mock.patch.object(sys.modules[__name__], "WORDS", WORDS | {_h("zqxwvb")}):
+            self.assertEqual(hits("Signed, Zqxwvbtest"), ["zqxwvbtest"])
         self.assertEqual(hits("call 1-555-555-0100, Contractor Co."), [])
 
     @unittest.skipUnless(shutil.which("pdftotext"), "needs poppler-utils")

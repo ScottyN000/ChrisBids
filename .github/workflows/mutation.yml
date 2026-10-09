@@ -11,9 +11,11 @@ name: mutation
 # later superseded). So it runs on a PR once it is ready for review and on each
 # push after, not on drafts, and not again on main after the merge: the PR run
 # already gated that PR's code. On a PR it runs only the mutants in the
-# pipeline modules the PR changes (tools/changed_mutants.py), and none when it
-# changes no module. The weekly run on main runs them all, catching a module
-# no PR touched that has fallen below the floor; it can also be run by hand.
+# pipeline modules the PR changes (tools/changed_mutants.py; a changed test
+# file stands for the modules it imports), and none when it changes no module.
+# The gate scores those mutants together. The weekly run on main runs them all,
+# catching a module no PR touched that has fallen below the floor; it can also
+# be run by hand.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -22,6 +24,7 @@ on:
       - "tests/**"
       - "pyproject.toml"
       - "tools/mutation_gate.py"
+      - "tools/changed_mutants.py"
       - ".github/workflows/mutation.yml"
   schedule:
     - cron: "41 7 * * 1"   # weekly, on main
@@ -59,7 +62,7 @@ jobs:
           if [ "${{ github.event_name }}" = pull_request ]; then
             python tools/changed_mutants.py "$BASE" > .mutants.txt
             echo "modules: $(tr '\n' ' ' < .mutants.txt)"
-            [ -s .mutants.txt ] && echo run=yes >> "$GITHUB_OUTPUT" || echo run=no >> "$GITHUB_OUTPUT"
+            grep -q . .mutants.txt && echo run=yes >> "$GITHUB_OUTPUT" || echo run=no >> "$GITHUB_OUTPUT"
           else
             : > .mutants.txt
             echo run=yes >> "$GITHUB_OUTPUT"

@@ -36,8 +36,9 @@ CHRISBIDS_PACKET=/mnt/project-files docker compose run --rm tests
 ```
 
 Mutation testing ([`.github/workflows/mutation.yml`](.github/workflows/mutation.yml)). On a
-PR, CI runs only the mutants in the `pipeline/` modules the PR changes; a weekly run on
-main runs them all:
+PR, CI runs only the mutants in the `pipeline/` modules the PR changes, and in the modules
+its changed test files import, and gates on their combined score; a weekly run on main
+runs them all:
 
 ```
 pip install pytest mutmut

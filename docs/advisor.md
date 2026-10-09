@@ -71,8 +71,9 @@ Alternate.
 **Golden fixtures.** Any change to prompts or models must reproduce the
 Nantucket and Ocean Beach ledgers.
 
-**Every PR.** Mutation score of the modules it changes at or above the floor in
-`tools/mutation_gate.py`; `docs/pipeline-dag.md` regenerated when the pipeline
+**Every PR.** Combined mutation score of the modules it changes (and of those its
+changed tests import) at or above the floor in `tools/mutation_gate.py` (narrowed
+from the whole of `pipeline/` by the owner, 2026-10-09, to save Actions minutes); `docs/pipeline-dag.md` regenerated when the pipeline
 changes; bandit, pip-audit and gitleaks clean; `SECURITY.md` updated when a
 control or a known gap changes.
 

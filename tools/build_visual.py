@@ -18,7 +18,9 @@ TEMPLATE = Path(__file__).resolve().parent / "visual" / "bid_shop.html"
 
 
 def build(runs: dict[str, dict]) -> str:
-    payload = json.dumps(runs, separators=(",", ":")).replace("</", "<\\/")   # never close the script tag early
+    # every `<` as its JSON escape: a `</script>` or `<!--<script>` in a document's text can then neither close
+    # the data block early nor put the parser in the state where the page's own closing tag no longer counts
+    payload = json.dumps(runs, separators=(",", ":")).replace("<", "\\u003c")
     return TEMPLATE.read_text().replace("__RUNS__", payload)
 
 

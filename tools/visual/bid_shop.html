@@ -1,9 +1,9 @@
 <title>Bid Shop Floor</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: a shop floor (canvas) on the left where characters carry a job between stations,
    a narrow side column with the meter (cost), the backlog and the log. One screen on desktop,
-   stacked on a phone. */
+   stacked on a phone. The page loads nothing from the network (SECURITY.md): the type is whatever
+   of these faces the viewer has installed, else the system fallback named in each stack. */
 :root {
   --bg: #eaeef3;          /* drafting-table grey with a blue cast */
   --floor: #f6f8fa;
@@ -120,7 +120,7 @@ footer a { color: var(--ink); }
       </div>
     </aside>
   </main>
-  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Nothing on the floor is invented (the cat and the couriers' beer excepted: neither is in the ledger); what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. A replay run bills no tokens, so its meter stays at zero. The pipeline never releases a bid, so the last scene is a person: the owner walks over to the bouncer, where the finished bid waits, drops a bag of money (what is in it is the meter's total, nothing more), and the two walk out together. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, where the finished bid waits, drops a bag of money (what is in it is the meter's total, nothing more), and the two walk out together. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call whose model has no row in the price table is counted, not priced, and the meter says so instead of showing a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
 </div>
 
 <script id="runs" type="application/json">__RUNS__</script>
@@ -146,7 +146,8 @@ footer a { color: var(--ink); }
     materials:     { x: 740, y: 360, kind: 'desk',   name: 'Materials',      hat: 'blue' },
     customer:      { x: 740, y: 450, kind: 'desk',   name: 'Customer Reqs',  hat: 'blue', planned: true },
     ledger:        { x: 330, y: 500, kind: 'cabinet',name: 'Claim ledger' },
-    scope_writer:  { x: 150, y: 420, kind: 'desk',   name: 'Scope Writer',   hat: 'green' },
+    scope_writer:  { x: 150, y: 410, kind: 'desk',   name: 'Scope Writer',   hat: 'green' },
+    draft:         { x: 240, y: 450, kind: 'tray',   name: 'Proposal draft' },
     auditor:       { x: 150, y: 530, kind: 'desk',   name: 'Auditor',        hat: 'white' },
     ships:         { x: 920, y: 530, kind: 'door',   name: 'Bid ships' },
   };
@@ -162,37 +163,19 @@ footer a { color: var(--ink); }
   const stacks = {};             // station -> units not yet started (backlog)
   const done = {};               // station -> units finished
   const did = {};                // principal -> {calls, claims, denied}
-  let spend = 0; const spendBy = {};  // station -> dollars
+  // the meter: each call's cost comes from the export (tools/export_run.py prices it from the fetched table);
+  // a call the exporter could not price is counted here, with its reason, and never shown as a figure
+  let spend = 0; const spendBy = {};  // station -> dollars, priced calls only
+  let pricedCalls = 0, unpricedCalls = 0, unpricedWhy = '';
   const logEl = $('log');
 
-  function priceFor(model, promptTokens) {
-    const table = run.prices && run.prices.models; if (!table || !model) return null;
-    const m = model.toLowerCase();
-    const want = m.includes('haiku') && m.includes('5-5') ? 'haiku 5.5' : m.includes('sonnet') && m.includes('5-5') ? 'sonnet 5.5'
-               : m.includes('opus') && m.includes('5-5') ? 'opus 5.5' : m.includes('fable') ? 'fable 5.1' : null;
-    if (!want) return null;
-    const names = Object.keys(table).filter(n => n.toLowerCase().includes(want));
-    if (!names.length) return null;
-    let name = names[0];
-    if (names.length > 1) name = names.find(n => (promptTokens > 100000) === /over 100,000/.test(n)) || names[0];
-    return { name, p: table[name] };
-  }
-  function callCost(c) {
-    const u = c.usage || {}; const prompt = (u.input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.cache_read_input_tokens||0);
-    const pr = priceFor(c.model, prompt); if (!pr) return null;
-    const p = pr.p;
-    return ((u.input_tokens||0)*p.input + (u.cache_creation_input_tokens||0)*p.cache_write_5m
-          + (u.cache_read_input_tokens||0)*p.cache_read + (u.output_tokens||0)*p.output) / 1e6;
-  }
-
   function load(r) {
-    run = r; events = r.events || []; cursor = 0; clock = 0; playing = false; $('play').textContent = 'Play';
+    run = r; events = r.events || []; cursor = 0; clock = 0; nextAt = 0; playing = false; $('play').textContent = 'Play';
     for (const k in workers) delete workers[k]; slips.length = 0;
     for (const k in stacks) delete stacks[k]; for (const k in done) delete done[k]; for (const k in did) delete did[k];
-    spend = 0; for (const k in spendBy) delete spendBy[k]; logEl.innerHTML = '';
+    spend = 0; for (const k in spendBy) delete spendBy[k]; pricedCalls = 0; unpricedCalls = 0; unpricedWhy = ''; logEl.innerHTML = '';
     // backlog: every unit a station will read, from the model-call rows ahead of us
     for (const e of events) if (e.action === 'model-call') {
-      const u = e.subject.split('#')[0] + '#' + (e.subject.split('#')[1] || '');
       (stacks[e.station] = stacks[e.station] || new Set()).add(e.subject);
       done[e.station] = done[e.station] || new Set();
     }
@@ -203,7 +186,7 @@ footer a { color: var(--ink); }
     owner.say = ''; owner.until = 0; broker.arm = 0; broker.nod = 0; broker.say = ''; broker.until = 0; finale = null; doorOpen = 0;
     $('jobline').textContent = `${r.job || '?'} · ${r.run_id || ''} · ${events.length} log rows, ${(r.claims||[]).length} claims` + (calls.length ? `, ${calls.length} model calls billed` : ', replay (recorded answers, nothing billed)');
     $('caption').textContent = 'Press Play. Every move on the floor is one row of the run\'s audit log.';
-    const src = r.prices ? `Prices: ${r.prices.unit}, read from ${r.prices.source_url} at ${r.prices.fetched_at}.` : 'No price table in this export (run tools/fetch_prices.py and pass --prices).';
+    const src = r.prices ? `Prices: ${r.prices.unit}, read from ${r.prices.source_url} at ${r.prices.fetched_at}. Cache writes at the 5-minute rate.` : 'No price table in this export (run tools/fetch_prices.py and pass --prices).';
     $('pricesrc').textContent = src;
     renderPanels(); draw();
   }
@@ -227,6 +210,10 @@ footer a { color: var(--ink); }
     flagged: ["Two readings, zero decisions. Flag it.", "Not my call. Flag it for a human.", "Sticky note. Someone with a pulse decides."],
     register: ["Hash it, stamp it, next.", "Another PDF. Love that for me.", "Another photo of the same wall. Filed.", "I never forget a hash.", "Symlink? Nice try. Skipped."],
     denied: ["Not your lane, pal.", "The access matrix says no.", "Nice try. Role check failed.", "Only the Auditor touches that column."],
+    rejected: ["No page, no entry.", "Fill the slip in properly.", "That's not a locator, that's a guess.", "Back. Try again."],
+    fetchDenied: ["That site's not on the list.", "Allowlisted domains only.", "Nope. Not that one."],
+    fetch: ["Allowlisted. Go ahead.", "Reading it off the site, not from memory.", "Quote it word for word or not at all."],
+    audit: ["Opening the source. Every time.", "Show me the page.", "Cited? Let's see it."],
     owner: {
       haiku: ["Haiku. Good. Cheap.", "That one cost less than a stamp.", "Frugal. The word is frugal."],
       sonnet: ["Sonnet? Who approved Sonnet?", "Sonnet for the Takeoff. Fine. FINE.", "That's a Sonnet call. I felt that."],
@@ -248,8 +235,8 @@ footer a { color: var(--ink); }
   // the finale, in floor ms from the moment the last row lands: walk to the bid, set the bag down and pick the bid up, walk out, door shuts
   const FINALE = { walk: 2400, pay: 1800, exit: 3200, close: 800 }; FINALE.total = FINALE.walk + FINALE.pay + FINALE.exit + FINALE.close;
   let finale = null;                              // { t0, dropped } once the run is done; null before
-  const DAY = new Date().toISOString().slice(0, 10), BAGS_KEY = 'bidshop.bags.' + DAY;
-  let bags = 0; try { bags = parseInt(localStorage.getItem(BAGS_KEY) || '0', 10) || 0; } catch (e) { bags = 0; }   // bids done today, this browser only
+  const today = new Date(), DAY = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`, BAGS_KEY = 'bidshop.bags.' + DAY;
+  let bags = 0; try { bags = parseInt(localStorage.getItem(BAGS_KEY) || '0', 10) || 0; } catch (e) { bags = 0; }   // runs finished on this page today (the viewer's date), this browser only
   function bagDropped() { bags += 1; try { localStorage.setItem(BAGS_KEY, String(bags)); } catch (e) { /* no storage: the pile lasts the page */ } }
   let doorOpen = 0;                               // 0 shut .. 1 open, set each frame from the finale
   const broker = { arm: 0, nod: 0, say: '', until: 0 };   // the bouncer at the cabinet
@@ -275,28 +262,46 @@ footer a { color: var(--ink); }
       if (e.run === 1) slips.push({ from: 'register', to: e.station, t0: clock, t1: clock + dur * 0.6, kind: 'page', label: e.subject });
       d.calls += 1;
       const c = run._callIndex && run._callIndex[`${e.subject}|${e.run}`];
-      if (c) { const cost = callCost(c); if (cost != null) { spend += cost; spendBy[e.station] = (spendBy[e.station] || 0) + cost; } }
+      if (c) {
+        if (c.cost != null) { spend += c.cost; spendBy[e.station] = (spendBy[e.station] || 0) + c.cost; pricedCalls += 1; }
+        else { unpricedCalls += 1; unpricedWhy = c.unpriced || 'not priced by the export'; }
+      }
       log(`${e.principal} ${w.bubble}${c ? ` · ${c.usage.input_tokens + (c.usage.cache_read_input_tokens||0) + (c.usage.cache_creation_input_tokens||0)} in, ${c.usage.output_tokens} out` : ''}`, e.action);
     } else if (e.action === 'append') {
       slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'slip', label: e.subject });
       d.claims += 1; if (done[e.station]) done[e.station].add(e.subject);
+      w.flash = 0;
       w.busy = Math.max(w.busy || 0, clock + dur * 0.5); w.bubble = `writes ${e.subject}`;
       const claim = run._claimIndex[e.subject]; slips[slips.length - 1].flag = !!(claim && claim.flag);
       w.quip = claim && claim.flag ? pick(LINES.flagged, e.seq) : pick(LINES.write, e.seq);
       broker.nod = clock + dur;
       log(`${e.principal} writes ${e.subject} (${e.detail})`, e.action);
-    } else if (e.action === 'denied') {
-      slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'bounce', label: e.subject });
-      w.flash = clock + dur; d.denied += 1;
-      broker.arm = clock + dur; broker.say = pick(LINES.denied, e.seq); broker.until = clock + dur * 1.5;
+    } else if (e.action === 'denied' && e.subject === 'fetch') {
+      // the web broker refused a URL: the row stays at the desk, nothing goes to the cabinet
+      w.flash = clock + dur; w.refusal = `fetch REFUSED: ${site(e.detail)}`; d.denied += 1;
+      broker.arm = clock + dur; broker.say = pick(LINES.fetchDenied, e.seq); broker.until = clock + dur * 1.5;
       owner.say = pick(LINES.owner.denied, e.seq); owner.until = clock + dur * 1.5;
-      log(`${e.principal} refused: ${e.subject}`, e.action);
+      log(`${e.principal} fetch refused: ${e.detail}`, 'denied');
+    } else if (e.action === 'denied' || e.action === 'rejected') {
+      // denied: the access matrix said no. rejected: the slip failed the method rules. Both bounce.
+      slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'bounce', label: e.subject });
+      w.flash = clock + dur; w.refusal = e.action === 'rejected' ? `REJECTED ${e.subject}: ${e.detail}` : ''; d.denied += 1;
+      broker.arm = clock + dur; broker.say = pick(e.action === 'rejected' ? LINES.rejected : LINES.denied, e.seq); broker.until = clock + dur * 1.5;
+      owner.say = pick(LINES.owner.denied, e.seq); owner.until = clock + dur * 1.5;
+      log(`${e.principal} ${e.action === 'rejected' ? 'rejected' : 'refused'}: ${e.subject}${e.action === 'rejected' ? ` (${e.detail})` : ''}`, 'denied');
+    } else if (e.action === 'fetch') {
+      w.busy = clock + dur; w.bubble = `fetches ${site(e.subject)}`; w.quip = pick(LINES.fetch, e.seq);
+      log(`${e.principal} fetches ${e.subject}`, e.action);
+    } else if (e.action === 'audit') {
+      w.busy = clock + dur; w.bubble = `audits ${e.subject}: ${e.detail}`; w.quip = pick(LINES.audit, e.seq);
+      log(`${e.principal} audits ${e.subject}: ${e.detail}`, e.action);
     } else {
       w.busy = clock + dur; w.bubble = `${e.action} ${e.subject}`.trim();
       log(`${e.principal} ${e.action} ${e.subject}`, e.action);
     }
     return dur;
   }
+  const site = url => { try { return new URL(url).host; } catch (err) { return String(url).slice(0, 40); } };   // a URL on the floor is its host
   function log(text, cls) {
     const li = document.createElement('li'); li.textContent = text; li.className = cls; logEl.prepend(li);
     while (logEl.children.length > 60) logEl.lastChild.remove();
@@ -315,7 +320,7 @@ footer a { color: var(--ink); }
       if (!finale.dropped && clock - finale.t0 >= FINALE.walk) {   // the bag lands at the bouncer's feet, once
         finale.dropped = true; bagDropped(); broker.nod = clock + 900; broker.say = pick(LINES.broker.paid, events.length); broker.until = clock + FINALE.pay * 0.45;
       }
-      if (clock >= finale.t0 + FINALE.total) $('caption').textContent += ` The owner dropped the bag at the bouncer and walked the bid out by hand. ${bags} bid${bags === 1 ? '' : 's'} done today.`;
+      if (clock >= finale.t0 + FINALE.total) $('caption').textContent += ` The owner dropped the bag at the bouncer and walked the bid out (staged: no row records a release). ${bags} run${bags === 1 ? '' : 's'} finished here today.`;
     }
     draw();
     raf = requestAnimationFrame(tick);
@@ -350,7 +355,9 @@ footer a { color: var(--ink); }
     }
     return f;
   }
-  const bagLine = () => spend > 0 ? `In the bag: $${spend.toFixed(4)}, this run's meter.` : 'The bag is empty. Replay runs are free.';
+  const bagLine = () => !(run.calls || []).length ? 'The bag is empty: a replay run bills no tokens.'
+    : unpricedCalls ? `${unpricedCalls} of ${pricedCalls + unpricedCalls} calls not priced, so the bag is not counted.`
+    : `In the bag: $${spend.toFixed(4)}, this run's meter.`;
   function finishLine() {
     const flagged = (run.claims || []).filter(c => c.flag).length;
     return flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.';
@@ -358,7 +365,10 @@ footer a { color: var(--ink); }
 
   // ---- side panels ----
   function renderPanels() {
-    $('cost').textContent = '$' + spend.toFixed(4);
+    if (unpricedCalls) {
+      $('cost').textContent = `${unpricedCalls}/${pricedCalls + unpricedCalls} unpriced`;
+      $('costsub').textContent = `${unpricedWhy}; ${pricedCalls ? `$${spend.toFixed(4)} for the ${pricedCalls} priced` : 'no figure shown'}`;
+    } else { $('cost').textContent = '$' + spend.toFixed(4); $('costsub').textContent = 'model spend so far'; }
     const tb = $('costtable').tBodies[0]; tb.innerHTML = '';
     const rows = Object.entries(spendBy).sort((a, b) => b[1] - a[1]);
     const max = rows.length ? rows[0][1] : 0;
@@ -367,7 +377,7 @@ footer a { color: var(--ink); }
       const c = tr.insertCell(); c.className = 'n'; c.textContent = '$' + v.toFixed(4);
       const b = tr.insertCell(); b.innerHTML = `<div class="bar"><i style="width:${max ? (100 * v / max).toFixed(0) : 0}%"></i></div>`;
     }
-    if (!rows.length) { const tr = tb.insertRow(); const c = tr.insertCell(); c.colSpan = 3; c.className = 'sub'; c.textContent = (run.calls && run.calls.length) ? 'spend appears as calls are made' : 'replay run: recorded answers, no tokens billed'; }
+    if (!rows.length) { const tr = tb.insertRow(); const c = tr.insertCell(); c.colSpan = 3; c.className = 'sub'; c.textContent = (run.calls && run.calls.length) ? (unpricedCalls ? 'no priced call yet' : 'spend appears as calls are made') : 'replay run: recorded answers, no tokens billed'; }
     const bl = $('backlog').tBodies[0]; bl.innerHTML = '';
     const items = Object.keys(stacks).map(st => ({ st, waiting: stacks[st].size, busy: workers[st] && workers[st].busy > clock }))
       .sort((a, b) => b.waiting - a.waiting);
@@ -436,7 +446,7 @@ footer a { color: var(--ink); }
       ctx.fillText(po[0], x + 46 * s, 24 * s); ctx.font = `${Math.max(8, 9 * s)}px "Barlow Condensed", sans-serif`; ctx.fillText(po[1], x + 46 * s, 36 * s);
       if (po[2] !== undefined) { ctx.fillStyle = C.warn; ctx.font = `700 ${Math.max(12, 16 * s)}px "IBM Plex Mono", monospace`; ctx.fillText(po[2], x + 46 * s, 46 * s); }
     });
-    for (let x = 60 * s; x + 80 * s < firstPoster; x += 150 * s) {   // windows up to the posters                           // windows up to the posters
+    for (let x = 60 * s; x + 80 * s < firstPoster; x += 150 * s) {   // windows up to the posters
       ctx.fillStyle = shade(C.ink, 0.55); ctx.fillRect(x, 14 * s, 70 * s, wallH - 36 * s);
       ctx.strokeStyle = shade(C.wall, -0.3); ctx.lineWidth = 2; ctx.strokeRect(x, 14 * s, 70 * s, wallH - 36 * s);
       ctx.beginPath(); ctx.moveTo(x + 35 * s, 14 * s); ctx.lineTo(x + 35 * s, wallH - 22 * s); ctx.moveTo(x, (14 * s + wallH - 22 * s) / 2); ctx.lineTo(x + 70 * s, (14 * s + wallH - 22 * s) / 2); ctx.stroke();
@@ -479,7 +489,7 @@ footer a { color: var(--ink); }
       const p = PLAN[st], q = pos(st); const w = workers[st] || {};
       const busy = (w.busy || 0) > clock, flash = (w.flash || 0) > clock;
       items.push({ y: q.y, fn: () => drawStation(st, p, q, s, w, busy, flash) });
-      if (busy || flash) items.push({ y: 1e9, fn: () => { if (w.bubble) bubble(q.x, q.y - (p.kind === 'bench' ? 96 : 92) * s, s, flash ? 'REFUSED by the broker' : w.bubble, flash, flash ? '' : w.quip); } });
+      if (busy || flash) items.push({ y: 1e9, fn: () => { if (w.bubble || flash) bubble(q.x, q.y - (p.kind === 'bench' ? 96 : 92) * s, s, flash ? (w.refusal || 'REFUSED by the broker') : w.bubble, flash, flash ? '' : w.quip); } });
     }
     const ownerAt = fs ? { x: fs.x, y: fs.y } : pos('owner'), brokerAt = pos('broker'), catAt = pos('cat'), pileAt = pos('pile');
     if (!fs || !fs.gone) items.push({ y: ownerAt.y, fn: () => drawOwner(ownerAt.x, ownerAt.y, s, fs) });
@@ -492,7 +502,7 @@ footer a { color: var(--ink); }
     const bidUp = fs ? !fs.gone : (cursor >= events.length && events.length > 0);
     if (bidUp) {   // the finished bid waits at the bouncer until the owner reaches it, then walks out with him
       const b = fs ? fs.bid : { ...pos('bid'), walking: false, happy: false, say: LINES.bid.waiting[0], sub: LINES.bid.waiting[1] };
-      items.push({ y: b.y, fn: () => drawBid(b.x, b.y, s, b.happy, false, b.walking, fs ? fs.alpha : 1) });
+      items.push({ y: b.y, fn: () => drawBid(b.x, b.y, s, b.happy, b.walking, fs ? fs.alpha : 1) });
       if (b.say && (!fs || fs.alpha > 0.3)) items.push({ y: 1e9, fn: () => bubble(b.x, b.y - 70 * s, s, b.say, false, b.sub) });
     }
     for (let i = slips.length - 1; i >= 0; i--) {
@@ -579,7 +589,7 @@ footer a { color: var(--ink); }
     // y is the belt line; the head is above it. Idle workers breathe; busy ones work with their hands.
     const breathe = Math.sin(t / 600 + (st ? st.length : 0)) * 0.6 * s, bob = busy ? Math.sin(t / 110) * 1.2 * s : breathe;
     ctx.save(); ctx.translate(x, y + bob);
-    const vest = HAT[hat] === null ? C.vest : C.vest;
+    const vest = C.vest;
     ctx.fillStyle = vest; roundRect(-13 * s, -22 * s, 26 * s, 26 * s, 5 * s); ctx.fill();                  // torso in a hi-vis vest
     ctx.fillStyle = '#d8d8d8'; ctx.fillRect(-13 * s, -12 * s, 26 * s, 2.5 * s); ctx.fillRect(-13 * s, -6 * s, 26 * s, 2.5 * s);   // reflective stripes
     ctx.fillStyle = shade(C.fg, 0.35); ctx.fillRect(-4 * s, -22 * s, 8 * s, 10 * s);                      // shirt under the vest
@@ -660,6 +670,7 @@ footer a { color: var(--ink); }
 
   // the owner: no hard hat, a tie, a stopwatch, and a foot that taps faster the more is spent.
   // In the finale (`f`) he walks over with the bag of money, drops it at the bouncer, and walks out with the bid.
+  // The finale is the one staged scene: no audit-log row records a release (the estimator does that by hand, off the floor).
   function drawOwner(x, y, s, f) {
     const tap = Math.sin(clock / (spend > 0 ? 90 : 260)), step = f && f.walking ? Math.sin(clock / 80) : 0;
     ctx.save(); ctx.globalAlpha = f ? f.alpha : 1;
@@ -721,21 +732,21 @@ footer a { color: var(--ink); }
     label('THE BROKER', x, y + 8 * s, s, false);
   }
 
-  // the day's bags of money, stacked at the bouncer's feet: one per run finished on this page today
+  // the day's bags of money, stacked at the bouncer's feet: one per run finished on this page today (not in any ledger)
   function drawPile(x, y, s, n) {
     const shown = Math.min(n, 10);
     for (let i = 0; i < shown; i++) { const row = Math.floor(i / 4), col = i % 4; drawBag(x + (col - 1.5) * 15 * s + (row % 2) * 7 * s, y - row * 11 * s, s * 0.7); }
     ctx.fillStyle = C.fg; ctx.font = `700 ${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText(`${n} bid${n === 1 ? '' : 's'} done today`, x, y + 6 * s);
+    ctx.fillText(`${n} run${n === 1 ? '' : 's'} finished here today`, x, y + 6 * s);
   }
 
-  // the finished bid, waiting at the bouncer: the pipeline never releases it, a person walks it out
-  function drawBid(x, y, s, happy, held, walking, alpha) {
+  // the finished bid, waiting at the bouncer: the pipeline never releases it, a person walks it out (staged; no row records this)
+  function drawBid(x, y, s, happy, walking, alpha) {
     const tap = Math.max(0, Math.sin(clock / 120)), step = walking ? Math.sin(clock / 80) : 0;
     ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha;
-    if (!held) shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
+    shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
     ctx.translate(x, y);
-    if (!held) { ctx.strokeStyle = INK; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(-6 * s + step * 5 * s, 0); ctx.moveTo(5 * s, -6 * s); ctx.lineTo(6 * s - step * 5 * s, walking ? 0 : -tap * 4 * s); ctx.stroke(); }
+    ctx.strokeStyle = INK; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(-6 * s + step * 5 * s, 0); ctx.moveTo(5 * s, -6 * s); ctx.lineTo(6 * s - step * 5 * s, walking ? 0 : -tap * 4 * s); ctx.stroke();
     ctx.fillStyle = C.paper; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.fillRect(-14 * s, -44 * s, 28 * s, 38 * s); ctx.strokeRect(-14 * s, -44 * s, 28 * s, 38 * s);
     ctx.strokeStyle = C.muted; ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(-10 * s, -20 * s + i * 4 * s); ctx.lineTo(10 * s - (i % 2) * 5 * s, -20 * s + i * 4 * s); } ctx.stroke();
     ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(-5 * s, -34 * s, 1.5 * s, 0, 7); ctx.arc(5 * s, -34 * s, 1.5 * s, 0, 7); ctx.fill();   // eyes
@@ -802,12 +813,11 @@ footer a { color: var(--ink); }
     ctx.fillStyle = '#ffd34d'; ctx.fillRect(x + 44 * s, y - 2 * s - 90 * s * frac, 6 * s, 90 * s * frac);
     ctx.fillStyle = C.fg; ctx.font = `700 ${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(`${n}/${total}`, x + 54 * s, y - 92 * s);
   }
-  function countDone() { let n = 0; for (const st in done) n += done[st].size; return n; }
   function countRegistered() { let n = 0; for (let i = 0; i < cursor; i++) if (events[i].action === 'register') n++; return n; }
   function appended() { let n = 0; for (let i = 0; i < cursor; i++) if (events[i].action === 'append') n++; return n; }
 
   // ---- controls ----
-  $('play').addEventListener('click', () => { if (cursor >= events.length) { load(run); } playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; if (playing && !nextAt) nextAt = clock; });
+  $('play').addEventListener('click', () => { if (cursor >= events.length) { load(run); } playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; if (playing && cursor === 0) nextAt = clock; });
   $('step').addEventListener('click', () => { playing = false; $('play').textContent = 'Play'; if (cursor < events.length) { clock = Math.max(clock, nextAt); nextAt = clock + apply(events[cursor++]); renderPanels(); if (cursor >= events.length) startFinale(); } });
   $('reset').addEventListener('click', () => load(run));
   $('speed').addEventListener('input', e => { speed = parseFloat(e.target.value); });
@@ -826,7 +836,6 @@ footer a { color: var(--ink); }
   for (const key of Object.keys(RUNS)) { const o = document.createElement('option'); o.value = key; o.textContent = RUNS[key].title || key; $('job').appendChild(o); }
   fit();
   const first = Object.keys(RUNS)[0]; if (first) load(RUNS[first]);
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) { /* animation is driven by Play; nothing moves at rest */ }
   raf = requestAnimationFrame(tick);
 })();
 </script>

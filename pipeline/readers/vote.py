@@ -46,7 +46,7 @@ class Voted:
     runs: int                                   # runs made
     readings: dict[str, list] = field(default_factory=dict)  # field -> distinct values, if they differ
     labels: list[str] = field(default_factory=list)  # a drawing dimension's label from every run, first seen first
-    counted_label: bool = False                 # every wording carried a count the string lacks; the first is kept as printed
+    counted_label: bool = False                 # a run's wording carried a count the string lacks (dropped when another survives, else the first is kept as printed)
 
     @property
     def label(self) -> str:
@@ -85,7 +85,8 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
 # hyphen or a letter (`2'-8"`, `1/S-1`, `S-1`, `2x4`), or named by the word before it
 # (`detail 1`, `sheet 2`, `type 3`), is a figure or a reference and is left alone. `TYP.`
 # qualifies a count (`TYP. 2 PLACES`), it names nothing, so it is not a reference word.
-BARE_COUNT = re.compile(r"(?<![\w\-/.'\"])\(?(\d+)\)?(?=\s+[A-Za-z])")
+# A bar size (`#4 bar`) and a lumber size (`2 x 4 blocking`, `2x4`) are sizes, not counts.
+BARE_COUNT = re.compile(r"(?<![\w\-/.'\"#])(?<![xX×] )\(?(\d+)\)?(?!\s*[xX×]\s*\d)(?=\s+[A-Za-z])")
 REFERENCE_WORDS = ("det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item")
 # A reference word right before the number, with only a stop, `#`, `:` and spaces between.
 NAMED_BY_REFERENCE = re.compile(r"(?i)\b(?:" + "|".join(REFERENCE_WORDS) + r")\.?\s*[#:]?\s*$")
@@ -104,8 +105,9 @@ def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
     one. A wording carrying a bare count (`printed 5 times`, with the dimension string
     itself taken out first) is a count with no counted row behind it (traceability), so
     it is dropped while another wording survives; when none does, the first is kept as
-    printed, never rewritten, and the second value is True so the row can say so. Sheet
-    and detail references (`REF. DET. 1/S-1`) are not counts."""
+    printed, never rewritten. The second value is True whenever a wording carried a count,
+    dropped or kept, so the row can say so and Takeoff can flag what rests on it. Sheet
+    and detail references (`REF. DET. 1/S-1`) and sizes (`#4 bar`, `2 x 4`) are not counts."""
     text = (items[0].get("text") or "").strip()
     labels, seen, counted = [], set(), []
     for it in items:
@@ -116,7 +118,7 @@ def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
         seen.add(wording)
         (counted if bare_counts(label.replace(text, " ") if text else label) else labels).append(label)
     if labels:
-        return labels, False
+        return labels, bool(counted)
     return counted[:1], bool(counted)
 
 

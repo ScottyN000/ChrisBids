@@ -48,17 +48,20 @@ class DrawingCase(unittest.TestCase):
                                 [item("count", "Bracket symbols", count=6, unit="each")]])
         self.assertEqual((v.labels, one("drawing", FND, v).statement), ([], "Brackets"))
 
-    def test_a_wording_carrying_a_count_is_dropped_while_another_survives(self):
+    def test_a_wording_carrying_a_count_is_dropped_while_another_survives_and_the_row_says_so(self):
         runs = [[item("dimension", "Bracket spacing, printed 5 times along the run", "2'-8\"")],
                 [item("dimension", "Bracket spacing: 2'-8\"", "2'-8\"")]]
         (v,) = vote("drawing", runs)
-        self.assertEqual((v.labels, v.counted_label), (["Bracket spacing: 2'-8\""], False))
+        self.assertEqual((v.labels, v.counted_label), (["Bracket spacing: 2'-8\""], True))
+        c = one("drawing", FND, v)
+        self.assertEqual((c.statement, c.flag, c.derivation), (
+            "Bracket spacing: 2'-8\": 2'-8\"", "", "2'-8\" dimension string = 32 in; a run put a count in the label with no counted row"))
 
     def test_when_every_wording_carries_a_count_the_first_is_kept_as_printed_and_marked(self):
         (v,) = vote("drawing", [[item("dimension", "5 spaces at 2'-8\"", "2'-8\"")]])
         self.assertEqual((v.labels, v.counted_label), (["5 spaces at 2'-8\""], True))
         self.assertEqual(one("drawing", FND, v).derivation,
-                         "2'-8\" dimension string = 32 in; the label carries a count with no counted row")
+                         "2'-8\" dimension string = 32 in; a run put a count in the label with no counted row")
         (v,) = vote("drawing", [[item("dimension", "Wall face to first bracket (2 PLACES)", "11\"")],
                                 [item("dimension", "Wall face to first bracket, 2 places, see 1/S-1", "11\"")]])
         self.assertEqual((v.labels, v.counted_label), (["Wall face to first bracket (2 PLACES)"], True))
@@ -75,18 +78,25 @@ class DrawingCase(unittest.TestCase):
             with self.subTest(label=label):
                 (v,) = vote("drawing", [[item("dimension", label, text)]])
                 self.assertEqual((v.labels, v.counted_label), ([label], True))
+        # One of each: the count is counted and the size is not.
+        (v,) = vote("drawing", [[item("dimension", "Bracket spacing, 2 places, 2 x 4 blocking between", "2'-8\"")]])
+        self.assertEqual(v.counted_label, True)
 
     def test_references_and_figures_in_a_label_are_not_counts(self):
         for label, text in [("Bracket spacing (REF. DET. 1/S-1)", "11\""), ("see S-1", "11\""),
                             ("Bracket run, see detail 1 (2x4 blocking)", "15'-2\""),
-                            ("Bracket run, sheet #2 to grid line 3", "15'-2\""), ("Wall face to bracket, 11\" typ", "11\"")]:
+                            ("Bracket run, sheet #2 to grid line 3", "15'-2\""), ("Wall face to bracket, 11\" typ", "11\""),
+                            ("Rebar, #4 bar at 12\" o.c.", "12\""), ("Bracket run, 2 x 4 blocking between", "15'-2\""),
+                            ("Bracket run, 2 X 4 blocking between", "15'-2\""), ("Post spacing, 4x4 posts", "8'-0\""),
+                            ("Blocking, 2 x 10 joists", "15'-2\"")]:
             with self.subTest(label=label):
                 (v,) = vote("drawing", [[item("dimension", label, text)]])
                 self.assertEqual((v.labels, v.counted_label), ([label], False))
+        # A dropped wording that carried a count still marks the row (Takeoff flags what rests on it).
         runs = [[item("dimension", "Bracket spacing (REF. DET. 1/S-1)", "11\"")],
                 [item("dimension", "Wall face to first bracket (2 places), see S-1", "11\"")]]
         (v,) = vote("drawing", runs)
-        self.assertEqual((v.labels, v.counted_label), (["Bracket spacing (REF. DET. 1/S-1)"], False))
+        self.assertEqual((v.labels, v.counted_label), (["Bracket spacing (REF. DET. 1/S-1)"], True))
 
     def test_dimension_fractional_keeps_its_fraction(self):
         v = Voted(item("dimension", "Gap", "1/2\""), seen=3, runs=3)

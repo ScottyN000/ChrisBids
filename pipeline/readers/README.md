@@ -157,6 +157,19 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   assembly-count item is compared only with the symbols its own dimension rows name when a view has two kinds of assembly. The symbol check reads every current row, so a symbol count the
   reader runs disagreed on (a conflict row no formula may use) is still compared and both readings go on the
   note; a count made of the string's own digits (`2 places` on `2'-8"`) is still a count.
+- After PR #17 (the advisor's five deferred items, code and tests only): (a) a wording the vote drops for
+  carrying a count still marks the row (`a run put a count in the label with no counted row`), so Takeoff
+  flags what rests on it whether the count was dropped or kept. (b) Measured on run 37942423549 (head
+  669c6b1, the first with the differing-labels marker): 3 of the 5 dimensioned rows carried `runs word the
+  label differently` (12", 11" and 8"; the run and spacing did not) and 0 of the 4 Takeoff items were
+  flagged, because the 6 bracket symbols on the view agreed with the number the dimensions give; the trigger
+  is left as it is, since a narrower one would need code to read the labels for a run, a spacing and an
+  offset. (c) `#4 bar`, `2 x 4 blocking` and `4x4 posts` are sizes, not counts. (d) An item that multiplies
+  by a symbol count where the symbols' view carries dimension strings it does not use is flagged unverified
+  (`takeoff.route_notes`, the rows passed over on the note): the prompt forbids that route when a run and
+  spacing are listed, and code holds it to that without reading the labels, so a view whose only dimension
+  is a wall thickness flags such an item for a second look too. (e) The per-PR mutation score goes in the
+  PR body with the run it came from.
 
 ## The ruling still open
 

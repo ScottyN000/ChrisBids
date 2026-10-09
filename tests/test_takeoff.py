@@ -486,9 +486,9 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.label_notes(self.ANCHORS, BY_ID), [])
         # A label the vote let a count through on flags the item even when the symbols agree.
         counted = Claim(**{**reader_row(END, 11, "in", "Wall face to first bracket (2 PLACES)").__dict__,
-                           "derivation": "11\" dimension string = 11 in; the label carries a count with no counted row"})
+                           "derivation": "11\" dimension string = 11 in; a run put a count in the label with no counted row"})
         self.assertEqual(takeoff.label_notes(self.ANCHORS, {**BY_ID, END: counted, six.claim_id: six}),
-                         [f"uses {END}, whose label carries a count with no counted row"])
+                         [f"uses {END}, whose label a run gave a count with no counted row"])
         bolts = reader_row("NAN-DR-DET-02", 3, "per bracket", "Bolts (TYP.)", method="counted")
         summed = it("All fasteners", f"{{{ANCH}}} * ({SPACES} + 1) + {{{bolts.claim_id}}} * ({SPACES} + 1)", 36)
         with_six = {**rows, six.claim_id: six, bolts.claim_id: bolts}
@@ -496,6 +496,37 @@ class SymbolCheckCase(unittest.TestCase):
         elsewhere = reader_row("NAN-DR-FRM-01", 6, "each", "Bracket symbols", method="counted",
                                locator="Partial First Floor Framing Plan", tag="S-1 Frm")
         self.assertEqual(len(takeoff.label_notes(self.ANCHORS, {**rows, elsewhere.claim_id: elsewhere})), 1)
+
+    def test_an_item_on_the_symbol_route_is_flagged_where_the_view_carries_dimensions(self):
+        """`3 x 6 symbols` passes over the run, spacing and end offset on the same view."""
+        six = reader_row("NAN-DR-FND-04", 6, "each", "Bracket symbols drawn", method="counted")
+        rows = {**BY_ID, six.claim_id: six}
+        by_symbols = it("Adhesive anchors", f"{{{ANCH}}} * {{{six.claim_id}}}", 18)
+        note = (f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries dimension strings "
+                f"it does not use ({SPAN}, {SPACING}, {END})")
+        self.assertEqual(takeoff.route_notes(by_symbols, rows), [note])
+        c = takeoff.derived_claim("NAN-TK-Q-03", by_symbols, 2, 2, rows)
+        self.assertEqual((c.flag, c.derivation), ("unverified", f"3 x 6 = 18; {note}"))
+        # The dimension route is the symbol check's business, not this one's.
+        self.assertEqual(takeoff.route_notes(self.ANCHORS, rows), [])
+        self.assertEqual(takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, rows).flag, "")
+        # A symbol count on a view with no dimension strings is the number of assemblies (the prompt's rule).
+        elsewhere = reader_row("NAN-DR-FRM-01", 6, "each", "Support symbols", method="counted",
+                               locator="Partial First Floor Framing Plan", tag="S-1 Frm")
+        self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{elsewhere.claim_id}}}", 18),
+                                             {**BY_ID, elsewhere.claim_id: elsewhere}), [])
+        # Another view's dimensions, even on the same sheet, are not this view's.
+        far = Claim(**{**BY_ID[SPAN].__dict__, "claim_id": "NAN-DR-FRM-02", "locator": "Partial First Floor Framing Plan"})
+        self.assertEqual(takeoff.route_notes(by_symbols, {six.claim_id: six, "NAN-DR-FRM-02": far, ANCH: BY_ID[ANCH]}), [])
+        # The rows the symbol check reads (`claims`) are the ones searched for dimension strings.
+        self.assertEqual(takeoff.route_notes(by_symbols, rows, [six, BY_ID[ANCH]]), [])
+        self.assertEqual(takeoff.route_notes(by_symbols, {six.claim_id: six, ANCH: BY_ID[ANCH]}, list(rows.values())), [note])
+        # A count in another unit (`1 plank`) and a derived counted row are not symbol counts.
+        plank = reader_row("NAN-DR-FND-05", 1, "plank", "Hatched plank", method="counted")
+        self.assertEqual(takeoff.route_notes(it("Planks", f"{{{plank.claim_id}}} * 1", 1), {**rows, plank.claim_id: plank}), [])
+        derived = Claim(**{**six.__dict__, "claim_id": "NAN-TK-Q-01", "calc": f"{SPACES} + 1"})
+        self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{derived.claim_id}}}", 18),
+                                             {**rows, derived.claim_id: derived}), [])
 
     def test_only_symbols_of_the_assembly_the_rows_are_per_are_compared(self):
         piers = reader_row("NAN-DR-FND-05", 2, "each", "New pier symbols drawn", method="counted")

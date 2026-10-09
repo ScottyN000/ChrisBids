@@ -21,7 +21,9 @@ per-assembly rows are per) disagrees with the number the dimensions give, every 
 both figures in its derivation (determinism: keep both, never pick). An item
 resting on a dimension whose runs worded the label differently is flagged the
 same way, unless an agreeing symbol row confirms the number, because the model
-chose which wording to follow.
+chose which wording to follow. An item that rests on a symbol count where the
+symbols' view carries dimension strings it does not use is flagged too: the
+dimension route was there to take (`route_notes`).
 """
 from __future__ import annotations
 
@@ -262,11 +264,38 @@ def symbol_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     ]
 
 
+def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
+    """A note when an item rests on a symbol count where the view the symbols are on
+    carries dimension strings the item does not use. The number of assemblies comes
+    from the dimensions (run, spacing, end offsets); a symbol count stands in only
+    when no run and spacing are listed (the prompt's rule). Code cannot tell a run
+    from a wall thickness without reading the labels, so any dimensioned row on that
+    view is enough to flag the item for a second look, with the rows it passed over
+    on the note. `claims` is every current row, as for `symbol_rows`; an item that
+    uses a dimensioned row itself is the symbol check's business, not this one's.
+    """
+    claims = list(by_id.values()) if claims is None else claims
+    used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
+    if any(c.method == "dimensioned" for c in used):
+        return []
+    notes = []
+    for c in used:
+        if c.method != "counted" or c.unit != "each" or c.calc:
+            continue  # a per-assembly row, a count in another unit or a derived row is not a symbol count
+        passed = [d.claim_id for d in claims
+                  if d.method == "dimensioned" and (d.source_id, d.locator) == (c.source_id, c.locator)]
+        if passed:
+            notes.append(f"rests on the symbol count {c.claim_id} where {c.locator} carries dimension strings "
+                         f"it does not use ({', '.join(passed)})")
+    return notes
+
+
 def label_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     """A note when the item rests on a dimension whose runs worded the label differently,
-    since the model then chose which wording to follow, or whose label carries a count
-    with no counted row behind it; none for the first when a symbol row on the view
-    agrees with the number the dimensions give, which confirms the choice.
+    since the model then chose which wording to follow, or on which a run put a count
+    with no counted row behind it (dropped by the vote or kept); none for the first when
+    a symbol row on the view agrees with the number the dimensions give, which confirms
+    the choice.
 
     The row says so with `rows.DIFFERING_LABELS` or `rows.COUNT_IN_LABEL` in its
     derivation, the one place a ledger row records what the vote saw; the constants are
@@ -280,7 +309,7 @@ def label_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
         notes.append(f"uses {', '.join(differing)}, whose label the runs word differently")
     counted = [c.claim_id for c in used if COUNT_IN_LABEL in c.derivation]
     if counted:
-        notes.append(f"uses {', '.join(counted)}, whose label carries a count with no counted row")
+        notes.append(f"uses {', '.join(counted)}, whose label a run gave a count with no counted row")
     return notes
 
 
@@ -295,6 +324,7 @@ def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[s
         notes.append(f"uses flagged {', '.join(shaky)}")
     notes.extend(symbol_notes(item, by_id, claims))
     notes.extend(label_notes(item, by_id, claims))
+    notes.extend(route_notes(item, by_id, claims))
     shown = derivation(item["calc"], by_id)
     sources = _join(s for c in used for s in schema.sources_of(c.source_id))
     return Claim(

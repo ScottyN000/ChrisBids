@@ -147,7 +147,7 @@ def _base(claim_id: str, src: Unit, **kw) -> Claim:
 
 
 DIFFERING_LABELS = "runs word the label differently"
-COUNT_IN_LABEL = "the label carries a count with no counted row"
+COUNT_IN_LABEL = "a run put a count in the label with no counted row"
 
 
 def _drawing(claim_id: str, unit: Unit, v: Voted, flag: str, note: str) -> Claim:

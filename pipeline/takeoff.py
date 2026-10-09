@@ -221,14 +221,21 @@ def symbol_rows(item: dict, by_id: dict[str, Claim]) -> list[Claim]:
     """The counted symbol rows that count the item's assemblies: on a view the item's
     dimensions came from, naming what the item's own per-assembly row is per (a pier
     beside the brackets is not one). An item with no per-assembly row (spaces, the
-    bracket count) uses the job's per-assembly names. When no symbol row on the view
-    names the assembly, every symbol count on the view is compared, so a reader's
-    wording can never switch the check off.
+    bracket count) uses the job's per-assembly names that its own dimension rows
+    mention, else all of them. When no symbol row on the view names the assembly,
+    every symbol count on the view is compared, so a reader's wording can never
+    switch the check off.
     """
     refs = schema.CALC_REF.findall(item["calc"])
     used = [by_id[r] for r in dict.fromkeys(refs)]
     views = {(c.source_id, c.locator) for c in used if c.method == "dimensioned"}
-    names = assembly_names(used) or assembly_names(by_id.values())
+    names = assembly_names(used)
+    if not names:
+        # A spaces or assembly-count item names no assembly itself: take the job's
+        # assembly names that its own dimension rows mention, else all of them.
+        job_names = assembly_names(by_id.values())
+        dims = " ".join(c.statement.lower() for c in used if c.method == "dimensioned")
+        names = [n for n in job_names if n in dims] or job_names
     on_view = [c for c in by_id.values()
                if c.method == "counted" and c.unit == "each" and (c.source_id, c.locator) in views]
     named = [c for c in on_view if any(name in c.statement.lower() for name in names)]

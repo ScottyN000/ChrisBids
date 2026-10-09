@@ -149,7 +149,10 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
 - Head after 669c6b1 (code and tests only, no prompt change): a symbol row is matched on the first word of
   the item's own per-assembly unit (`per bracket assembly` names the bracket), an item is compared with its
   own kind's symbols when a view has two kinds, every symbol count on the view is compared when none names
-  the assembly, and label wordings that differ only in case or trailing punctuation count as one.
+  the assembly, and label wordings that differ only in case or trailing punctuation count as one. A
+  wording carrying a number the dimension string lacks is dropped by the vote (a count belongs in a
+  counted row), and a spaces or assembly-count item is compared only with the symbols its own dimension
+  rows name when a view has two kinds of assembly.
 
 ## The ruling still open
 

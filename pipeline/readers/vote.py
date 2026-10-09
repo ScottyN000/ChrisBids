@@ -78,6 +78,27 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
     return k
 
 
+def dimension_labels(items: list[dict]) -> list[str]:
+    """Every run's wording of a dimension's label, first seen first. Wordings that differ
+    only in case or trailing punctuation are one. A wording carrying a number the
+    dimension string lacks (`printed 5 times`) is a count with no counted row behind it
+    (traceability), so it is dropped; when no wording survives, the first is kept with
+    those numbers taken out."""
+    printed = set(re.findall(r"\d+", items[0].get("text") or ""))
+    labels, seen, stripped = [], set(), []
+    for it in items:
+        label = (it.get("label") or "").strip()
+        wording = re.sub(r"[\s.,;:]+$", "", label).lower()
+        if not wording or wording in seen:
+            continue
+        seen.add(wording)
+        if set(re.findall(r"\d+", label)) <= printed:
+            labels.append(label)
+        else:
+            stripped.append(re.sub(r"\s*\d+(?![\d'\"/])", "", label).strip())
+    return labels or stripped[:1]
+
+
 def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
     rule = RULES[reader]
     order: list[tuple] = []
@@ -108,12 +129,6 @@ def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
                 readings[f] = values
         labels = []
         if reader == "drawing" and items[0].get("kind") == "dimension":
-            seen_wordings = set()
-            for it in items:
-                label = (it.get("label") or "").strip()
-                wording = re.sub(r"[\s.,;:]+$", "", label).lower()
-                if wording and wording not in seen_wordings:
-                    seen_wordings.add(wording)
-                    labels.append(label)
+            labels = dimension_labels(items)
         out.append(Voted(item=items[0], seen=len(items), runs=len(runs), readings=readings, labels=labels))
     return out

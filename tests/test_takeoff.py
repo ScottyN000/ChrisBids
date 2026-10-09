@@ -508,6 +508,17 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.symbol_notes(pier_item, two), [])
         self.assertEqual(takeoff.symbol_notes(self.ANCHORS, two),
                          ["NAN-DR-FND-04 counts 7 symbols where the dimensions give 6"])
+        # A spaces item names no assembly: its own dimension rows say which symbols it is compared with.
+        self.assertEqual([c.claim_id for c in takeoff.symbol_rows(it("Spaces", SPACES, 5, "spaces"), two)],
+                         ["NAN-DR-FND-04"])
+        pier_spaces = it("Pier spaces", f"{{{pier_run.claim_id}}} / {{{pier_space.claim_id}}}", 1, "spaces")
+        self.assertEqual([c.claim_id for c in takeoff.symbol_rows(pier_spaces, two)], [piers.claim_id])
+        self.assertEqual(takeoff.symbol_notes(pier_spaces, two), [])
+        unnamed = {k: v for k, v in two.items()}
+        unnamed[SPAN] = reader_row(SPAN, 182, "in", "Run between wall faces")
+        unnamed[SPACING] = reader_row(SPACING, 32, "in", "Spacing on center")
+        unnamed[END] = reader_row(END, 11, "in", "End distance")
+        self.assertEqual(len(takeoff.symbol_rows(it("Spaces", SPACES, 5, "spaces"), unnamed)), 2)
 
 
 

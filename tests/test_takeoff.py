@@ -422,3 +422,37 @@ class GoldenReplayCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SymbolCheckCase(unittest.TestCase):
+    """The symbols drawn are compared with the number the dimensions give, in code."""
+
+    SYMBOLS = reader_row("NAN-DR-FND-04", 7, "each", "Bracket symbols drawn", method="counted")
+    ANCHORS = it("Adhesive anchors", f"{{{ANCH}}} * ({SPACES} + 1)", 18)
+
+    def test_the_number_of_assemblies_an_item_rests_on(self):
+        self.assertEqual(takeoff.assemblies(it("Spaces", SPACES, 5, "spaces"), BY_ID), 6)
+        self.assertEqual(takeoff.assemblies(it("Brackets", f"{SPACES} + 1", 6), BY_ID), 6)
+        self.assertEqual(takeoff.assemblies(self.ANCHORS, BY_ID), 6)
+        rows = dict(BY_ID, **{self.SYMBOLS.claim_id: self.SYMBOLS})
+        self.assertIsNone(takeoff.assemblies(it("Anchors", f"{{{ANCH}}} * {{{self.SYMBOLS.claim_id}}}", 21), rows))
+
+    def test_a_symbol_count_that_disagrees_flags_every_item_on_that_route(self):
+        rows = dict(BY_ID, **{self.SYMBOLS.claim_id: self.SYMBOLS})
+        c = takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, rows)
+        self.assertEqual((c.flag, c.derivation), (
+            "unverified", "3 x ((182 - 2 x 11) / 32 + 1) = 18; NAN-DR-FND-04 counts 7 symbols where the dimensions give 6"))
+        c = takeoff.derived_claim("NAN-TK-Q-01", it("Spaces", SPACES, 5, "spaces"), 2, 2, rows)
+        self.assertEqual(c.flag, "unverified")
+        self.assertTrue(c.derivation.endswith("NAN-DR-FND-04 counts 7 symbols where the dimensions give 6"))
+
+    def test_an_agreeing_symbol_count_or_one_on_another_view_is_no_note(self):
+        same = reader_row("NAN-DR-FND-04", 6, "each", "Bracket symbols drawn", method="counted")
+        other = reader_row("NAN-DR-FRM-01", 7, "each", "Marks on the framing plan", method="counted",
+                           locator="Partial First Floor Framing Plan", tag="S-1 Frm")
+        per = reader_row("NAN-DR-DET-02", 7, "per bracket", "Bolts (TYP.)", method="counted")
+        rows = dict(BY_ID, **{r.claim_id: r for r in (same, other, per)})
+        self.assertEqual(takeoff.symbol_notes(self.ANCHORS, rows), [])
+        self.assertEqual(takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, rows).flag, "")
+        self.assertEqual(takeoff.symbol_notes(it("Anchors", f"{{{ANCH}}} * {{{other.claim_id}}}", 21), rows), [])
+

@@ -13,6 +13,12 @@ The model is called only when there is something to derive from, as one
 stateless unit holding the rows, read `repeats` times. Items are compared
 across runs by what they compute (value, unit and the rows used); an item that
 not every run produced is written flagged unverified, never dropped or chosen.
+
+A number of assemblies comes from the dimension strings (run, spacing, end
+offsets), never from the symbols drawn; code compares the two. When a counted
+symbol row on the view the dimensions came from disagrees with the number the
+dimensions give, every item resting on that number is flagged unverified with
+both figures in its derivation (determinism: keep both, never pick).
 """
 from __future__ import annotations
 
@@ -180,6 +186,40 @@ def _join(values) -> list[str]:
     return out
 
 
+def assemblies(item: dict, by_id: dict[str, Claim]) -> float | None:
+    """The number of assemblies an item's dimension route gives; None when it uses no dimension.
+
+    A `spaces` item gives one more than its value. Any other item gives its
+    formula with every per-assembly row set to 1, so `{PER} * (N)` gives N.
+    """
+    refs = schema.CALC_REF.findall(item["calc"])
+    if not any(by_id[r].method == "dimensioned" for r in refs):
+        return None
+    if item["unit"] == "spaces":
+        return float(item["value"]) + 1
+    expr = item["calc"]
+    for r in refs:
+        c = by_id[r]
+        expr = expr.replace("{" + r + "}", "1" if c.unit.startswith("per ") else repr(c.value_num))
+    return schema.arith(expr)
+
+
+def symbol_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
+    """One note per counted symbol row, on a view the item's dimensions came from, that disagrees
+    with the number of assemblies those dimensions give. Both figures stay on the ledger."""
+    n = assemblies(item, by_id)
+    if n is None:
+        return []
+    refs = schema.CALC_REF.findall(item["calc"])
+    views = {(by_id[r].source_id, by_id[r].locator) for r in refs if by_id[r].method == "dimensioned"}
+    return [
+        f"{c.claim_id} counts {c.value} symbols where the dimensions give {_num(n)}"
+        for c in by_id.values()
+        if c.method == "counted" and c.unit == "each" and (c.source_id, c.locator) in views
+        and abs(c.value_num - n) > 1e-9
+    ]
+
+
 def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str, Claim]) -> Claim:
     used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
     notes = []
@@ -188,6 +228,7 @@ def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[s
     shaky = [c.claim_id for c in used if c.flag]
     if shaky:
         notes.append(f"uses flagged {', '.join(shaky)}")
+    notes.extend(symbol_notes(item, by_id))
     shown = derivation(item["calc"], by_id)
     sources = _join(s for c in used for s in schema.sources_of(c.source_id))
     return Claim(

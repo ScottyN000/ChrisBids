@@ -123,7 +123,7 @@ one, which the gate rightly reports. The Takeoff prompt now fixes the route: a p
 multiplies by the number the dimensions give (spaces + 1), never by the symbol count when a run and
 spacing are listed. Run 37939750700 then agreed on all four quantities by that route, unflagged, and failed
 only because one reader run fused the `8"` and `11"` strings at the bottom corner of the plan into a
-`8'-11"` that is not printed; the drawing prompt now says two inch strings end to end are two dimensions. With that rule the readers gate passed on both jobs (run 37940168055, 2026-10-09): on Nantucket every dimensioned and counted reader row reproduced and Takeoff wrote 5 spaces, 18 bolts and 18 anchors by the dimension route in both runs, and 6 brackets in one of them (the other left the agreed 6 symbols row to stand for it).
+`8'-11"` that is not printed; the drawing prompt now says two inch strings end to end are two dimensions. Because the prompt no longer lets the symbol count stand in for the number of assemblies, code does the comparison the symbols are for: `takeoff.symbol_notes` flags every item resting on a dimension route when a counted symbol row on the same view disagrees with the number the dimensions give, with both figures in the derivation. With that rule the readers gate passed on both jobs (run 37940168055, 2026-10-09): on Nantucket every dimensioned and counted reader row reproduced and Takeoff wrote 5 spaces, 18 bolts and 18 anchors by the dimension route in both runs, and 6 brackets in one of them (the other left the agreed 6 symbols row to stand for it).
 
 ## The ruling still open
 

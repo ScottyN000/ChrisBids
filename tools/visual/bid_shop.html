@@ -147,7 +147,7 @@ footer a { color: var(--ink); }
     customer:      { x: 740, y: 450, kind: 'desk',   name: 'Customer Reqs',  hat: 'blue', planned: true },
     ledger:        { x: 330, y: 500, kind: 'cabinet',name: 'Claim ledger' },
     scope_writer:  { x: 150, y: 410, kind: 'desk',   name: 'Scope Writer',   hat: 'green' },
-    draft:         { x: 240, y: 450, kind: 'tray',   name: 'Proposal draft' },
+    draft:         { x: 222, y: 448, kind: 'tray',   name: 'Proposal draft' },
     auditor:       { x: 150, y: 530, kind: 'desk',   name: 'Auditor',        hat: 'white' },
     ships:         { x: 920, y: 530, kind: 'door',   name: 'Bid ships' },
   };
@@ -422,6 +422,11 @@ footer a { color: var(--ink); }
     if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.strokeRect(x - w / 2, y - h, w, h); poly([[x - w / 2, y - h], [x + w / 2, y - h], [x + w / 2 + dx, y - h + dy], [x - w / 2 + dx, y - h + dy]]); ctx.stroke(); }
   }
   function shadow(x, y, rx, ry, a) { ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fill(); }
+  // shrink the current font until `text` fits in `maxW`: the page loads no font, so the viewer's fallback face may be wider than the one it was drawn for
+  function fitText(text, maxW) {
+    let px = parseFloat((ctx.font.match(/(\d+(?:\.\d+)?)px/) || [0, 12])[1]);
+    while (ctx.measureText(text).width > maxW && px > 6) { px *= 0.93; ctx.font = ctx.font.replace(/\d+(?:\.\d+)?px/, px.toFixed(1) + 'px'); }
+  }
   function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 
   let C = {};                                   // the palette, read from CSS each frame
@@ -442,8 +447,8 @@ footer a { color: var(--ink); }
       const x = firstPoster + i * 100 * s;
       ctx.fillStyle = C.paper; ctx.fillRect(x, 16 * s, 92 * s, wallH - 36 * s); ctx.strokeStyle = shade(C.wall, -0.35); ctx.lineWidth = 1.5; ctx.strokeRect(x, 16 * s, 92 * s, wallH - 36 * s);
       ctx.fillStyle = po.length > 2 ? C.warn : C.accent; ctx.fillRect(x, 16 * s, 92 * s, 5 * s);
-      ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = `700 ${Math.max(8, 10 * s)}px "Barlow Condensed", sans-serif`;
-      ctx.fillText(po[0], x + 46 * s, 24 * s); ctx.font = `${Math.max(8, 9 * s)}px "Barlow Condensed", sans-serif`; ctx.fillText(po[1], x + 46 * s, 36 * s);
+      ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = `700 ${Math.max(8, 10 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; fitText(po[0], 86 * s);
+      ctx.fillText(po[0], x + 46 * s, 24 * s); ctx.font = `${Math.max(8, 9 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; fitText(po[1], 86 * s); ctx.fillText(po[1], x + 46 * s, 36 * s);
       if (po[2] !== undefined) { ctx.fillStyle = C.warn; ctx.font = `700 ${Math.max(12, 16 * s)}px "IBM Plex Mono", monospace`; ctx.fillText(po[2], x + 46 * s, 46 * s); }
     });
     for (let x = 60 * s; x + 80 * s < firstPoster; x += 150 * s) {   // windows up to the posters
@@ -453,7 +458,7 @@ footer a { color: var(--ink); }
     }
     ctx.fillStyle = C.accent; roundRect(W - 230 * s, 16 * s, 190 * s, 38 * s, 4 * s); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(12, 20 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('CONTRACTOR CO. BID SHOP', W - 135 * s, 35 * s); ctx.textBaseline = 'top';
+    fitText('CONTRACTOR CO. BID SHOP', 178 * s); ctx.fillText('CONTRACTOR CO. BID SHOP', W - 135 * s, 35 * s); ctx.textBaseline = 'top';
     // the wall clock runs on floor time
     const cx = W - 262 * s, cy = 36 * s, cr = 16 * s;
     ctx.fillStyle = C.paper; ctx.beginPath(); ctx.arc(cx, cy, cr, 0, 7); ctx.fill(); ctx.strokeStyle = C.fg; ctx.lineWidth = 2; ctx.stroke();
@@ -541,7 +546,7 @@ footer a { color: var(--ink); }
     else if (p.kind === 'tray') drawTray(st, q.x, q.y, s);
     else drawDesk(st, p, q, s, w, busy, flash);
     ctx.restore();
-    label(p.name.toUpperCase(), q.x + (p.kind === 'cabinet' ? 10 : 0) * s, q.y + (p.kind === 'cabinet' ? 14 : p.kind === 'door' ? 10 : 8) * s, s, dim);
+    label(p.name.toUpperCase(), q.x - (p.kind === 'cabinet' ? 8 : 0) * s, q.y + (p.kind === 'cabinet' ? 14 : p.kind === 'door' ? 10 : 8) * s, s, dim);
   }
 
   function drawDesk(st, p, q, s, w, busy, flash) {
@@ -792,7 +797,7 @@ footer a { color: var(--ink); }
     ctx.strokeStyle = shade(C.wood, -0.45); ctx.lineWidth = 1; ctx.strokeRect(x - 16 * s, y - 72 * s, w - 12 * s, 30 * s); ctx.strokeRect(x - 16 * s, y - 36 * s, w - 12 * s, 30 * s);
     ctx.fillStyle = '#f2c200'; ctx.beginPath(); ctx.arc(x - 22 * s + w - 7 * s, y - 40 * s, 3 * s, 0, 7); ctx.fill();   // handle
     ctx.fillStyle = C.ledger; roundRect(x - 20 * s, y - 100 * s, 40 * s, 12 * s, 2 * s); ctx.fill();                  // exit sign
-    ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(8, 9 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('RELEASED BY HAND', x, y - 94 * s); ctx.textBaseline = 'top';
+    ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(8, 9 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitText('RELEASED BY HAND', 38 * s); ctx.fillText('RELEASED BY HAND', x, y - 94 * s); ctx.textBaseline = 'top';
   }
 
   function drawCabinet(x, y, s, total) {

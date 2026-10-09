@@ -120,7 +120,7 @@ footer a { color: var(--ink); }
       </div>
     </aside>
   </main>
-  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Nothing on the floor is invented (the cat excepted: it is the one thing here that is not in the ledger); what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. A replay run bills no tokens, so its meter stays at zero. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Nothing on the floor is invented (the cat excepted: it is the one thing here that is not in the ledger); what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. A replay run bills no tokens, so its meter stays at zero. The pipeline never releases a bid, so the last scene is a person: the owner walks over with a bag of money (what is in it is the meter's total, nothing more) and carries the bid out by hand. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
 </div>
 
 <script id="runs" type="application/json">__RUNS__</script>
@@ -200,7 +200,7 @@ footer a { color: var(--ink); }
     const calls = r.calls || [];
     run._callIndex = {}; for (const c of calls) run._callIndex[`${c.unit_id}|${c.run}`] = c;
     run._claimIndex = {}; for (const c of (r.claims || [])) run._claimIndex[c.claim_id] = c;
-    owner.say = ''; owner.until = 0; broker.arm = 0; broker.nod = 0; broker.say = ''; broker.until = 0;
+    owner.say = ''; owner.until = 0; broker.arm = 0; broker.nod = 0; broker.say = ''; broker.until = 0; finale = null; doorOpen = 0;
     $('jobline').textContent = `${r.job || '?'} · ${r.run_id || ''} · ${events.length} log rows, ${(r.claims||[]).length} claims` + (calls.length ? `, ${calls.length} model calls billed` : ', replay (recorded answers, nothing billed)');
     $('caption').textContent = 'Press Play. Every move on the floor is one row of the run\'s audit log.';
     const src = r.prices ? `Prices: ${r.prices.unit}, read from ${r.prices.source_url} at ${r.prices.fetched_at}.` : 'No price table in this export (run tools/fetch_prices.py and pass --prices).';
@@ -234,11 +234,20 @@ footer a { color: var(--ink); }
       replay: ["Recorded answers. Free. Keep going.", "Replay run. Not a penny. Beautiful.", "Zero dollars. My favourite number."],
       denied: ["Good. Bounce it.", "That's what the broker is for."],
       backlog: ["Who's backed up? Them. Again.", "Why is there a pile? Why is there always a pile?"],
-      done: ["Done? Then why isn't it shipped?", "The estimator releases by hand. I'm not the estimator."],
+      finale: {   // the last scene: the owner walks over with a bag of money and leaves with the bid
+        walk: ["Right. I'll take it from here.", "Done? Good. Nobody touch it.", "Out of my way. That bid is mine."],
+        pay: ["One bag of money. Don't count it.", "Here. That's the whole budget.", "Paid. In cash. Like a gentleman."],
+        leave: ["Back to work, all of you.", "Don't spend anything while I'm out.", "Ladies. Gentlemen. Cat."],
+      },
     },
+    bid: { waiting: ["Waiting to be released.", "By hand. The sign says so."], taken: ["Finally.", "Mind the bow tie."] },
   };
   const pick = (lines, seq) => lines[seq % lines.length];
   const owner = { say: '', until: 0 };            // the owner, pacing by the door with a stopwatch
+  // the finale, in floor ms from the moment the last row lands: walk to the bid, set the bag down and pick the bid up, walk out, door shuts
+  const FINALE = { walk: 2000, pay: 1800, exit: 2400, close: 800 }; FINALE.total = FINALE.walk + FINALE.pay + FINALE.exit + FINALE.close;
+  let finale = null;                              // { t0 } once the run is done; null before
+  let doorOpen = 0;                               // 0 shut .. 1 open, set each frame from the finale
   const broker = { arm: 0, nod: 0, say: '', until: 0 };   // the bouncer at the cabinet
   const flaggedSoFar = () => { let n = 0; for (let i = 0; i < cursor; i++) { const e = events[i]; if (e.action === 'append' && run._claimIndex[e.subject] && run._claimIndex[e.subject].flag) n++; } return n; };
 
@@ -295,12 +304,42 @@ footer a { color: var(--ink); }
     if (playing) {
       clock += dt;
       while (cursor < events.length && clock >= nextAt) { nextAt = clock + apply(events[cursor++]) * 0.9; }
-      if (cursor >= events.length && clock > nextAt + 1500) { playing = false; $('play').textContent = 'Play'; $('caption').textContent = `Done: ${(run.claims||[]).length} claims on the ledger. ${finishLine()}`; owner.say = pick(LINES.owner.done, events.length); owner.until = Infinity; }
+      if (cursor >= events.length && clock > nextAt + 1500) { playing = false; $('play').textContent = 'Play'; startFinale(); }
       renderPanels();
+    } else if (finale && clock < finale.t0 + FINALE.total) {
+      clock += dt;   // the floor clock runs on through the finale, then stops with the door shut
+      if (clock >= finale.t0 + FINALE.total) $('caption').textContent += ' The owner walked the bid out by hand.';
     }
     draw();
     raf = requestAnimationFrame(tick);
   }
+  function startFinale() { owner.say = ''; owner.until = 0; finale = { t0: clock }; $('caption').textContent = `Done: ${(run.claims||[]).length} claims on the ledger. ${finishLine()}`; }
+  // where everyone is in the finale at this floor clock; null before the run is done
+  function finaleState(s) {
+    if (!finale) return null;
+    const o = pos('owner'), d = pos('ships'), ft = clock - finale.t0, n = events.length;
+    const bidAt = { x: d.x - 70 * s, y: d.y }, stand = { x: bidAt.x - 36 * s, y: d.y + 1 }, bagAt = { x: bidAt.x - 18 * s, y: d.y + 2 };
+    const f = { x: stand.x, y: stand.y, alpha: 1, walking: false, bag: true, bagAt: null, carrying: false, bidStanding: true, bidHappy: false, door: 0, gone: false, say: '', sub: '' };
+    if (ft < FINALE.walk) {
+      const k = ease(ft / FINALE.walk); f.walking = true; f.x = o.x + (stand.x - o.x) * k; f.y = o.y + (stand.y - o.y) * k;
+      f.say = pick(LINES.owner.finale.walk, n);
+    } else if (ft < FINALE.walk + FINALE.pay) {
+      // the bag goes down and the bid gets its say; then the owner lifts the bid and says what the bag holds
+      f.bag = false; f.bagAt = bagAt; f.bidHappy = true;
+      if (ft > FINALE.walk + FINALE.pay * 0.4) { f.carrying = true; f.bidStanding = false; f.say = pick(LINES.owner.finale.pay, n); f.sub = bagLine(); }
+    } else if (ft < FINALE.walk + FINALE.pay + FINALE.exit) {
+      const k = (ft - FINALE.walk - FINALE.pay) / FINALE.exit;
+      f.walking = true; f.bag = false; f.bagAt = bagAt; f.carrying = true; f.bidStanding = false;
+      f.x = stand.x + (d.x + 30 * s - stand.x) * k; f.y = d.y + 1;
+      f.door = Math.min(1, k / 0.35); f.alpha = Math.max(0, Math.min(1, 1 - (f.x - (d.x - 6 * s)) / (28 * s)));
+      if (k < 0.3) { f.say = pick(LINES.owner.finale.pay, n); f.sub = bagLine(); } else if (k < 0.7) f.say = pick(LINES.owner.finale.leave, n);
+    } else {
+      f.gone = true; f.alpha = 0; f.bag = false; f.bagAt = bagAt; f.bidStanding = false;
+      f.door = Math.max(0, 1 - (ft - FINALE.walk - FINALE.pay - FINALE.exit) / FINALE.close);
+    }
+    return f;
+  }
+  const bagLine = () => spend > 0 ? `In the bag: $${spend.toFixed(4)}, this run's meter.` : 'The bag is empty. Replay runs are free.';
   function finishLine() {
     const flagged = (run.claims || []).filter(c => c.flag).length;
     return flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.';
@@ -422,6 +461,7 @@ footer a { color: var(--ink); }
     palette();
     ctx.clearRect(0, 0, cv._w, cv._h);
     const s = pos('intake').s;
+    const fs = finaleState(s); doorOpen = fs ? fs.door : 0;
     drawFloor(s);
     const items = [];                     // everything on the floor, sorted by its foot so nearer things draw later
     for (const st in PLAN) {
@@ -430,13 +470,19 @@ footer a { color: var(--ink); }
       items.push({ y: q.y, fn: () => drawStation(st, p, q, s, w, busy, flash) });
       if (busy || flash) items.push({ y: 1e9, fn: () => { if (w.bubble) bubble(q.x, q.y - (p.kind === 'bench' ? 96 : 92) * s, s, flash ? 'REFUSED by the broker' : w.bubble, flash, flash ? '' : w.quip); } });
     }
-    const ownerAt = pos('owner'), brokerAt = pos('broker'), catAt = pos('cat');
-    items.push({ y: ownerAt.y, fn: () => drawOwner(ownerAt.x, ownerAt.y, s) });
+    const ownerAt = fs ? { x: fs.x, y: fs.y } : pos('owner'), brokerAt = pos('broker'), catAt = pos('cat');
+    if (!fs || !fs.gone) items.push({ y: ownerAt.y, fn: () => drawOwner(ownerAt.x, ownerAt.y, s, fs) });
     items.push({ y: brokerAt.y, fn: () => drawBroker(brokerAt.x, brokerAt.y, s) });
     items.push({ y: catAt.y + 40 * s, fn: () => drawCat(catAt.y + 40 * s, s) });
-    if (owner.until > clock && owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, owner.say, false) });
+    if (fs) { if (fs.say && fs.alpha > 0.3) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, fs.say, false, fs.sub) }); }
+    else if (owner.until > clock && owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, owner.say, false) });
     if (broker.until > clock && broker.say) items.push({ y: 1e9, fn: () => bubble(brokerAt.x, brokerAt.y - 84 * s, s, broker.say, true) });
-    if (run && cursor >= events.length && !playing && events.length) { const d = pos('ships'); items.push({ y: d.y + 1, fn: () => drawBid(d.x - 70 * s, d.y, s) }); items.push({ y: 1e9, fn: () => bubble(d.x - 70 * s, d.y - 70 * s, s, 'Waiting for the estimator.', false, 'Still waiting.') }); }
+    if (fs && fs.bagAt) items.push({ y: fs.bagAt.y, fn: () => drawBag(fs.bagAt.x, fs.bagAt.y, s) });
+    if (fs ? fs.bidStanding : (cursor >= events.length && events.length > 0)) {   // the finished bid waits at the door until the owner reaches it
+      const d = pos('ships'); items.push({ y: d.y + 1, fn: () => drawBid(d.x - 70 * s, d.y, s, !!(fs && fs.bidHappy)) });
+      const say = fs && fs.bidHappy ? LINES.bid.taken : LINES.bid.waiting;
+      items.push({ y: 1e9, fn: () => bubble(d.x - 70 * s, d.y - 70 * s, s, say[0], false, say[1]) });
+    }
     for (let i = slips.length - 1; i >= 0; i--) {
       const sl = slips[i]; const t = (clock - sl.t0) / (sl.t1 - sl.t0);
       if (t >= 1.3) { slips.splice(i, 1); continue; }
@@ -584,27 +630,49 @@ footer a { color: var(--ink); }
     ctx.textBaseline = 'top';
   }
 
-  // the owner: no hard hat, a tie, a stopwatch, and a foot that taps faster the more is spent
-  function drawOwner(x, y, s) {
-    const tap = Math.sin(clock / (spend > 0 ? 90 : 260));
+  // the owner: no hard hat, a tie, a stopwatch, and a foot that taps faster the more is spent.
+  // In the finale (`f`) he walks, carries the bag of money, then the bid, and fades out through the door.
+  function drawOwner(x, y, s, f) {
+    const tap = Math.sin(clock / (spend > 0 ? 90 : 260)), step = f && f.walking ? Math.sin(clock / 80) : 0;
+    ctx.save(); ctx.globalAlpha = f ? f.alpha : 1;
     shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
-    ctx.save(); ctx.translate(x, y);
+    ctx.translate(x, y);
     ctx.strokeStyle = '#3a3f47'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(-4 * s, -10 * s); ctx.lineTo(-5 * s, 0); ctx.moveTo(4 * s, -10 * s); ctx.lineTo(6 * s, -Math.max(0, tap) * 4 * s); ctx.stroke();   // legs, one tapping
+    ctx.beginPath();
+    if (f && f.walking) { ctx.moveTo(-4 * s, -10 * s); ctx.lineTo(-5 * s + step * 5 * s, 0); ctx.moveTo(4 * s, -10 * s); ctx.lineTo(6 * s - step * 5 * s, 0); }   // legs, striding
+    else { ctx.moveTo(-4 * s, -10 * s); ctx.lineTo(-5 * s, 0); ctx.moveTo(4 * s, -10 * s); ctx.lineTo(6 * s, -Math.max(0, tap) * 4 * s); }   // legs, one tapping
+    ctx.stroke();
     ctx.fillStyle = '#2d4a6b'; roundRect(-11 * s, -32 * s, 22 * s, 24 * s, 4 * s); ctx.fill();                    // jacket
     ctx.fillStyle = C.paper; ctx.fillRect(-3 * s, -32 * s, 6 * s, 12 * s); ctx.fillStyle = C.warn; ctx.fillRect(-1.5 * s, -32 * s, 3 * s, 11 * s);   // shirt and tie
     ctx.strokeStyle = '#2d4a6b'; ctx.lineWidth = 4.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -27 * s); ctx.lineTo(-16 * s, -16 * s); ctx.moveTo(9 * s, -27 * s); ctx.lineTo(16 * s, -18 * s); ctx.stroke();   // arms
-    ctx.fillStyle = C.steel; ctx.beginPath(); ctx.arc(-17 * s, -14 * s, 4.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = C.paper; ctx.beginPath(); ctx.arc(-17 * s, -14 * s, 3 * s, 0, 7); ctx.fill();   // stopwatch
-    ctx.strokeStyle = C.fg; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-17 * s, -14 * s); ctx.lineTo(-17 * s + Math.cos(clock / 160) * 2.5 * s, -14 * s + Math.sin(clock / 160) * 2.5 * s); ctx.stroke();
-    ctx.fillStyle = C.paper; ctx.fillRect(13 * s, -24 * s, 9 * s, 12 * s); ctx.strokeStyle = C.muted; ctx.strokeRect(13 * s, -24 * s, 9 * s, 12 * s);   // clipboard
+    if (f && f.bag) drawBag(-18 * s, 2 * s, s * 0.9);   // the bag of money, in the stopwatch hand
+    else if (!f) {
+      ctx.fillStyle = C.steel; ctx.beginPath(); ctx.arc(-17 * s, -14 * s, 4.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = C.paper; ctx.beginPath(); ctx.arc(-17 * s, -14 * s, 3 * s, 0, 7); ctx.fill();   // stopwatch
+      ctx.strokeStyle = C.fg; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-17 * s, -14 * s); ctx.lineTo(-17 * s + Math.cos(clock / 160) * 2.5 * s, -14 * s + Math.sin(clock / 160) * 2.5 * s); ctx.stroke();
+    }
+    if (f && f.carrying) drawBid(18 * s, -4 * s, s * 0.8, true, true);   // the bid, under the other arm
+    else { ctx.fillStyle = C.paper; ctx.fillRect(13 * s, -24 * s, 9 * s, 12 * s); ctx.strokeStyle = C.muted; ctx.strokeRect(13 * s, -24 * s, 9 * s, 12 * s); }   // clipboard
     ctx.fillStyle = C.skin; ctx.fillRect(-3 * s, -37 * s, 6 * s, 6 * s); ctx.beginPath(); ctx.arc(0, -44 * s, 9 * s, 0, 7); ctx.fill();   // neck, bald head
     ctx.fillStyle = INK; const worried = spend > 0;
     ctx.beginPath(); ctx.arc(-3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.arc(3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.fill();
     ctx.strokeStyle = INK; ctx.lineWidth = 1.2 * s; ctx.beginPath();                                                   // eyebrows: up when money moves
     ctx.moveTo(-6 * s, (worried ? -50 : -48) * s); ctx.lineTo(-1.5 * s, (worried ? -48.5 : -48) * s); ctx.moveTo(1.5 * s, (worried ? -48.5 : -48) * s); ctx.lineTo(6 * s, (worried ? -50 : -48) * s); ctx.stroke();
     ctx.fillStyle = INK; ctx.fillRect(-4 * s, -41 * s, 8 * s, 1.6 * s);                                                  // moustache
+    if (f && f.carrying) { ctx.strokeStyle = INK; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.arc(0, -40 * s, 3 * s, 0.2, Math.PI - 0.2); ctx.stroke(); }   // the one smile of the day
+    ctx.translate(-x, -y);
+    if (!(f && f.carrying && f.walking)) label('THE OWNER', x, y + 8 * s, s, false);   // no name tag over the door's
     ctx.restore();
-    label('THE OWNER', x, y + 8 * s, s, false);
+  }
+
+  // the bag of money: burlap, a tied neck and a dollar sign. What is in it is the meter's total, said out loud when it is set down.
+  function drawBag(x, y, s) {
+    shadow(x, y + 1 * s, 10 * s, 3.5 * s, 0.2);
+    const burlap = '#c9a66b';                                                                                          // one burlap on either floor
+    ctx.fillStyle = burlap; ctx.beginPath(); ctx.ellipse(x, y - 11 * s, 10 * s, 11 * s, 0, 0, 7); ctx.fill();          // the sack
+    ctx.strokeStyle = '#7a5a2e'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#a8864f'; ctx.beginPath(); ctx.ellipse(x, y - 23 * s, 4.5 * s, 3 * s, 0, 0, 7); ctx.fill();       // the neck
+    ctx.strokeStyle = C.warn; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.moveTo(-5 * s + x, -21 * s + y); ctx.lineTo(5 * s + x, -21 * s + y); ctx.stroke();   // the tie
+    ctx.fillStyle = '#2a1d0c'; ctx.font = `700 ${Math.max(10, 13 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', x, y - 10 * s); ctx.textBaseline = 'top';
   }
 
   // the broker: the bouncer at the cabinet. Nods a row in; stiff-arms a row from the wrong principal.
@@ -626,16 +694,18 @@ footer a { color: var(--ink); }
     label('THE BROKER', x, y + 8 * s, s, false);
   }
 
-  // the finished bid, waiting at the door for the estimator (the pipeline cannot release it)
-  function drawBid(x, y, s) {
+  // the finished bid, waiting at the door: the pipeline never releases it, a person carries it out
+  function drawBid(x, y, s, happy, held) {
     const tap = Math.max(0, Math.sin(clock / 120));
-    shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
+    if (!held) shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
     ctx.save(); ctx.translate(x, y);
-    ctx.strokeStyle = INK; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(-6 * s, 0); ctx.moveTo(5 * s, -6 * s); ctx.lineTo(6 * s, -tap * 4 * s); ctx.stroke();
+    if (!held) { ctx.strokeStyle = INK; ctx.lineWidth = 2.5 * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(-6 * s, 0); ctx.moveTo(5 * s, -6 * s); ctx.lineTo(6 * s, -tap * 4 * s); ctx.stroke(); }
     ctx.fillStyle = C.paper; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.fillRect(-14 * s, -44 * s, 28 * s, 38 * s); ctx.strokeRect(-14 * s, -44 * s, 28 * s, 38 * s);
     ctx.strokeStyle = C.muted; ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(-10 * s, -20 * s + i * 4 * s); ctx.lineTo(10 * s - (i % 2) * 5 * s, -20 * s + i * 4 * s); } ctx.stroke();
     ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(-5 * s, -34 * s, 1.5 * s, 0, 7); ctx.arc(5 * s, -34 * s, 1.5 * s, 0, 7); ctx.fill();   // eyes
-    ctx.strokeStyle = INK; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-3 * s, -28 * s); ctx.lineTo(3 * s, -28 * s); ctx.stroke();   // a straight mouth
+    ctx.strokeStyle = INK; ctx.lineWidth = 1 * s; ctx.beginPath();
+    if (happy) ctx.arc(0, -29 * s, 3 * s, 0.2, Math.PI - 0.2); else { ctx.moveTo(-3 * s, -28 * s); ctx.lineTo(3 * s, -28 * s); }   // a straight mouth, until the owner comes
+    ctx.stroke();
     ctx.fillStyle = C.warn; ctx.beginPath(); ctx.moveTo(-6 * s, -4 * s); ctx.lineTo(0, -1 * s); ctx.lineTo(-6 * s, 2 * s); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(6 * s, -4 * s); ctx.lineTo(0, -1 * s); ctx.lineTo(6 * s, 2 * s); ctx.closePath(); ctx.fill();   // bow tie
     ctx.fillStyle = C.ledger; ctx.font = `700 ${Math.max(7, 8 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.fillText('BID', 0, -43 * s);
     ctx.restore();
@@ -669,9 +739,11 @@ footer a { color: var(--ink); }
   function drawDoor(x, y, s) {
     shadow(x + 8 * s, y + 2 * s, 30 * s, 7 * s, 0.16);
     box3d(x, y, 54 * s, 14 * s, 88 * s, shade(C.wall, -0.1), shade(C.wall, -0.4));   // frame
-    ctx.fillStyle = shade(C.wood, -0.1); ctx.fillRect(x - 22 * s, y - 80 * s, 44 * s, 80 * s);                       // the door
-    ctx.strokeStyle = shade(C.wood, -0.45); ctx.lineWidth = 1; ctx.strokeRect(x - 16 * s, y - 72 * s, 32 * s, 30 * s); ctx.strokeRect(x - 16 * s, y - 36 * s, 32 * s, 30 * s);
-    ctx.fillStyle = '#f2c200'; ctx.beginPath(); ctx.arc(x + 15 * s, y - 40 * s, 3 * s, 0, 7); ctx.fill();            // handle
+    ctx.fillStyle = shade(C.wall, -0.75); ctx.fillRect(x - 22 * s, y - 80 * s, 44 * s, 80 * s);                      // the opening behind the door
+    const w = 44 * s * (1 - 0.72 * doorOpen);                                                                        // the door, swung on its left hinge in the finale
+    ctx.fillStyle = shade(C.wood, -0.1 - 0.2 * doorOpen); ctx.fillRect(x - 22 * s, y - 80 * s, w, 80 * s);
+    ctx.strokeStyle = shade(C.wood, -0.45); ctx.lineWidth = 1; ctx.strokeRect(x - 16 * s, y - 72 * s, w - 12 * s, 30 * s); ctx.strokeRect(x - 16 * s, y - 36 * s, w - 12 * s, 30 * s);
+    ctx.fillStyle = '#f2c200'; ctx.beginPath(); ctx.arc(x - 22 * s + w - 7 * s, y - 40 * s, 3 * s, 0, 7); ctx.fill();   // handle
     ctx.fillStyle = C.ledger; roundRect(x - 20 * s, y - 100 * s, 40 * s, 12 * s, 2 * s); ctx.fill();                  // exit sign
     ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(8, 9 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('RELEASED BY HAND', x, y - 94 * s); ctx.textBaseline = 'top';
   }
@@ -700,7 +772,7 @@ footer a { color: var(--ink); }
 
   // ---- controls ----
   $('play').addEventListener('click', () => { if (cursor >= events.length) { load(run); } playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; if (playing && !nextAt) nextAt = clock; });
-  $('step').addEventListener('click', () => { playing = false; $('play').textContent = 'Play'; if (cursor < events.length) { clock = Math.max(clock, nextAt); nextAt = clock + apply(events[cursor++]); renderPanels(); if (cursor >= events.length) { owner.say = pick(LINES.owner.done, events.length); owner.until = Infinity; } } });
+  $('step').addEventListener('click', () => { playing = false; $('play').textContent = 'Play'; if (cursor < events.length) { clock = Math.max(clock, nextAt); nextAt = clock + apply(events[cursor++]); renderPanels(); if (cursor >= events.length) startFinale(); } });
   $('reset').addEventListener('click', () => load(run));
   $('speed').addEventListener('input', e => { speed = parseFloat(e.target.value); });
   $('job').addEventListener('change', e => { const r = RUNS[e.target.value]; if (r) load(r); });

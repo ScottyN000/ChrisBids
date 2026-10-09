@@ -4,8 +4,8 @@ The Materials agent's second job, after reading the data sheets (webread.py):
 "product data sheet figures (spread rate, yield, pack size), order quantities"
 (p.4). It reads ledger rows, never documents or pages. The model's one job is
 to say, for each product the job's rows name, which rows the order rests on:
-the quantity row it covers (a takeoff area or count, or the FIELD row that
-says it will be measured), the number of coats the spec gives, the spec's own
+the quantity row it covers (a takeoff area or count, the allowance it goes into,
+or the FIELD row that says it will be measured), the number of coats the spec gives, the spec's own
 coverage row when there is one (the spec's stated rate takes precedence over
 the data sheet, p.17) and the fetched data-sheet row. Code works the quantity
 out, `{AREA} * coats / {RATE}`, at both ends of a rate stated as a range, and
@@ -40,8 +40,11 @@ PRINCIPAL = "materials"
 # The quantity a product is ordered in, and the word a rate's unit ends with
 # that names it ("sq ft/gal", "cu ft per bag", "LF/tube").
 UNITS = {"gal": "gal", "bags": "bag", "tubes": "tube", "cartridges": "cartridge", "each": ""}
-# Rows a product's quantity may rest on: a takeoff figure, or the FIELD row for one.
+# Rows a product's quantity may rest on: a takeoff figure, the allowance the
+# product covers, or the FIELD row for either (the live run of 2026-10-09 named
+# the repaint's FIELD allowance rows, "exterior wall surfaces", and was right to).
 QUANTITY_METHODS = ("dimensioned", "counted", "FIELD")
+QUANTITY_ROLES = ("quantity", "allowance")
 # Rows the model is shown: what the sources say, the figures and the data sheets.
 SHOWN_METHODS = ("clause", "customer", "fetched", "dimensioned", "counted", "FIELD")
 COATS_MAX = 6
@@ -58,7 +61,7 @@ SCHEMA = {
         "properties": {
             "product": {"type": "string", "maxLength": 150},
             "unit": {"enum": list(UNITS)},
-            # The row the quantity covers: a takeoff figure or the FIELD row for it; "" for none.
+            # The row the quantity covers: a takeoff figure, an allowance or the FIELD row for one; "" for none.
             "quantity": {"type": "string", "maxLength": 40},
             # Coats the spec gives; 0 when it does not say.
             "coats": {"type": "integer", "minimum": 0, "maximum": COATS_MAX},
@@ -157,8 +160,8 @@ def item_errors(item: dict, by_id: dict[str, Claim], shown: str = "") -> list[st
     if sheet.method != "fetched" or not sheet.quote:
         return [f"sheet {sheet.claim_id} is not a fetched row with a quote"]
     q = by_id.get(item["quantity"]) if item["quantity"] else None
-    if item["quantity"] and (q.method not in QUANTITY_METHODS or q.role != "quantity"):
-        return [f"quantity {q.claim_id} is a {q.method} {q.role} row, not a takeoff figure or a FIELD row"]
+    if item["quantity"] and (q.method not in QUANTITY_METHODS or q.role not in QUANTITY_ROLES):
+        return [f"quantity {q.claim_id} is a {q.method} {q.role} row, not a takeoff figure, an allowance or a FIELD row"]
     spec = by_id.get(item["spec_rate"]) if item["spec_rate"] else None
     if spec is not None and (spec.method != "clause" or figure(spec) is None or not spec.unit):
         return [f"spec_rate {spec.claim_id} is not a clause row stating a rate"]

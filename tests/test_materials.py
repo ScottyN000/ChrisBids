@@ -44,6 +44,8 @@ ANCHOR = row("X-DR-005", '1/2" adhesive anchors, Example Anchor A7, 3 per bracke
              tag="S-1 Det 1", division="05")
 SCALED = row("X-DR-009", "Angle leg, scaled", method="scaled", role="quantity", value="40", unit="in", source="S-1",
              confidence="scaled", division="")
+ALLOW = row("X-A-004", "exterior wall surfaces", method="FIELD", role="allowance", unit="sq ft", source="none",
+            locator="", tag="FIELD", division="", confidence="missing")
 ROWS = [SYSTEM, SPEC_RATE, AREA, FIELD, X100, COUNT, A7, ANCHOR]
 BY_ID = {c.claim_id: c for c in ROWS}
 
@@ -98,7 +100,7 @@ class ItemCase(unittest.TestCase):
             (item(sheet=""), "names no data-sheet row; a product with none gets no order row"),
             (item(basis=("X-SP-010", "X-NO")), "names X-NO, which is not a row it was shown"),
             (item(sheet="X-SP-010"), "sheet X-SP-010 is not a fetched row with a quote"),
-            (item(quantity="X-SP-010"), "quantity X-SP-010 is a clause scope row, not a takeoff figure or a FIELD row"),
+            (item(quantity="X-SP-010"), "quantity X-SP-010 is a clause scope row, not a takeoff figure, an allowance or a FIELD row"),
             (item(spec_rate="X-SP-010"), "spec_rate X-SP-010 is not a clause row stating a rate"),
             (item(spec_rate="", sheet="X-WEB-006"), "orders gal but no row states a rate"),
             (item(unit="bags"), "orders bags but the rate X-R-001 is per 'sq ft/gal'"),
@@ -108,6 +110,12 @@ class ItemCase(unittest.TestCase):
             self.assertEqual(materials.item_errors(it, BY_ID, shown), [want], it)
         self.assertEqual(materials.item_errors(item(), BY_ID, shown), [])
         self.assertEqual(materials.item_errors(ANCHORS, BY_ID, shown), [])
+        # a FIELD allowance row is the area the coating covers, to be measured: accepted, and the order waits on it
+        by_id = dict(BY_ID, **{ALLOW.claim_id: ALLOW})
+        self.assertEqual(materials.item_errors(item(quantity="X-A-004"), by_id, materials.unit_for("X", ROWS + [ALLOW]).text), [])
+        c = materials.order_claim("X-MT-05", item(quantity="X-A-004"), 2, 2, by_id)
+        self.assertEqual((c.value, c.value_num, c.flag, c.method, c.role), ("", None, "unverified", "fetched", "material"))
+        self.assertIn("X-A-004 (FIELD)", c.statement)
         self.assertEqual(materials.item_errors(item(spec_rate=""), BY_ID, shown), [])   # the sheet's rate will do
         self.assertEqual(materials.item_errors(item(quantity=""), BY_ID, shown), [])    # nothing covered yet
 
@@ -255,7 +263,7 @@ class RunCase(unittest.TestCase):
         by_id = dict(BY_ID, **{SCALED.claim_id: SCALED})
         c = materials.order_claim("X-MT-09", item(spec_rate="", quantity="X-DR-009"), 2, 2, by_id)
         self.assertEqual(materials.item_errors(item(quantity="X-DR-009"), by_id, materials.unit_for("X", list(by_id.values())).text),
-                         ["quantity X-DR-009 is a scaled quantity row, not a takeoff figure or a FIELD row"])
+                         ["quantity X-DR-009 is a scaled quantity row, not a takeoff figure, an allowance or a FIELD row"])
         self.write("takeoff", SCALED)
         with self.assertRaises(LedgerError) as e:
             self.broker.as_principal("materials").append(c)

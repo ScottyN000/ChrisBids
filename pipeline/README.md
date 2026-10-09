@@ -301,7 +301,7 @@ reads ledger rows, never documents or pages. After the pages are read, the model
 the FIELD rows for what will be measured, the fetched data sheets; never a scaled
 or observed row, p.6) and says, for each product the rows name, which rows its
 order rests on: the data-sheet row, the quantity row it covers (a takeoff area or
-count, or the FIELD row for one), the coats the spec gives (0 when it does not
+count, the allowance it goes into, or the FIELD row for one), the coats the spec gives (0 when it does not
 say) and the spec's own coverage row when there is one, since the spec's stated
 rate takes precedence over the data sheet's (p.17). Code works the quantity out,
 `{AREA} * coats / {RATE}`, at both ends of a rate stated as a range, and writes

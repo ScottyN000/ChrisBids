@@ -287,11 +287,13 @@ def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     2'-8"` for a per-bracket row), else what the job's are per, as `symbol_rows`
     matches them, on any view; window tags beside a room width are the prompt's own
     route and are not flagged. A symbol count is held to the job's assembly names its
-    own wording carries (`New pier symbols drawn` summed into a bracket total is held
-    to pier strings, not the bracket's; `Bracket symbols drawn` under a per-pier row is
-    held to the bracket strings, the wrong symbol row being the error this check is
-    for), and to all the item's names when it carries none, so a reader's wording cannot
-    switch the check off. A job with no per-assembly row at all
+    own wording carries when one of them is what the item is per (`New pier symbols
+    drawn` summed into a bracket total with a per-pier row is held to pier strings, not
+    the bracket's), to those and the item's names together when none is (anchors per
+    bracket times the pier symbols, or `Bracket symbols drawn` under a per-pier row, are
+    held to the bracket strings and the pier strings alike, the wrong symbol row being
+    the error this check is for), and to all the item's names when it carries none, so
+    a reader's wording cannot switch the check off. A job with no per-assembly row at all
     is held to every dimension string on the symbols' own view. The rows that count go
     on the note with their view. `claims` is every current row, as for `symbol_rows`.
     """
@@ -304,7 +306,8 @@ def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     for c in used:
         if not is_symbol_count(c):
             continue
-        own = [n for n in job if n in c.statement.lower()] or names
+        wording = [n for n in job if n in c.statement.lower()]
+        own = wording if set(wording) & set(names) else _join(wording + names)
         if own:
             named = [d for d in dims if any(n in d.statement.lower() for n in own)]
         else:

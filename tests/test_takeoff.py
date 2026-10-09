@@ -577,11 +577,17 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.route_notes(total, {**with_piers, piers.claim_id: unnamed, pier_run.claim_id: pier_run}), [
             f"rests on the symbol count {piers.claim_id} where Partial Foundation Plan carries bracket and pier dimension "
             f"strings ({SPAN}, {SPACING}, {pier_run.claim_id})"])
-        # The wrong symbol row is the error the check is for: bracket symbols under a per-pier row are held
-        # to the bracket strings, the name the symbols carry, not the pier the item is per.
-        self.assertEqual(takeoff.route_notes(it("Pier bolts", f"{{{per_pier.claim_id}}} * {{{six.claim_id}}}", 24),
-                                             {**with_piers, six.claim_id: six}), [
+        # The wrong symbol row is the error the check is for: a symbol count naming another assembly than
+        # the item is per is held to both, so bracket symbols under a per-pier row are held to the bracket
+        # strings, and anchors per bracket times the pier symbols are held to the bracket strings too.
+        pier_bolts = it("Pier bolts", f"{{{per_pier.claim_id}}} * {{{six.claim_id}}}", 24)
+        self.assertEqual(takeoff.route_notes(pier_bolts, {**with_piers, six.claim_id: six}), [
             f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries bracket dimension strings ({SPAN}, {SPACING})"])
+        self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{piers.claim_id}}}", 6), with_piers), [
+            f"rests on the symbol count {piers.claim_id} where Partial Foundation Plan carries bracket dimension strings ({SPAN}, {SPACING})"])
+        no_bracket_strings = {k: v for k, v in with_piers.items() if k not in (SPAN, SPACING, END)}
+        self.assertEqual(takeoff.route_notes(pier_bolts, {**no_bracket_strings, six.claim_id: six, pier_run.claim_id: pier_run}), [
+            f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries pier dimension strings ({pier_run.claim_id})"])
         # A view with no dimension string anywhere in the job naming the assembly is the prompt's own route.
         self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{elsewhere.claim_id}}}", 18),
                                              {ANCH: BY_ID[ANCH], elsewhere.claim_id: elsewhere, END: BY_ID[END]}), [])

@@ -331,7 +331,7 @@ footer a { color: var(--ink); }
       log(`${e.principal} writes ${e.subject} (${e.detail})`, e.action);
     } else if (e.action === 'denied' && e.subject === 'fetch') {
       // the broker refused a URL before any fetch (a non-http scheme, credentials in it, a loopback or non-public address): nothing leaves the desk
-      w.flash = clock + dur; w.refusal = `fetch REFUSED: ${site(e.detail)}`; d.denied += 1;
+      w.flash = clock + dur; w.refusal = `fetch REFUSED: ${e.fetch_host || site(e.detail)}`; d.denied += 1;
       broker.arm = clock + dur; broker.say = pick(LINES.fetchUnsafe, e.seq); broker.until = clock + dur * 1.5;
       owner.say = pick(LINES.owner.denied, e.seq); owner.until = clock + dur * 1.5;
       log(`${e.principal} fetch refused: ${e.detail}`, 'denied');
@@ -351,7 +351,8 @@ footer a { color: var(--ink); }
         log(`${e.principal} fetches ${e.subject}`, e.action);
       } else {
         const refused = kind !== 'failed';
-        w.flash = clock + dur; w.refusal = `${refused ? 'fetch REFUSED' : 'did not open'}: ${site(e.subject)}`;
+        // the exporter names the refused host, which on a redirect is the hop's and not the page's
+        w.flash = clock + dur; w.refusal = `${refused ? 'fetch REFUSED' : 'did not open'}: ${(refused && e.fetch_host) || site(e.subject)}`;
         w.quip = pick(kind === 'off-list' ? LINES.fetchDenied : kind === 'unsafe' ? LINES.fetchUnsafe : LINES.fetchFailed, e.seq);
         if (refused) d.denied += 1;
         log(`${e.principal} ${refused ? 'fetch refused' : 'fetch failed'}: ${e.subject} (${e.detail})`, 'denied');

@@ -165,7 +165,7 @@ class ExportCase(unittest.TestCase):
                 ("takeoff", "model-call", "NAN#takeoff", "claude-opus-5-5; takeoff@1; run 1"),                 # no price row
                 ("takeoff", "model-call", "NAN#takeoff", "claude-haiku-5-5; takeoff@1; run 2"),                # two usage lines (the folder was run twice)
                 ("spec_reader", "model-call", "SW#1", "claude-haiku-5-5; spec@1; run 1"),                      # the usage line names another model
-                ("codes", "denied", "fetch", "http://127.0.0.1/x: 127.0.0.1 is the local machine"),             # the broker's address guard
+                ("codes", "denied", "fetch", "http://127.0.0.1/x: 127.0.0.1 is a non-public address"),          # the broker's address guard
                 ("codes", "fetch", "https://example.com/x", "2026-10-09; not fetched: example.com is not on the allowlist"),
                 ("materials", "fetch", "https://sweets.construction.com/p", "2026-10-09; sha256 ab12"),
                 ("auditor", "audit", "NAN-001", "pass: found on S-1 p.1"),
@@ -195,7 +195,8 @@ class ExportCase(unittest.TestCase):
             self.assertEqual([(e["action"], e["subject"], e["station"]) for e in data["events"]][6:],
                              [("denied", "fetch", "codes"), ("fetch", "https://example.com/x", "codes"),
                               ("fetch", "https://sweets.construction.com/p", "materials"), ("audit", "NAN-001", "auditor")])
-            self.assertEqual([e.get("fetch") for e in data["events"]][5:], [None, "unsafe", "off-list", "read", None])
+            self.assertEqual([(e.get("fetch"), e.get("fetch_host")) for e in data["events"]][5:],
+                             [(None, None), ("unsafe", "127.0.0.1"), ("off-list", "example.com"), ("read", ""), (None, None)])
             self.assertEqual((data["job"], data["run_id"]), ("X", "r1"))
             # with no price table every live row is unpriced for that reason; the replay row stays silent
             table_less = [e["unpriced"] for e in export_run.export(run_dir)["events"] if e["action"] == "model-call"]
@@ -204,30 +205,33 @@ class ExportCase(unittest.TestCase):
                                           "the ledger says claude-haiku-5-5, calls.jsonl says claude-sonnet-5-5"])
 
     def test_a_fetch_row_is_read_as_the_fetcher_or_the_broker_wrote_it(self):
-        # the messages web.py and guard.py write, each with how the floor shows it
+        # each form of message pipeline/web.py and pipeline/guard.py write (copied by hand), with how the floor shows it
+        # and which host it names (on a redirect the fetcher checks every hop, so the refused host is the hop's)
         cases = [
-            ("fetch", "2026-10-09; sha256 ab12; served by https://example.gov/final", "read"),
-            ("fetch", "2026-10-09; not fetched: example.com is not on the allowlist", "off-list"),
-            ("fetch", "2026-10-09; not fetched: example.com is not on the allowlist; served by https://example.com/", "off-list"),
-            ("fetch", "2026-10-09; not fetched: 127.0.0.1 is the local machine", "unsafe"),
-            ("fetch", "2026-10-09; not fetched: 10.0.0.1 is a non-public address", "unsafe"),
-            ("fetch", "2026-10-09; not fetched: only http(s) URLs are fetched, not 'file'", "unsafe"),
-            ("fetch", "2026-10-09; not fetched: a URL carrying credentials is not fetched", "unsafe"),
-            ("fetch", "2026-10-09; not fetched: URL has no host", "unsafe"),
-            ("fetch", "2026-10-09; not fetched: codes.example.gov resolves to non-public address 10.1.1.1", "unsafe"),
-            ("fetch", "2026-10-09; not fetched: codes.example.gov does not resolve (name or service not known)", "failed"),
-            ("fetch", "2026-10-09; did not open: timed out", "failed"),
-            ("fetch", "2026-10-09; HTTP 404", "failed"),
-            ("fetch", "2026-10-09; more than 5 redirects", "failed"),
-            ("fetch", "2026-10-09; larger than 5000000 bytes", "failed"),
-            ("fetch", "2026-10-09; cannot read application/zip", "failed"),
-            ("fetch", "2026-10-09; no text on the page (a scan or a script-only page)", "failed"),
-            ("denied", "http://127.0.0.1/x: 127.0.0.1 is the local machine", "unsafe"),
-            ("denied", "file:///etc/passwd: only http(s) URLs are fetched, not 'file'", "unsafe"),
+            ("fetch", "2026-10-09; sha256 ab12; served by https://example.gov/final", "read", ""),
+            ("fetch", "2026-10-09; not fetched: example.com is not on the allowlist", "off-list", "example.com"),
+            ("fetch", "2026-10-09; not fetched: vendor.example.com is not on the allowlist; served by https://vendor.example.com/", "off-list", "vendor.example.com"),
+            ("fetch", "2026-10-09; not fetched: localhost is the local machine", "unsafe", "localhost"),
+            ("fetch", "2026-10-09; not fetched: 127.0.0.1 is a non-public address", "unsafe", "127.0.0.1"),
+            ("fetch", "2026-10-09; not fetched: only http(s) URLs are fetched, not 'file'", "unsafe", "only http(s) URLs are fetched, not 'file'"),
+            ("fetch", "2026-10-09; not fetched: a URL carrying credentials is not fetched", "unsafe", "a URL carrying credentials is not fetched"),
+            ("fetch", "2026-10-09; not fetched: URL has no host", "unsafe", "URL has no host"),
+            ("fetch", "2026-10-09; not fetched: codes.example.gov resolves to non-public address 10.1.1.1", "unsafe", "codes.example.gov"),
+            ("fetch", "2026-10-09; not fetched: codes.example.gov does not resolve (name or service not known)", "failed", ""),
+            ("fetch", "2026-10-09; did not open: timed out", "failed", ""),
+            ("fetch", "2026-10-09; HTTP 404", "failed", ""),
+            ("fetch", "2026-10-09; more than 5 redirects", "failed", ""),
+            ("fetch", "2026-10-09; larger than 5000000 bytes", "failed", ""),
+            ("fetch", "2026-10-09; cannot read application/zip", "failed", ""),
+            ("fetch", "2026-10-09; could not extract text: bad bytes", "failed", ""),
+            ("fetch", "2026-10-09; no text on the page (a scan or a script-only page)", "failed", ""),
+            ("denied", "http://127.0.0.1/x: 127.0.0.1 is a non-public address", "unsafe", "127.0.0.1"),
+            ("denied", "http://localhost:8080/x: localhost is the local machine", "unsafe", "localhost"),
+            ("denied", "file:///etc/passwd: only http(s) URLs are fetched, not 'file'", "unsafe", "only http(s) URLs are fetched, not 'file'"),
         ]
-        for action, detail, kind in cases:
+        for action, detail, kind, host in cases:
             with self.subTest(detail=detail):
-                self.assertEqual(export_run.fetch_kind(action, detail), kind)
+                self.assertEqual((export_run.fetch_kind(action, detail), export_run.refused_host(action, detail)), (kind, host))
 
     def test_a_file_older_than_the_ledger_was_left_by_an_earlier_run_and_does_not_count(self):
         with tempfile.TemporaryDirectory() as tmp:

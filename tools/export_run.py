@@ -14,10 +14,11 @@ the reason, and the visual shows that instead of a figure (a figure standing
 in for an unknown is what traceability forbids). The export also says
 whether the run folder holds the Scope Writer's draft, what the last line of
 bid.txt says when the run was a whole bid (a file older than the ledger was
-left by an earlier run into the folder and does not count), how each fetch
-ended, and, from those and the log, how the run ended (`ending`): whether the
-finished bid is on the floor and, if not, why. The page draws that; it
-decides nothing.
+left by an earlier run into the folder and does not count, which is told by
+file times, so export the folder the run happened in or a copy that keeps
+them), how each fetch ended and which host was refused, and, from those and
+the log, how the run ended (`ending`): whether the finished bid is on the
+floor and, if not, why. The page draws that; it decides nothing.
 
     python3 tools/export_run.py runs/nan-live --out timeline.json [--prices prices.json]
 
@@ -35,6 +36,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -49,6 +51,7 @@ TIER = re.compile(r"\((?:for prompts )?(up to|over) ([\d,]+) tokens\)")
 RUN = re.compile(r"run (\d+)")
 SNAPSHOT = r"-\d{8}"   # a dated id (`claude-haiku-5-5-20260301`) is the model it is a snapshot of; any other suffix is another model
 OFF_LIST = re.compile(r"^not fetched: \S+ is not on the allowlist(;|$)")   # web.allowed's refusal, as web.Fetcher logs it
+HOST_IN = re.compile(r"^not fetched: (\S+) (?:is not on the allowlist|is the local machine|is a non-public address|resolves to non-public address|does not resolve)")
 CREATED = "%Y-%m-%dT%H:%M:%SZ"   # the ledger's created_at, as Broker.open_job writes it
 
 
@@ -97,11 +100,29 @@ def fetch_kind(action: str, detail: str) -> str:
     return "failed"
 
 
+def refused_host(action: str, detail: str) -> str:
+    """What a refused fetch names, for the floor: the host the allowlist or the address guard
+    refused, which on a redirect is that hop's host and not the requested page's (the fetcher
+    checks every hop), or the host of the URL the broker refused; the refusal's own words when
+    it names no host (a non-http scheme, credentials, no host). Empty for a read or a failed one."""
+    if action == "denied":
+        url, _, why = detail.partition(": ")
+        return urlsplit(url).hostname or why or detail
+    note = re.sub(r"^[^;]*;\s*", "", detail)
+    m = HOST_IN.match(note)
+    if m:
+        return m.group(1)
+    return note[len("not fetched: "):].split("; served by")[0] if note.startswith("not fetched: ") else ""
+
+
 def this_runs(path: Path, created_at: str | None) -> bool:
     """Whether a file in the run folder is this run's: it exists and was written at or after the
     ledger's `created_at`. Every command that rebuilds the ledger sets that, and none removes an
     older proposal.md or bid.txt, so an older file is an earlier run's and does not count; nor
-    does any file when the ledger has no readable `created_at`."""
+    does any file when the ledger has no readable `created_at`. File times are all the pipeline
+    records for this, so a copy of the folder made without keeping them (cp -r, an archive that
+    drops them) makes every file look like this run's: export where the run happened, or from a
+    copy that keeps times."""
     try:
         since = datetime.strptime(created_at or "", CREATED).replace(tzinfo=timezone.utc).timestamp()
     except ValueError:
@@ -197,6 +218,7 @@ def events(db: sqlite3.Connection, usage: dict | None = None, prices: dict | Non
                     e.update({"usage": c.get("usage"), "cost": c["cost"], "priced_as": c["priced_as"], "unpriced": c["unpriced"]})
         elif action == "fetch" or (action == "denied" and subject == "fetch"):
             e["fetch"] = fetch_kind(action, e["detail"])
+            e["fetch_host"] = refused_host(action, e["detail"]) if e["fetch"] in ("off-list", "unsafe") else ""
         out.append(e)
     return out
 

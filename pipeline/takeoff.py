@@ -208,7 +208,10 @@ def assemblies(item: dict, by_id: dict[str, Claim]) -> float | None:
     for r in refs:
         c = by_id[r]
         expr = expr.replace("{" + r + "}", "1" if c.unit.startswith("per ") else repr(c.value_num))
-    return schema.arith(expr)
+    try:
+        return schema.arith(expr)
+    except (ValueError, ZeroDivisionError, ArithmeticError):
+        return None  # a formula that only evaluates with the real per-assembly count gives no number to check
 
 
 def assembly_names(rows) -> list[str]:

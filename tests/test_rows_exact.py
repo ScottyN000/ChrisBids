@@ -42,7 +42,7 @@ class DrawingCase(unittest.TestCase):
         self.assertEqual((v.seen, v.status, v.labels), (3, "agree", ["Top wall segment: 11\"", "First bracket from the wall face"]))
         c = one("drawing", FND, v)
         self.assertEqual((c.statement, c.flag, c.derivation), (
-            "Top wall segment: 11\" | First bracket from the wall face: 11\"", "",
+            "Top wall segment: 11\" or First bracket from the wall face: 11\"", "",
             "11\" dimension string = 11 in; runs word the label differently"))
         runs = [[item("dimension", "Bracket spacing, printed 5 times along the run", "2'-8\"")],
                 [item("dimension", "Bracket spacing: 2'-8\"", "2'-8\"")]]
@@ -61,6 +61,9 @@ class DrawingCase(unittest.TestCase):
         (v,) = vote("drawing", [[item("dimension", "Bracket spacing, 2 places", "2'-8\"")],
                                 [item("dimension", "8 brackets at 2'-8\"", "2'-8\"")]])
         self.assertEqual((v.labels, v.counted_label), (["Bracket spacing, 2 places"], True))
+        (v,) = vote("drawing", [[item("dimension", "Bracket spacing (5) SPACES", "2'-8\"")],
+                                [item("dimension", "11\" TYP. 2 PLACES", "2'-8\"")]])
+        self.assertEqual((v.labels, v.counted_label), (["Bracket spacing (5) SPACES"], True))
         # Sheet and detail references, and numbers joined to a letter, are not counts.
         runs = [[item("dimension", "Bracket spacing (REF. DET. 1/S-1)", "11\"")],
                 [item("dimension", "Wall face to first bracket (2 places), see S-1", "11\"")]]

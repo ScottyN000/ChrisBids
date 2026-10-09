@@ -50,8 +50,9 @@ class Voted:
 
     @property
     def label(self) -> str:
-        """The wordings the runs gave this figure, side by side when they differ."""
-        return " | ".join(self.labels or [(self.item.get("label") or "").strip()])
+        """The wordings the runs gave this figure, side by side when they differ (` or `:
+        ` / ` means conflicting readings and ` | ` is the column mark of the Takeoff table)."""
+        return " or ".join(self.labels or [(self.item.get("label") or "").strip()])
 
     @property
     def status(self) -> str:
@@ -80,11 +81,12 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
 
 
 # A bare count in a label: a number standing on its own before a word (`5 spaces`,
-# `printed 5 times`, `(2 places)`). A number joined to a mark, a slash, a hyphen or a
-# letter (`2'-8"`, `1/S-1`, `S-1`, `2x4`), or named by the word before it (`detail 1`,
-# `sheet 2`, `type 3`), is a figure or a reference and is left alone.
-BARE_COUNT = re.compile(r"(?<![\w\-/.'\"])(\d+)(?=\s+[A-Za-z])")
-REFERENCE_WORDS = {"det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item", "typ"}
+# `printed 5 times`, `(2 places)`, `(5) SPACES`). A number joined to a mark, a slash, a
+# hyphen or a letter (`2'-8"`, `1/S-1`, `S-1`, `2x4`), or named by the word before it
+# (`detail 1`, `sheet 2`, `type 3`), is a figure or a reference and is left alone. `TYP.`
+# qualifies a count (`TYP. 2 PLACES`), it names nothing, so it is not a reference word.
+BARE_COUNT = re.compile(r"(?<![\w\-/.'\"])\(?(\d+)\)?(?=\s+[A-Za-z])")
+REFERENCE_WORDS = {"det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item"}
 
 
 def bare_counts(label: str) -> list[str]:

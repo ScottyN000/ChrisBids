@@ -430,6 +430,8 @@ class SymbolCheckCase(unittest.TestCase):
     def test_the_number_of_assemblies_an_item_rests_on(self):
         self.assertEqual(takeoff.assemblies(it("Spaces", SPACES, 5, "spaces"), BY_ID), 6)
         self.assertEqual(takeoff.assemblies(it("Brackets", f"{SPACES} + 1", 6), BY_ID), 6)
+        # A formula that only evaluates with the real per-assembly count gives no number to check.
+        self.assertIsNone(takeoff.assemblies(it("Odd", f"{{{SPAN}}} / ({{{ANCH}}} - 1)", 91), BY_ID))
         self.assertEqual(takeoff.assemblies(self.ANCHORS, BY_ID), 6)
         rows = dict(BY_ID, **{self.SYMBOLS.claim_id: self.SYMBOLS})
         self.assertIsNone(takeoff.assemblies(it("Anchors", f"{{{ANCH}}} * {{{self.SYMBOLS.claim_id}}}", 21), rows))
@@ -469,7 +471,7 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.symbol_notes(it("Anchors", f"{{{ANCH}}} * {{{other.claim_id}}}", 21), rows), [])
 
     def test_a_dimension_the_runs_labelled_differently_flags_the_item_unless_the_symbols_confirm_it(self):
-        worded = reader_row(END, 11, "in", "Top wall segment | First bracket from the wall face")
+        worded = reader_row(END, 11, "in", "Top wall segment or First bracket from the wall face")
         worded = Claim(**{**worded.__dict__, "derivation": "11\" dimension string = 11 in; runs word the label differently"})
         rows = dict(BY_ID, **{END: worded})
         c = takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, rows)

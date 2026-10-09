@@ -136,7 +136,7 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   that head failed on Nantucket: the reader's first run labelled the `2'-8"` string as the first bracket
   from the wall face and the `11"` string as a wall segment, a label was taken from the first run that
   had it, and Takeoff saw no run and spacing and wrote `3 x 6`.
-- Head b8aa6fb: the vote keeps every run's wording of a dimension label on the row (`A | B`; ` / ` stays for conflicting readings), so Takeoff
+- Head b8aa6fb: the vote keeps every run's wording of a dimension label on the row (`A or B`; ` / ` means conflicting readings and ` | ` is the Takeoff table's column mark), so Takeoff
   sees each run's reading of what the string spans, and the drawing prompt says the string printed again
   and again along a row of symbols is the spacing and the short string from the wall face to the first
   symbol is the end offset. Run 37941692004 passed on both jobs; the `11"` row carried two wordings and

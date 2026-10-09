@@ -7,6 +7,9 @@ majority. An item that only some runs produced is kept and flagged unverified.
 
 Fields that are allowed to vary between runs (a photo's description wording)
 are excluded from the comparison and taken from the first run that has them.
+A dimension's label is the exception: every run's wording is kept on the row,
+in first-seen order, because Takeoff reads the label to learn what the string
+spans and one run's wording can miss that (live run 37941127022, 2026-10-09).
 
 A drawing figure is identified by the figure itself, not by the label the model
 gives it, since labels are worded differently on every run (live run 1,
@@ -42,6 +45,14 @@ class Voted:
     seen: int                                   # runs that produced this key
     runs: int                                   # runs made
     readings: dict[str, list] = field(default_factory=dict)  # field -> distinct values, if they differ
+    labels: list[str] = field(default_factory=list)  # a drawing dimension's label from every run, first seen first
+    counted_label: bool = False                 # every wording carried a count the string lacks; the first is kept as printed
+
+    @property
+    def label(self) -> str:
+        """The wordings the runs gave this figure, side by side when they differ (` or `:
+        ` / ` means conflicting readings and ` | ` is the column mark of the Takeoff table)."""
+        return " or ".join(self.labels or [(self.item.get("label") or "").strip()])
 
     @property
     def status(self) -> str:
@@ -67,6 +78,46 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
         seen[k] = n + 1
         k = (*k, n)
     return k
+
+
+# A bare count in a label: a number standing on its own before a word (`5 spaces`,
+# `printed 5 times`, `(2 places)`, `(5) SPACES`). A number joined to a mark, a slash, a
+# hyphen or a letter (`2'-8"`, `1/S-1`, `S-1`, `2x4`), or named by the word before it
+# (`detail 1`, `sheet 2`, `type 3`), is a figure or a reference and is left alone. `TYP.`
+# qualifies a count (`TYP. 2 PLACES`), it names nothing, so it is not a reference word.
+BARE_COUNT = re.compile(r"(?<![\w\-/.'\"])\(?(\d+)\)?(?=\s+[A-Za-z])")
+REFERENCE_WORDS = ("det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item")
+# A reference word right before the number, with only a stop, `#`, `:` and spaces between.
+NAMED_BY_REFERENCE = re.compile(r"(?i)\b(?:" + "|".join(REFERENCE_WORDS) + r")\.?\s*[#:]?\s*$")
+
+
+def bare_counts(label: str) -> list[str]:
+    """The numbers in a label that are counts, as `BARE_COUNT` says, with those a
+    reference word right before them names left out (`detail 1`, not `per plan, 5 spaces`)."""
+    return [m.group(1) for m in BARE_COUNT.finditer(label)
+            if not NAMED_BY_REFERENCE.search(label[: m.start()])]
+
+
+def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
+    """Every run's wording of a dimension's label, first seen first, and whether a count
+    had to be let through. Wordings that differ only in case or trailing punctuation are
+    one. A wording carrying a bare count (`printed 5 times`, with the dimension string
+    itself taken out first) is a count with no counted row behind it (traceability), so
+    it is dropped while another wording survives; when none does, the first is kept as
+    printed, never rewritten, and the second value is True so the row can say so. Sheet
+    and detail references (`REF. DET. 1/S-1`) are not counts."""
+    text = (items[0].get("text") or "").strip()
+    labels, seen, counted = [], set(), []
+    for it in items:
+        label = (it.get("label") or "").strip()
+        wording = re.sub(r"[\s.,;:]+$", "", label).lower()
+        if not wording or wording in seen:
+            continue
+        seen.add(wording)
+        (counted if bare_counts(label.replace(text, " ") if text else label) else labels).append(label)
+    if labels:
+        return labels, False
+    return counted[:1], bool(counted)
 
 
 def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
@@ -97,5 +148,9 @@ def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
                     values.append(v)
             if len(values) > 1:
                 readings[f] = values
-        out.append(Voted(item=items[0], seen=len(items), runs=len(runs), readings=readings))
+        labels, counted_label = [], False
+        if reader == "drawing" and items[0].get("kind") == "dimension":
+            labels, counted_label = dimension_labels(items)
+        out.append(Voted(item=items[0], seen=len(items), runs=len(runs), readings=readings, labels=labels,
+                         counted_label=counted_label))
     return out

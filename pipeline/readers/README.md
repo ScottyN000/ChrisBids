@@ -107,6 +107,57 @@ it has to hold figures from several views at once (architecture p.13). It passed
 on 2026-10-08 (Actions run 37780360959: readers on Haiku at high effort, two reads; Takeoff 5 spaces and
 18 + 18 agreed by both runs, 6 brackets matched by the 6 symbols drawn).
 
+The spaces row depends on the drawing reader's labels. Two later runs (2026-10-08 23:20Z, run 37858877798;
+2026-10-09, run 37928226366) read the same dimension strings but labelled the 11" string "Top wall segment
+dimension", so Takeoff had no way to know it was the end offset and wrote only the 3 x 6 products; the gate
+reported `counted | derived | 5 | spaces` missing. The drawing prompt now requires a dimension's label to say
+what the string runs between, and its Foundation Plan example carries the spacing and end-offset strings
+with labels that let Takeoff tell the run, the spacing and the end offset apart (the vote keys a dimension
+on its text, so labels never affect the vote).
+The fixes went in one per live run, in this order (all 2026-10-09, branch claude/project-thread-cz06g1):
+- Run 37937707097 (labels rule) produced the spaces row from the dimensions in one run and as `6 - 1` from
+  the bracket count in the other, and counted the detail's steel angle as a part. Both prompts now say so:
+  spaces come from the dimension strings only, and a detail's members are not counts.
+- Run 37938174100 reproduced every reader row and the spaces, and wrote 18 bolts and 18 anchors twice, as
+  3 x 6 symbols in one run and 3 x the spaced brackets in the other: two flagged rows where the fixture has
+  one, which the gate rightly reports. The Takeoff prompt now fixes the route: a per-assembly total
+  multiplies by the number the dimensions give (spaces + 1), never by the symbol count when a run and
+  spacing are listed.
+- Run 37939750700 agreed on all four quantities by that route, unflagged, and failed only because one
+  reader run fused the `8"` and `11"` strings at the bottom corner of the plan into a `8'-11"` that is not
+  printed. The drawing prompt now says two inch strings end to end are two dimensions.
+- Run 37940168055 (head e0f19e7, that rule) passed on both jobs: every dimensioned and counted reader row
+  reproduced, and Takeoff wrote 5 spaces, 18 bolts and 18 anchors by the dimension route in both runs and
+  6 brackets in one of them (the other left the agreed 6 symbols row to stand for it).
+- Head 5b19df1 then added the check the prompt had only claimed: because the symbol count no longer
+  stands in for the number of assemblies, `takeoff.symbol_notes` flags every item resting on a dimension
+  route when a counted symbol row on the same view, one that counts what the per-assembly rows are per,
+  disagrees with the number the dimensions give, with both figures in the derivation. Run 37941127022 on
+  that head failed on Nantucket: the reader's first run labelled the `2'-8"` string as the first bracket
+  from the wall face and the `11"` string as a wall segment, a label was taken from the first run that
+  had it, and Takeoff saw no run and spacing and wrote `3 x 6`.
+- Head b8aa6fb: the vote keeps every run's wording of a dimension label on the row (`A or B`; ` / ` means conflicting readings and ` | ` is the Takeoff table's column mark), so Takeoff
+  sees each run's reading of what the string spans, and the drawing prompt says the string printed again
+  and again along a row of symbols is the spacing and the short string from the wall face to the first
+  symbol is the end offset. Run 37941692004 passed on both jobs; the `11"` row carried two wordings and
+  all four quantities agreed in both Takeoff runs.
+- Head 964fa1a: the label carries no count of the printings (a count belongs in a voted counted row).
+  Run 37941971164 passed on both jobs.
+- Head after that: an item resting on a dimension whose runs worded the label differently is flagged
+  unverified (`takeoff.label_notes`), since the model chose which wording to follow, unless a symbol row
+  on the view agrees with the number the dimensions give. Run 37942423549 (head 669c6b1) passed on both jobs.
+- Head after 669c6b1 (code and tests only, no prompt change): a symbol row is matched on the first word of
+  the item's own per-assembly unit (`per bracket assembly` names the bracket), an item is compared with its
+  own kind's symbols when a view has two kinds, every symbol count on the view is compared when none names
+  the assembly, and label wordings that differ only in case or trailing punctuation count as one. A
+  wording carrying a bare count the dimension string lacks (`printed 5 times`) is dropped by the vote while
+  another wording survives (a count belongs in a counted row; sheet and detail references such as `1/S-1`
+  are not counts); when none survives the first is kept as printed, never rewritten, the row's derivation
+  says the label carries a count with no counted row, and Takeoff flags every item resting on it. A spaces or
+  assembly-count item is compared only with the symbols its own dimension rows name when a view has two kinds of assembly. The symbol check reads every current row, so a symbol count the
+  reader runs disagreed on (a conflict row no formula may use) is still compared and both readings go on the
+  note; a count made of the string's own digits (`2 places` on `2'-8"`) is still a count.
+
 ## The ruling still open
 
 Architecture p.17 asks the estimator for a ruling on scaled dimensions: never order from them, or order with a stated tolerance. Until that ruling is given, scaled rows are written with confidence `scaled`, carry no numeric value, and the broker refuses them in any allowance or order quantity.

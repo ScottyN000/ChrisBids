@@ -13,6 +13,15 @@ The model is called only when there is something to derive from, as one
 stateless unit holding the rows, read `repeats` times. Items are compared
 across runs by what they compute (value, unit and the rows used); an item that
 not every run produced is written flagged unverified, never dropped or chosen.
+
+A number of assemblies comes from the dimension strings (run, spacing, end
+offsets), never from the symbols drawn; code compares the two. When a counted
+symbol row on the view the dimensions came from (one that counts what the
+per-assembly rows are per) disagrees with the number the dimensions give, every item resting on that number is flagged unverified with
+both figures in its derivation (determinism: keep both, never pick). An item
+resting on a dimension whose runs worded the label differently is flagged the
+same way, unless an agreeing symbol row confirms the number, because the model
+chose which wording to follow.
 """
 from __future__ import annotations
 
@@ -24,7 +33,7 @@ from . import schema
 from .broker import Broker
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
-from .readers.rows import Unit
+from .readers.rows import COUNT_IN_LABEL, DIFFERING_LABELS, Unit
 from .schema import Claim, LedgerError
 
 NAME = "takeoff"
@@ -180,7 +189,103 @@ def _join(values) -> list[str]:
     return out
 
 
-def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str, Claim]) -> Claim:
+def assemblies(item: dict, by_id: dict[str, Claim]) -> float | None:
+    """The number of assemblies an item's dimension route gives; None when it uses no dimension.
+
+    A `spaces` item gives one more than its value. Any other item gives its
+    formula with its one per-assembly row set to 1, so `{PER} * (N)` gives N.
+    An item over two per-assembly rows (all fasteners together) is a sum, not
+    a count of assemblies, and is not compared.
+    """
+    refs = schema.CALC_REF.findall(item["calc"])
+    if not any(by_id[r].method == "dimensioned" for r in refs):
+        return None
+    if len({r for r in refs if by_id[r].unit.startswith("per ")}) > 1:
+        return None  # a sum of per-assembly products is not a count of assemblies
+    if item["unit"] == "spaces":
+        return float(item["value"]) + 1
+    expr = item["calc"]
+    for r in refs:
+        c = by_id[r]
+        expr = expr.replace("{" + r + "}", "1" if c.unit.startswith("per ") else repr(c.value_num))
+    try:
+        return schema.arith(expr)
+    except (ValueError, ZeroDivisionError, ArithmeticError):
+        return None  # a formula that only evaluates with the real per-assembly count gives no number to check
+
+
+def assembly_names(rows) -> list[str]:
+    """What per-assembly rows are per: `3 per bracket` names the bracket (first word only,
+    so `per bracket assembly` names it too)."""
+    return _join(c.unit[4:].split()[0].lower() for c in rows if c.unit.startswith("per ") and c.unit[4:].split())
+
+
+def symbol_rows(item: dict, by_id: dict[str, Claim], claims=None) -> list[Claim]:
+    """The counted symbol rows that count the item's assemblies: on a view the item's
+    dimensions came from, naming what the item's own per-assembly row is per (a pier
+    beside the brackets is not one). An item with no per-assembly row (spaces, the
+    bracket count) uses the job's per-assembly names that its own dimension rows
+    mention, else all of them. When no symbol row on the view names the assembly,
+    every symbol count on the view is compared, so a reader's wording can never
+    switch the check off. `claims` is every current row, so a symbol count the
+    reader runs disagreed on (a conflict row no formula may use) is still compared;
+    it defaults to the formula inputs.
+    """
+    claims = list(by_id.values()) if claims is None else claims
+    refs = schema.CALC_REF.findall(item["calc"])
+    used = [by_id[r] for r in dict.fromkeys(refs)]
+    views = {(c.source_id, c.locator) for c in used if c.method == "dimensioned"}
+    names = assembly_names(used)
+    if not names:
+        # A spaces or assembly-count item names no assembly itself: take the job's
+        # assembly names that its own dimension rows mention, else all of them.
+        job_names = assembly_names(by_id.values())
+        dims = " ".join(c.statement.lower() for c in used if c.method == "dimensioned")
+        names = [n for n in job_names if n in dims] or job_names
+    on_view = [c for c in claims
+               if c.method == "counted" and c.unit == "each" and not c.calc
+               and (c.source_id, c.locator) in views]
+    named = [c for c in on_view if any(name in c.statement.lower() for name in names)]
+    return named or on_view
+
+
+def symbol_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
+    """One note per symbol row that disagrees with the number of assemblies the item's
+    dimensions give, a row the reader runs disagreed on among them (its readings are
+    the value). Both figures stay on the ledger."""
+    n = assemblies(item, by_id)
+    if n is None:
+        return []
+    return [
+        f"{c.claim_id} counts {c.value} symbols where the dimensions give {_num(n)}"
+        for c in symbol_rows(item, by_id, claims) if c.value_num is None or abs(c.value_num - n) > 1e-9
+    ]
+
+
+def label_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
+    """A note when the item rests on a dimension whose runs worded the label differently,
+    since the model then chose which wording to follow, or whose label carries a count
+    with no counted row behind it; none for the first when a symbol row on the view
+    agrees with the number the dimensions give, which confirms the choice.
+
+    The row says so with `rows.DIFFERING_LABELS` or `rows.COUNT_IN_LABEL` in its
+    derivation, the one place a ledger row records what the vote saw; the constants are
+    shared, never retyped.
+    """
+    used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
+    notes = []
+    differing = [c.claim_id for c in used if DIFFERING_LABELS in c.derivation]
+    if differing and not (assemblies(item, by_id) is not None and symbol_rows(item, by_id, claims)
+                          and not symbol_notes(item, by_id, claims)):
+        notes.append(f"uses {', '.join(differing)}, whose label the runs word differently")
+    counted = [c.claim_id for c in used if COUNT_IN_LABEL in c.derivation]
+    if counted:
+        notes.append(f"uses {', '.join(counted)}, whose label carries a count with no counted row")
+    return notes
+
+
+def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str, Claim],
+                  claims=None) -> Claim:
     used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
     notes = []
     if seen < runs:
@@ -188,6 +293,8 @@ def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[s
     shaky = [c.claim_id for c in used if c.flag]
     if shaky:
         notes.append(f"uses flagged {', '.join(shaky)}")
+    notes.extend(symbol_notes(item, by_id, claims))
+    notes.extend(label_notes(item, by_id, claims))
     shown = derivation(item["calc"], by_id)
     sources = _join(s for c in used for s in schema.sources_of(c.source_id))
     return Claim(
@@ -269,7 +376,7 @@ def run(broker: Broker, job: str, client: ModelClient | None, *, repeats: int = 
             result.unread.append(unit.unit_id)
         for n, (item, seen) in enumerate(vote(valid), 1):
             # Fewer valid runs than asked is less agreement than the redundancy rule wants.
-            derived.append(derived_claim(f"{job}-TK-Q-{n:02d}", item, seen, repeats, by_id))
+            derived.append(derived_claim(f"{job}-TK-Q-{n:02d}", item, seen, repeats, by_id, claims))
     for claim in derived + field_rows(job, claims):
         try:
             result.rows.append(writer.append(claim))

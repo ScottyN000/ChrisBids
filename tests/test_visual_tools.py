@@ -2,10 +2,12 @@
 import contextlib
 import io
 import json
+import os
 import re
 import sqlite3
 import sys
 import tempfile
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -43,7 +45,7 @@ def live_ledger(run_dir: Path, rows: list[tuple[str, str, str, str]], run_id: st
     db.execute("create table meta(key text, value text)")
     db.execute("create table audit_log(seq integer primary key, at text, principal text, action text, subject text, detail text)")
     db.execute("create table claims(seq integer primary key, claim_id, principal, method, role, value, unit, flag, source_id, locator, statement, derivation, written_at)")
-    db.execute("insert into meta values('job', 'X'), ('run_id', ?)", (run_id,))
+    db.execute("insert into meta values('job', 'X'), ('run_id', ?), ('created_at', '2026-10-09T00:00:00Z')", (run_id,))
     db.executemany("insert into audit_log(at, principal, action, subject, detail) values('t', ?, ?, ?, ?)", rows)
     db.commit()
     db.close()
@@ -193,12 +195,64 @@ class ExportCase(unittest.TestCase):
             self.assertEqual([(e["action"], e["subject"], e["station"]) for e in data["events"]][6:],
                              [("denied", "fetch", "codes"), ("fetch", "https://example.com/x", "codes"),
                               ("fetch", "https://sweets.construction.com/p", "materials"), ("audit", "NAN-001", "auditor")])
+            self.assertEqual([e.get("fetch") for e in data["events"]][5:], [None, "unsafe", "off-list", "read", None])
             self.assertEqual((data["job"], data["run_id"]), ("X", "r1"))
             # with no price table every live row is unpriced for that reason; the replay row stays silent
             table_less = [e["unpriced"] for e in export_run.export(run_dir)["events"] if e["action"] == "model-call"]
             self.assertEqual(table_less, ["no price table in this export", "no usage line in calls.jsonl", None,
                                           "no price table in this export", "2 usage lines for this call",
                                           "the ledger says claude-haiku-5-5, calls.jsonl says claude-sonnet-5-5"])
+
+    def test_a_fetch_row_is_read_as_the_fetcher_or_the_broker_wrote_it(self):
+        # the messages web.py and guard.py write, each with how the floor shows it
+        cases = [
+            ("fetch", "2026-10-09; sha256 ab12; served by https://example.gov/final", "read"),
+            ("fetch", "2026-10-09; not fetched: example.com is not on the allowlist", "off-list"),
+            ("fetch", "2026-10-09; not fetched: example.com is not on the allowlist; served by https://example.com/", "off-list"),
+            ("fetch", "2026-10-09; not fetched: 127.0.0.1 is the local machine", "unsafe"),
+            ("fetch", "2026-10-09; not fetched: 10.0.0.1 is a non-public address", "unsafe"),
+            ("fetch", "2026-10-09; not fetched: only http(s) URLs are fetched, not 'file'", "unsafe"),
+            ("fetch", "2026-10-09; not fetched: a URL carrying credentials is not fetched", "unsafe"),
+            ("fetch", "2026-10-09; not fetched: URL has no host", "unsafe"),
+            ("fetch", "2026-10-09; not fetched: codes.example.gov resolves to non-public address 10.1.1.1", "unsafe"),
+            ("fetch", "2026-10-09; not fetched: codes.example.gov does not resolve (name or service not known)", "failed"),
+            ("fetch", "2026-10-09; did not open: timed out", "failed"),
+            ("fetch", "2026-10-09; HTTP 404", "failed"),
+            ("fetch", "2026-10-09; more than 5 redirects", "failed"),
+            ("fetch", "2026-10-09; larger than 5000000 bytes", "failed"),
+            ("fetch", "2026-10-09; cannot read application/zip", "failed"),
+            ("fetch", "2026-10-09; no text on the page (a scan or a script-only page)", "failed"),
+            ("denied", "http://127.0.0.1/x: 127.0.0.1 is the local machine", "unsafe"),
+            ("denied", "file:///etc/passwd: only http(s) URLs are fetched, not 'file'", "unsafe"),
+        ]
+        for action, detail, kind in cases:
+            with self.subTest(detail=detail):
+                self.assertEqual(export_run.fetch_kind(action, detail), kind)
+
+    def test_a_file_older_than_the_ledger_was_left_by_an_earlier_run_and_does_not_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "bid"
+            run_dir.mkdir()
+            live_ledger(run_dir, [("scope_writer", "model-call", "NAN#scope", "replay; scope@1; run 1; valid"),
+                                  ("auditor", "audit", "X-001", "pass: p.1")], run_id="bid-X")
+            (run_dir / "proposal.md").write_text("# draft\n")
+            (run_dir / "bid.txt").write_text("plan\nbid: OK\n")
+            data = export_run.export(run_dir)
+            self.assertEqual((data["draft"], data["verdict"], data["ending"]["drafted"], data["ending"]["ships"]), (True, "OK", True, True))
+            # the same files dated before the ledger: an earlier run's, so this run has no draft and no verdict
+            old = time.mktime((2026, 10, 8, 12, 0, 0, 0, 0, -1))
+            for name in ("proposal.md", "bid.txt"):
+                os.utime(run_dir / name, (old, old))
+            data = export_run.export(run_dir)
+            self.assertEqual((data["draft"], data["verdict"], data["ending"]["drafted"], data["ending"]["why"]),
+                             (False, "missing", False, "no draft in the run folder"))
+            # a ledger with no readable created_at cannot tell, so nothing counts
+            db = sqlite3.connect(run_dir / "ledger.db")
+            db.execute("update meta set value = 'yesterday' where key = 'created_at'")
+            db.commit()
+            db.close()
+            os.utime(run_dir / "proposal.md")
+            self.assertFalse(export_run.export(run_dir)["draft"])
 
     def test_the_verdict_comes_from_bid_txt_on_a_whole_bid_run_only(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -237,6 +291,7 @@ class ExportCase(unittest.TestCase):
             with self.subTest(why=why or "ships", verdict=verdict):
                 r = export_run.ending(evs, draft, verdict)
                 self.assertEqual((r["why"], r["ships"]), (why, why == ""))
+                self.assertEqual(r["drafted"], draft and evs[0]["action"] == "model-call" and "discarded" not in evs[1]["detail"])
         r = export_run.ending(good + [audit("fail: x")], True, "OK")
         self.assertEqual((r["scope_runs"], r["valid"], r["audits"], r["passed"], r["unverified"], r["failed"], r["verdict"]),
                          (2, 2, 3, 1, 1, 1, "OK"))

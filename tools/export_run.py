@@ -13,9 +13,11 @@ price table, or with no single row for its model is exported unpriced with
 the reason, and the visual shows that instead of a figure (a figure standing
 in for an unknown is what traceability forbids). The export also says
 whether the run folder holds the Scope Writer's draft, what the last line of
-bid.txt says when the run was a whole bid, and, from those and the log, how
-the run ended (`ending`): whether the finished bid is on the floor and, if
-not, why. The page draws that; it decides nothing.
+bid.txt says when the run was a whole bid (a file older than the ledger was
+left by an earlier run into the folder and does not count), how each fetch
+ended, and, from those and the log, how the run ended (`ending`): whether the
+finished bid is on the floor and, if not, why. The page draws that; it
+decides nothing.
 
     python3 tools/export_run.py runs/nan-live --out timeline.json [--prices prices.json]
 
@@ -31,6 +33,7 @@ import re
 import sqlite3
 import sys
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,6 +48,8 @@ STATION_OF_PRINCIPAL = {n.principal: n.id for n in dag.NODES if n.principal} | O
 TIER = re.compile(r"\((?:for prompts )?(up to|over) ([\d,]+) tokens\)")
 RUN = re.compile(r"run (\d+)")
 SNAPSHOT = r"-\d{8}"   # a dated id (`claude-haiku-5-5-20260301`) is the model it is a snapshot of; any other suffix is another model
+OFF_LIST = re.compile(r"^not fetched: \S+ is not on the allowlist(;|$)")   # web.allowed's refusal, as web.Fetcher logs it
+CREATED = "%Y-%m-%dT%H:%M:%SZ"   # the ledger's created_at, as Broker.open_job writes it
 
 
 def same_model(asked: str, served: str) -> bool:
@@ -70,6 +75,38 @@ def station_input(node: dag.Node) -> str:
         return "web"
     feeds = {a for a, b, _ in dag.EDGES if b == node.id and a != "register"}
     return "ledger" if feeds and (feeds & {"ledger"} or any(dag.BY_ID[a].principal for a in feeds)) else ""
+
+
+def fetch_kind(action: str, detail: str) -> str:
+    """How a fetch row ended, for the floor. A `fetch` row's detail is the fetcher's: the
+    retrieval date, then `sha256 ...` of the page read or the error. `read`: a page hash.
+    `off-list`: the allowlist refused the host. `unsafe`: the address guard refused the URL (a
+    non-http scheme, credentials in it, no host, a loopback, private or non-public address),
+    which the fetcher logs as `not fetched: ...` and the broker, checking before any fetch, as
+    a `denied` row on `fetch`. `failed`: anything else (did not open, an HTTP status, too large,
+    nothing readable, a host that does not resolve)."""
+    if action == "denied":
+        return "unsafe"
+    note = re.sub(r"^[^;]*;\s*", "", detail)
+    if note.startswith("sha256 "):
+        return "read"
+    if OFF_LIST.match(note):
+        return "off-list"
+    if note.startswith("not fetched: ") and "does not resolve" not in note:
+        return "unsafe"
+    return "failed"
+
+
+def this_runs(path: Path, created_at: str | None) -> bool:
+    """Whether a file in the run folder is this run's: it exists and was written at or after the
+    ledger's `created_at`. Every command that rebuilds the ledger sets that, and none removes an
+    older proposal.md or bid.txt, so an older file is an earlier run's and does not count; nor
+    does any file when the ledger has no readable `created_at`."""
+    try:
+        since = datetime.strptime(created_at or "", CREATED).replace(tzinfo=timezone.utc).timestamp()
+    except ValueError:
+        return False
+    return path.exists() and path.stat().st_mtime >= since
 
 
 def row_key(name: str) -> str:
@@ -158,6 +195,8 @@ def events(db: sqlite3.Connection, usage: dict | None = None, prices: dict | Non
                     # priced by the id the API billed (the ledger's id, or its dated snapshot)
                     c = priced({**lines[0], "model": lines[0].get("model") or e["model"]}, prices)
                     e.update({"usage": c.get("usage"), "cost": c["cost"], "priced_as": c["priced_as"], "unpriced": c["unpriced"]})
+        elif action == "fetch" or (action == "denied" and subject == "fetch"):
+            e["fetch"] = fetch_kind(action, e["detail"])
         out.append(e)
     return out
 
@@ -173,13 +212,14 @@ def claims(db: sqlite3.Connection) -> list[dict]:
 def bid_verdict(run_dir: Path, meta: dict) -> str | None:
     """The verdict of a whole-bid run (`pipeline bid`, run id `bid-<job>` in the ledger's meta):
     `OK` or `NOT OK` from the last line of its bid.txt, which folds in the auditor's orphan-figure
-    and source-hash checks, or `missing` when the run wrote none (it stopped before the verdict)
-    or the line is not one. None for any other run: `pipeline scope` and `pipeline replay` rebuild
-    the ledger in place and leave an older bid.txt where it was, so that file says nothing about them."""
+    and source-hash checks, or `missing` when the run wrote none (it stopped before the verdict,
+    and a bid.txt older than the ledger is an earlier run's) or the line is not one. None for any
+    other run: `pipeline scope` and `pipeline replay` rebuild the ledger in place and leave an
+    older bid.txt where it was, so that file says nothing about them."""
     if meta.get("run_id") != f"bid-{meta.get('job', '')}":
         return None
     path = run_dir / "bid.txt"
-    if not path.exists():
+    if not this_runs(path, meta.get("created_at")):
         return "missing"
     last = path.read_text().rstrip().rsplit("\n", 1)[-1]
     return last[len("bid: "):] if last.startswith("bid: ") else "missing"
@@ -189,7 +229,8 @@ def ending(evs: list[dict], draft: bool, verdict: str | None) -> dict:
     """What the log and the run folder show the run reached, and whether the finished bid is on
     the floor: every Scope Writer run valid (the call row's detail ends `; valid`), a draft in
     the folder, audit rows with no `fail`, and on a whole bid a bid.txt that says OK. `why` names
-    the first of those that fails, or is empty when the bid ships."""
+    the first of those that fails, or is empty when the bid ships; `drafted` is the first two
+    together (this run wrote the draft on the tray)."""
     sw = [e for e in evs if e["action"] == "model-call" and e["station"] == "scope_writer"]
     verdicts = [e["detail"].split(":")[0].strip() for e in evs if e["action"] == "audit"]
     r = {"scope_runs": len(sw), "valid": sum(1 for e in sw if re.search(r";\s*valid$", e["detail"])),
@@ -211,7 +252,7 @@ def ending(evs: list[dict], draft: bool, verdict: str | None) -> dict:
         why = f"bid.txt says {verdict}"
     else:
         why = ""
-    return {**r, "why": why, "ships": not why}
+    return {**r, "drafted": bool(r["scope_runs"] and r["valid"] == r["scope_runs"] and r["draft"]), "why": why, "ships": not why}
 
 
 def export(run_dir: Path, prices: dict | None = None) -> dict:
@@ -223,7 +264,7 @@ def export(run_dir: Path, prices: dict | None = None) -> dict:
                      "principal": n.principal, "input": station_input(n)} for n in dag.NODES]
         edges = [{"from": a, "to": b, "label": label} for a, b, label in dag.EDGES]
         evs = events(db, usage_lines(run_dir), prices)
-        draft = (run_dir / "proposal.md").exists()   # a draft in the folder (a run never removes an older one)
+        draft = this_runs(run_dir / "proposal.md", meta.get("created_at"))   # this run's draft (an older one does not count)
         verdict = bid_verdict(run_dir, meta)         # bid.txt's `bid: OK` / `bid: NOT OK` / `missing`, on a whole bid only
         return {
             "job": meta.get("job", ""), "run_id": meta.get("run_id", ""), "created_at": meta.get("created_at", ""),

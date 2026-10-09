@@ -120,7 +120,7 @@ footer a { color: var(--ink); }
       </div>
     </aside>
   </main>
-  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) and goes back to his post, and the estimator walks the finished bid out by hand. The bid is there only when every Scope Writer run was valid, the draft is in the run folder, the audited rows include no fail and, on a whole bid, bid.txt says OK (the auditor's orphan-figure and source-hash checks are not in the log, and the caption says so); the exporter works that out from the log and the folder, and any other run ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call the exporter could not price is counted, not priced, and the meter gives the reason instead of a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) and goes back to his post, and the estimator walks the finished bid out by hand. The bid is there only when every Scope Writer run was valid, the draft is in the run folder, the audited rows include no fail and, on a whole bid, bid.txt says OK (the auditor's orphan-figure and source-hash checks are not in the log, and the caption says so); the exporter works that out from the log and the folder (a proposal.md or bid.txt older than the ledger was left by an earlier run and does not count), and any other run ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call the exporter could not price is counted, not priced, and the meter gives the reason instead of a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
 </div>
 
 <script id="runs" type="application/json">__RUNS__</script>
@@ -207,8 +207,8 @@ footer a { color: var(--ink); }
   // The page adds only where on the timeline the last Scope Writer row lands, for the draft tray.
   function reached() {
     const r = { scope_runs: 0, valid: 0, draft: false, audits: 0, passed: 0, unverified: 0, failed: 0, verdict: null,
-                why: 'the export has no ending', ships: false, ...(run.ending || {}) };
-    r.ships = !!r.ships;
+                drafted: false, why: 'the export has no ending', ships: false, ...(run.ending || {}) };
+    r.ships = !!r.ships; r.drafted = !!r.drafted;
     const sw = events.filter(e => e.action === 'model-call' && e.station === 'scope_writer');
     r.lastScope = sw.length ? events.indexOf(sw[sw.length - 1]) : -1;
     return r;
@@ -343,16 +343,18 @@ footer a { color: var(--ink); }
       owner.say = pick(LINES.owner.denied, e.seq); owner.until = clock + dur * 1.5;
       log(`${e.principal} ${e.action === 'rejected' ? 'rejected' : 'refused'}: ${e.subject}${e.action === 'rejected' ? ` (${e.detail})` : ''}`, 'denied');
     } else if (e.action === 'fetch') {
-      // the fetcher's row: the retrieval date, then `sha256 ...` of the page read, or the error (`not fetched: ...` when
-      // the allowlist or the address guard refused the site, `did not open: ...`, an HTTP status, no text, ...)
-      const note = e.detail.replace(/^[^;]*;\s*/, ''), refused = /^not fetched:/.test(note), failed = !refused && !/^sha256 /.test(note);
-      if (refused || failed) {
-        w.flash = clock + dur; w.refusal = `${refused ? 'fetch REFUSED' : 'did not open'}: ${site(e.subject)}`; w.quip = pick(refused ? LINES.fetchDenied : LINES.fetchFailed, e.seq);
-        if (refused) d.denied += 1;
-        log(`${e.principal} ${refused ? 'fetch refused' : 'fetch failed'}: ${e.subject} (${note})`, 'denied');
-      } else {
+      // how the fetch ended, as the exporter read it off the fetcher's row: `read` (a page hash), `off-list` (the allowlist
+      // refused the host), `unsafe` (the address guard refused the URL) or `failed` (the page did not open or had nothing to read)
+      const kind = e.fetch || 'failed';
+      if (kind === 'read') {
         w.busy = clock + dur; w.bubble = `fetches ${site(e.subject)}`; w.quip = pick(LINES.fetch, e.seq);
         log(`${e.principal} fetches ${e.subject}`, e.action);
+      } else {
+        const refused = kind !== 'failed';
+        w.flash = clock + dur; w.refusal = `${refused ? 'fetch REFUSED' : 'did not open'}: ${site(e.subject)}`;
+        w.quip = pick(kind === 'off-list' ? LINES.fetchDenied : kind === 'unsafe' ? LINES.fetchUnsafe : LINES.fetchFailed, e.seq);
+        if (refused) d.denied += 1;
+        log(`${e.principal} ${refused ? 'fetch refused' : 'fetch failed'}: ${e.subject} (${e.detail})`, 'denied');
       }
     } else if (e.action === 'audit') {
       w.busy = clock + dur; w.bubble = `audits ${e.subject}: ${e.detail.split(':')[0]}`; w.quip = pick(LINES.audit, e.seq);
@@ -402,7 +404,7 @@ footer a { color: var(--ink); }
       const k = ease(ft / FINALE.walk); f.owner.walking = true; f.owner.x = o.x + (payAt.x - o.x) * k; f.owner.y = o.y + (payAt.y - o.y) * k;
       if (k < 0.5) f.owner.say = pick(LINES.owner.finale.walk, n);                   // one voice at a time
       if (f.bid) { f.est.walking = true; f.est.x = e0.x + (takeAt.x - e0.x) * k; f.est.y = e0.y + (takeAt.y - e0.y) * k; [f.bid.say, f.bid.sub] = LINES.bid.waiting; }
-      else if (k >= 0.5) f.est.say = pick(/did not run|no draft/.test(run._end.why) ? LINES.est.none.noDraft : LINES.est.none.other, n);
+      else if (k >= 0.5) f.est.say = pick(run._end.drafted ? LINES.est.none.other : LINES.est.none.noDraft, n);
     } else if (ft < FINALE.walk + FINALE.pay) {
       // the bag goes down at the bouncer's feet and the bouncer counts it; then the owner says what the bag held and the estimator takes the bid
       f.owner.bag = false; f.owner.dropped = true;
@@ -438,7 +440,7 @@ footer a { color: var(--ink); }
     const flagged = (run.claims || []).filter(c => c.flag).length, r = run._end;
     const parts = [flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.'];
     parts.push(r.scope_runs ? `Scope Writer ran: ${r.valid} of ${r.scope_runs} run${r.scope_runs === 1 ? '' : 's'} valid; draft in the run folder: ${r.draft ? 'yes' : 'no'}.` : 'The Scope Writer did not run.');
-    parts.push(r.audits ? `Ledger rows audited: ${r.passed} pass, ${r.unverified} unverified, ${r.failed} fail (the auditor's orphan-figure and source-hash checks are not in the log${r.verdict ? `; bid.txt says ${r.verdict}` : ''}).` : 'No audit rows.');
+    parts.push(r.audits ? `Ledger rows audited: ${r.passed} pass, ${r.unverified} unverified, ${r.failed} fail (the auditor's orphan-figure and source-hash checks are not in the log${r.verdict === 'missing' ? '; no verdict in bid.txt' : r.verdict ? `; bid.txt says ${r.verdict}` : ''}).` : 'No audit rows.');
     parts.push(r.ships ? 'The estimator takes the bid out by hand.' : `No bid on the floor: ${r.why}.`);
     return parts.join(' ');
   }
@@ -895,9 +897,8 @@ footer a { color: var(--ink); }
   function drawTray(st, x, y, s) {
     shadow(x + 6 * s, y + 2 * s, 34 * s, 7 * s, 0.16);
     box3d(x, y, 64 * s, 22 * s, 8 * s, C.steel, shade(C.steel, -0.4));
-    // the draft tray: paper only once this run's draft exists (every Scope Writer run valid, proposal.md in the folder) and the last Scope Writer row has landed
-    const e = run._end, drafted = e.draft && e.scope_runs > 0 && e.valid === e.scope_runs && cursor > e.lastScope;
-    const n = st === 'register' ? countRegistered() : st === 'draft' ? (drafted ? 3 : 0) : 5;
+    // the draft tray: paper only once this run's draft exists (the export's `drafted`: every Scope Writer run valid, this run's proposal.md in the folder) and the last Scope Writer row has landed
+    const n = st === 'register' ? countRegistered() : st === 'draft' ? (run._end.drafted && cursor > run._end.lastScope ? 3 : 0) : 5;
     for (let i = 0; i < Math.min(n, 9); i++) box3d(x + i * 1.5 * s, y - 8 * s - i * 2.5 * s, 50 * s, 16 * s, 2.5 * s, i % 2 ? C.paper : shade(C.paper, -0.08), shade(C.paper, -0.3));
     if (st === 'register' && n) { ctx.fillStyle = C.fg; ctx.font = `700 ${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`${n} filed`, x, y - 52 * s); }
     if (st === 'packet') { ctx.fillStyle = C.accent; ctx.font = `700 ${Math.max(9, 11 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.fillText('IN', x - 22 * s, y - 34 * s); }

@@ -44,6 +44,21 @@ class ChangedMutantsCase(unittest.TestCase):
                              ["pipeline.ledger.*", "pipeline.readers.live.*", "pipeline.web.*"])
             self.assertEqual(changed_mutants.patterns(["tests/test_gone.py", "tests/data.json"], root), [])
 
+    def test_a_deleted_test_is_read_from_the_base(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = make_root(d)
+            base = {"tests/test_gone.py": "from pipeline import ledger\n"}
+            self.assertEqual(changed_mutants.patterns(["tests/test_gone.py"], root, at_base=base.get), ["pipeline.ledger.*"])
+            self.assertEqual(changed_mutants.patterns(["tests/test_never.py"], root, at_base=base.get), [])
+
+    def test_a_change_to_the_mutation_tooling_runs_every_module(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = make_root(d)
+            for f in changed_mutants.TOOLING:
+                with self.subTest(f):
+                    self.assertEqual(changed_mutants.patterns([f], root),
+                                     ["pipeline.ledger.*", "pipeline.readers.live.*", "pipeline.web.*"])
+
     def test_nothing_is_printed_when_there_is_no_pattern(self):
         self.assertEqual(changed_mutants.render([]), "")
         self.assertEqual(changed_mutants.render(["pipeline.web.*"]), "pipeline.web.*\n")

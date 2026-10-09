@@ -12,8 +12,9 @@ name: mutation
 # push after, not on drafts, and not again on main after the merge: the PR run
 # already gated that PR's code. On a PR it runs only the mutants in the
 # pipeline modules the PR changes (tools/changed_mutants.py; a changed test
-# file stands for the modules it imports), and none when it changes no module.
-# The gate scores those mutants together. The weekly run on main runs them all,
+# file stands for the modules it imports, read from the base if the PR deletes
+# it; a change to the mutation tooling itself picks every module), and none
+# when it changes no module. The gate scores those mutants together. The weekly run on main runs them all,
 # catching a module no PR touched that has fallen below the floor; it can also
 # be run by hand.
 on:

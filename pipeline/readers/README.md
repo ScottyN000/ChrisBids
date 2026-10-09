@@ -115,7 +115,11 @@ what the string runs between, and its Foundation Plan example carries the spacin
 with the labels the golden recording uses, so the vote keys ("kind", "label") line up across runs.
 The first run on that change (37937707097) produced the spaces row from the dimensions in one run and as
 `6 - 1` from the bracket count in the other, and counted the detail's steel angle as a part; both prompts now
-say so: spaces come from the dimension strings only, and a detail's members are not counts.
+say so: spaces come from the dimension strings only, and a detail's members are not counts. The next run
+(37938174100) reproduced every reader row and the spaces, and wrote 18 bolts and 18 anchors twice, as
+3 x 6 symbols in one run and 3 x the spaced brackets in the other; the gate now matches a fixture figure
+reached by a second route once instead of reporting the second row extra (the ledger keeps both rows,
+each flagged "seen in 1 of 2 runs", as the vote rule says).
 
 ## The ruling still open
 

@@ -98,7 +98,9 @@ def add_derived(comparison: Comparison, produced_by_id: dict[str, Claim], produc
       or the row is reported extra with the figures it used;
     * a fixture quantity that the readers already wrote as a counted figure
       (6 brackets is also the 6 symbols drawn) is matched by that figure, since
-      Takeoff is told not to derive a number that is already a row.
+      Takeoff is told not to derive a number that is already a row;
+    * a fixture quantity Takeoff wrote twice, by a different route in each run,
+      is matched once and the second row is not reported extra.
     """
     known = {key(c) for c in reader_rows(fixture, present_sources)}
     want = Counter(derived_key(c) for c in fixture_derived(fixture, present_sources))
@@ -111,6 +113,11 @@ def add_derived(comparison: Comparison, produced_by_id: dict[str, Claim], produc
             unsourced.append(derived_key(c) + (tuple(stray),))
         else:
             got[derived_key(c)] += 1
+    # The same figure reached by a second route in another run (18 bolts as 3 x 6
+    # symbols and as 3 x the brackets the dimensions space out) is one figure,
+    # not an extra: each row rests on fixture figures, and the route is not compared.
+    again = Counter({k: n - want[k] for k, n in got.items() if k in want and n > want[k]})
+    got -= again
     counted = Counter(("counted", "derived", c.value, c.unit) for c in produced_by_id.values()
                       if c.method == "counted" and not c.calc and not c.flag and key(c) in known)
     missing = want - got

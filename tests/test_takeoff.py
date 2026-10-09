@@ -341,6 +341,20 @@ class GoldenCompareCase(unittest.TestCase):
                                               ("counted", "derived", "6", "each"),
                                               ("counted", "derived", "18", "each")]))
 
+    def test_the_same_figure_by_a_second_route_is_not_extra(self):
+        """Run 1 wrote 18 anchors as 3 x the 6 symbols, run 2 as 3 x the brackets the
+        dimensions space out (live run 37938174100): one fixture figure, not one extra."""
+        cmp = self.compare([self.q("T1", 5, "spaces", SPACES),
+                            self.q("T2", 18, "each", f"{{{ANCH}}} * {{{self.BRACKETS}}}"),
+                            self.q("T3", 18, "each", f"{{{ANCH}}} * ({SPACES} + 1)")])
+        self.assertTrue(cmp.exact_ok, cmp.text())
+        self.assertEqual(cmp.extra, [])
+        self.assertEqual(cmp.matched.count(("counted", "derived", "18", "each")), 1)
+        # A figure the fixture lacks is still extra, however many routes reach it.
+        cmp = self.compare([self.q("T1", 5, "spaces", SPACES), self.q("T2", 21, "each", f"{{{ANCH}}} * 7"),
+                            self.q("T3", 21, "each", f"({{{ANCH}}} + 4) * 3")])
+        self.assertEqual(cmp.extra, [("counted", "derived", "21", "each")] * 2)
+
     def test_a_wrong_figure_is_missing_and_extra(self):
         cmp = self.compare([self.q("T1", 5, "spaces", SPACES), self.q("T2", 21, "each", f"{{{ANCH}}} * 7")])
         self.assertFalse(cmp.exact_ok)

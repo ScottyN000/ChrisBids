@@ -28,7 +28,7 @@ python3 tools/build_fixture.py fixtures/nantucket --check   # fails if outputs a
 The build fails on any of these, which are the method rules from the architecture doc (p.6):
 
 - a row without a source, or citing a source that is not in the register
-- a row citing a missing source (Chris's email, the 67 absent photos) that is not flagged `unverified`
+- a row citing a missing source (the estimator's email, the 67 absent photos) that is not flagged `unverified`
 - an `observed` row carrying a number, or a `FIELD` row carrying a value
 - a `scaled` value feeding an allowance or order quantity
 - a `fetched` row without a URL and retrieval date, or without a quote unless flagged `unverified`
@@ -40,7 +40,7 @@ The build fails on any of these, which are the method rules from the architectur
 
 ## Known gaps
 
-- Chris's Oct 6 email and 67 of the 72 Ocean Beach photos are not uploaded. Every row that depends on them is FIELD or `unverified`.
+- The estimator's Oct 6 email and 67 of the 72 Ocean Beach photos are not uploaded. Every row that depends on them is FIELD or `unverified`.
 - Web pages were read through a fetch tool that returns an extract, not raw HTML. Quotes may differ from the live page in punctuation; the Auditor should re-fetch and character-check them.
 - The five photo files in the project's `source/ocean-beach-villas_photos/` differ byte-for-byte from the uploaded originals (pixels identical, metadata differs). The register now records the hash of the file in `source/`, which is the one a reader opens, and keeps the uploaded original's hash in the notes. Phase 1 re-hashes every registered file and fails the run on a change, so the register has to name the same bytes it points at.
 

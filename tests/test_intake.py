@@ -18,7 +18,7 @@ class IntakeCase(unittest.TestCase):
         (self.packet / "photos" / "0_IMG_8316.jpg").write_bytes(b"\xff\xd8photo-one")
         (self.packet / "photos" / "IMG_8324.jpg").write_bytes(b"\xff\xd8photo-two")
         (self.packet / "nantucket-condo_S-1-plans-and-detail.pdf").write_bytes(b"%PDF-1.7 fake")
-        (self.packet / "chris-email-2026-10-06.txt").write_text("keep the base bid simple")
+        (self.packet / "estimator-email-2026-10-06.txt").write_text("keep the base bid simple")
         (self.packet / "takeoff.csv").write_text("a,b\n1,2\n")
         (self.packet / "SHA256SUMS").write_text("ignored\n")
 
@@ -41,7 +41,7 @@ class IntakeCase(unittest.TestCase):
         kinds = {s.source_id: s.kind for s in intake.scan(self.packet)}
         self.assertEqual(kinds["S-1"], "drawing")
         self.assertEqual(kinds["IMG_8316"], "photo")
-        self.assertEqual(kinds["CE"], "correspondence")
+        self.assertEqual(kinds["EE"], "correspondence")
         self.assertEqual(kinds["T"], "spreadsheet")
 
     def test_hashes_are_written_and_a_change_fails_the_run(self):

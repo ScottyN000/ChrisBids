@@ -20,10 +20,10 @@ FLAGS = ("", "unverified", "conflict")
 ROLES = ("header", "scope", "quantity", "allowance", "material", "code", "exclusion", "question", "note")
 PARTS = ("", "base", "alternate")
 AUDIT = ("", "pass", "fail", "unverified")
-# CSI divisions Mersco writes proposals by (architecture p.7).
+# CSI divisions Contractor Co. writes proposals by (architecture p.7).
 DIVISIONS = ("", "01", "02", "03", "05", "07", "08", "09", "31", "33", "35")
 
-# Methods that may feed a Mersco allowance or an order quantity (architecture p.6:
+# Methods that may feed a Contractor Co. allowance or an order quantity (architecture p.6:
 # "scaled ... never becomes an order quantity without a site check").
 ALLOWANCE_OK = ("dimensioned", "counted", "clause", "FIELD")
 # Methods that carry an exact figure. A row of either kind may only be worked

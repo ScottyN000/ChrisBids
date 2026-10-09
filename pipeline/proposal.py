@@ -1,4 +1,4 @@
-"""The Mersco proposal, rendered from a layout, the phrase library and ledger rows.
+"""The Contractor Co. proposal, rendered from a layout, the phrase library and ledger rows.
 
 Shared by the golden fixtures (tools/build_fixture.py renders each fixture's
 hand-made layout) and the Scope Writer (pipeline/scope_writer.py renders the
@@ -118,7 +118,7 @@ def render(data, by_id, phrases, register):
             emit(f"- {row_text(r)}", claims=[r["id"]], section="Exclusions")
     out.append("")
 
-    emit("## Open questions for Chris before pricing\n")
+    emit("## Open questions for the estimator before pricing\n")
     emit("Nothing below is resolved in this bid. Where two readings exist both are shown and the figure stays unverified.\n")
     for r in data["rows"]:
         if r["role"] == "question":
@@ -135,7 +135,7 @@ def render(data, by_id, phrases, register):
     mats = [r for r in data["rows"] if r["role"] == "material"]
     if mats:
         emit("## Materials (no pricing)\n")
-        emit("Order quantities are printed only where the ledger has a dimensioned or counted value; spares and stock-length rounding are Mersco purchasing decisions and are not in the sources.\n")
+        emit("Order quantities are printed only where the ledger has a dimensioned or counted value; spares and stock-length rounding are Contractor Co. purchasing decisions and are not in the sources.\n")
         emit("| Claim | Material | Qty | Unit | Source | Method |\n|---|---|---|---|---|---|")
         for r in mats:
             emit(f"| {r['id']} | {r['statement']}{marks(r)} | {fmt_value(r.get('value'))} | {r.get('unit', '')} | {tag(r)} | {r['method']} |",

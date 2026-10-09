@@ -110,7 +110,7 @@ def _spread(texts: list) -> str:
     """How far scaled readings of one length disagree, computed in code.
 
     Every reading is listed first and no centre value is given: a scaled length
-    is never a quantity, and a midpoint would read as one chosen (Scott's rules).
+    is never a quantity, and a midpoint would read as one chosen (the owner's rules).
     """
     if len(texts) < 2:
         return ""

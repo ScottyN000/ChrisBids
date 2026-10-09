@@ -253,7 +253,7 @@ class LiveClient:
             return
         key = broker.secret("ANTHROPIC_API_KEY")
         if not key:
-            raise LiveRunError("neither ANTHROPIC_API_KEY nor MERSCO_ANTHROPIC_API_KEY is set; "
+            raise LiveRunError("neither ANTHROPIC_API_KEY nor BIDS_ANTHROPIC_API_KEY is set; "
                                "add the key to the cloud environment and start a new session")
         import anthropic
         self.api = anthropic.Anthropic(api_key=key, base_url=self.base_url, timeout=API_TIMEOUT)

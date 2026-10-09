@@ -69,7 +69,7 @@ opened.
 ## Orphan figures
 
 `audit --proposal` extracts every number from a finished proposal and traces it
-to a ledger row, a quoted source, or a Mersco phrase-library paragraph. What is
+to a ledger row, a quoted source, or a Contractor Co. phrase-library paragraph. What is
 left over is an orphan: a figure with nothing behind it.
 
 The two rendered fixture proposals have none. Fed the original hand-made bids,
@@ -136,7 +136,7 @@ not gated: the fixture's choice there is one reasonable layout among several.
 
 Section titles come from the Proposal Format Example and the two test bids
 (divisions 01, 02, 03, 05, 07 and 09). A row in any other division is reported
-unplaced until Chris's template names that division (architecture p.17 asks him
+unplaced until the estimator's template names that division (architecture p.17 asks him
 for the template file).
 
 ## Orchestrator (Phase 3)
@@ -247,7 +247,7 @@ from free text. The agreed option is the row's value.
 
 When the runs find differing readings on the page (different passages and
 figures, or one run finds it and one does not), code does not pick one. Each
-reading is written as its own row, flagged unverified, for Chris to settle.
+reading is written as its own row, flagged unverified, for the estimator to settle.
 
 A run that is discarded, or an answer that is refused, gets up to two spare
 runs for that page, so one slip does not cost the ask.

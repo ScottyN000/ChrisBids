@@ -1,18 +1,18 @@
 # Ocean Beach Villas Exterior Repaint
 
-_Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only Chris releases a bid. No drawings exist for this job, so every allowance is FIELD._
+_Draft rendered from the claim ledger, 2026-10-07. Not priced. Not released: only the estimator releases a bid. No drawings exist for this job, so every allowance is FIELD._
 
-FL CGC. License# CGC1532923 MHIC#110254 DE#2015604245 • Mailing Address: 772 Bantry Ct, Merritt Island FL 32953
+FL CGC. License# CGC0000000 MHIC#000000 DE#0000000000 • Mailing Address: 100 Example Ct, Merritt Island FL 32953
 
 Job Address:  
 2515 Hwy A1A, Cocoa Beach, Florida 32931 (SW p.1)
 
-Mersco Inc.  
-Address: 2805 Philadelphia Ave. Ocean City MD 21842  
-Ph: 1-855-227-2505  
-Email: info@mersconow.com
+Contractor Co.  
+Address: 100 Example Ave. Ocean City MD 21842  
+Ph: 1-555-555-0100  
+Email: info@example.com
 
-Hello FIELD, thank you for considering Mersco Inc. The purpose of this document is to define the deliverables, description of materials, quality, grade, and schedule of work. [client: see OBV-F-001]
+Hello FIELD, thank you for considering Contractor Co. The purpose of this document is to define the deliverables, description of materials, quality, grade, and schedule of work. [client: see OBV-F-001]
 
 **Scope of Work:**
 
@@ -23,9 +23,9 @@ Hello FIELD, thank you for considering Mersco Inc. The purpose of this document 
 3. Safety glasses, hard hats and masks will be worn. Work areas will have signs posted and will be caution taped off. (PFE p.1)
 4. Precautions will be taken to protect shrubs, plants, fences and personal property. (PFE p.1)
 5. Remove and protect hardware, accessories, device plates, lighting fixtures, factory finished work and similar items or provide ample in-place protection. Upon completion of each space, carefully replace all removed items. Cover all electrical panel box covers and doors before painting walls. (PFE p.1)
-6. While painting in areas near parking lots, we request that all vehicles be removed from the area to prevent and overspray from damaging the vehicle. In the event that vehicles are left in the area, we will attempt to protect them with plastic but, Mersco will not be held liable for vehicles left in range of potential overspray. (PFE p.1)
+6. While painting in areas near parking lots, we request that all vehicles be removed from the area to prevent and overspray from damaging the vehicle. In the event that vehicles are left in the area, we will attempt to protect them with plastic but, Contractor Co. will not be held liable for vehicles left in range of potential overspray. (PFE p.1)
 7. Shear walls and balconies will be accessed by swing stage, man lift scaffolding or other means. The man lift will be stored daily in the upright position for safety purposes in a location on site approved by the association. (PFE p.1)
-8. *Mersco will take precautions to protect the landscape. We will use tread mats and plywood under the tires while moving the lift in the grassy areas. However, there is still a chance that some damage can occur. Mersco can facilitate a professional landscaping crew to conduct repairs after the job is completed at an additional cost if requested by the association. (PFE p.1-2)
+8. *Contractor Co. will take precautions to protect the landscape. We will use tread mats and plywood under the tires while moving the lift in the grassy areas. However, there is still a chance that some damage can occur. Contractor Co. can facilitate a professional landscaping crew to conduct repairs after the job is completed at an additional cost if requested by the association. (PFE p.1-2)
 9. At least one English-speaking contractor's representative on the job at all times (SW p.12 L.3)
 10. Protect windows, brick, lawn, trees, shrubbery, floors, steps, outside carpeting and sprinkler systems; on completion remove all paint droppings and overspray (SW p.8 C.1; p.13 M.4)
 11. Furnish a progress schedule for approval and advise the owner far enough ahead to prepare, advise residents and move vehicles (SW p.13 M.9)
@@ -35,7 +35,7 @@ Hello FIELD, thank you for considering Mersco Inc. The purpose of this document 
 15. No painting right after rain or fog or below 50°F; substrate at least 5°F above dew point while painting and curing; avoid full hot sun (SW p.14 N.1)
 16. Maintain safety and "wet paint" signs and roping per OSHA; do not paint over code labels or equipment nameplates (SW p.13 M.8; p.14 M.10)
 17. Notify the owner's representative before beginning if conditions substantially exceed the scope of work (SW p.12 L.1)
-18. Mersco will ensure that the site is cleared of all equipment, tools, work trailers, rental equipment and materials. (PFE p.2)
+18. Contractor Co. will ensure that the site is cleared of all equipment, tools, work trailers, rental equipment and materials. (PFE p.2)
 
 ## Division 02 Site Construction
 
@@ -52,7 +52,7 @@ Hello FIELD, thank you for considering Mersco Inc. The purpose of this document 
 - Any concealed damage discovered during or after powerwashing will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required. (PFE p.2)
 - Confirm all elevations are fully cleaned and properly prepared to receive base coats, finish coats, or exterior paint systems. (PFE p.2)
 
-_(Mersco allowance of FIELD SF for pressure washing exterior wall, ceiling, walkway, perimeter wall and garage surfaces (OBV-F-002 to F-005).)_
+_(Contractor Co. allowance of FIELD SF for pressure washing exterior wall, ceiling, walkway, perimeter wall and garage surfaces (OBV-F-002 to F-005).)_
 
 ## Division 07 Thermal & Moisture Protection
 
@@ -66,7 +66,7 @@ _(Mersco allowance of FIELD SF for pressure washing exterior wall, ceiling, walk
 - Crack repair, reading B: hairline cracks 1/16" or less sealed with Conseal Elastomeric Patching Material Brush Grade; larger cracks routed to uniform size, cleaned, dried and filled with Loxon S1 Urethane Sealant, feathered past the edges (SW p.15) [conflict; see OBV-OQ-01]
 - Tool sealant to proper profile to ensure watertight performance, uniform appearance, and long-term flexibility. (PFE p.5)
 
-_(Mersco allowance of FIELD LF for joint sealant (OBV-F-006). Mersco allowance of FIELD LF for crack repair by width class (OBV-F-007) [see OBV-OQ-01]. Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD LF for joint sealant (OBV-F-006). Contractor Co. allowance of FIELD LF for crack repair by width class (OBV-F-007) [see OBV-OQ-01]. Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ## Division 09 Finishes
 
@@ -84,7 +84,7 @@ _(Mersco allowance of FIELD LF for joint sealant (OBV-F-006). Mersco allowance o
 - Finish all elevations with clean transitions at architectural breaks, edges, and adjacent surfaces to achieve a cohesive and uniform appearance across the entire building envelope. (PFE p.7)
 - Colors approved by the owners (darker colors fade faster and affect hide); Sherwin-Williams issues a seven or ten year product-defect warranty (SW p.14 O; P)
 
-_(Mersco allowance of FIELD SF for exterior wall surfaces (OBV-F-002). Mersco allowance of FIELD SF for exterior ceiling and balcony underside surfaces (OBV-F-003). Mersco allowance of FIELD LF for perimeter wall (OBV-F-004). Mersco allowance of FIELD LF for gutters, downspouts, fascia and soffits (OBV-F-005). Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD SF for exterior wall surfaces (OBV-F-002). Contractor Co. allowance of FIELD SF for exterior ceiling and balcony underside surfaces (OBV-F-003). Contractor Co. allowance of FIELD LF for perimeter wall (OBV-F-004). Contractor Co. allowance of FIELD LF for gutters, downspouts, fascia and soffits (OBV-F-005). Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ### 9.2 Doors
 
@@ -92,7 +92,7 @@ _(Mersco allowance of FIELD SF for exterior wall surfaces (OBV-F-002). Mersco al
 - Metal doors: Kem Kromik Universal Metal Primer B50 as needed for rust, then 1 coat B53 (SW p.17)
 - Finish door tops, bottoms and side edges the same as exterior faces (SW p.13 L.12)
 
-_(Mersco allowance of FIELD each for entrance, unit and utility doors (OBV-F-008).)_
+_(Contractor Co. allowance of FIELD each for entrance, unit and utility doors (OBV-F-008).)_
 
 ### 9.3 Walkway, Stair and Landing Deck Coatings
 
@@ -100,7 +100,7 @@ _(Mersco allowance of FIELD each for entrance, unit and utility doors (OBV-F-008
 - Walkways, stairs and landings (previously painted) are in scope; existing coating is peeling in multiple layers; wash with the intention of removing all failing coating, then scrape and sand (SW p.7 A.3; p.3) [see OBV-OQ-03]
 - Deck coating system: not named in the spec's Recommended Coatings Systems. Product, coats and warranty to come from Sherwin-Williams (SW p.15-18) [unverified; see OBV-OQ-02]
 
-_(Mersco allowance of FIELD SF for walkway, landing and stair deck coating (OBV-F-011) [see OBV-OQ-02]. Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD SF for walkway, landing and stair deck coating (OBV-F-011) [see OBV-OQ-02]. Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ### 9.4 Railings, Pool Fence and Balcony Steel Supports
 
@@ -110,7 +110,7 @@ _(Mersco allowance of FIELD SF for walkway, landing and stair deck coating (OBV-
 - Previously painted handrails in sound condition: wash with a strong detergent cleaner such as Krud-Kutter, M1-House Wash or Simple Green (SW p.10-11 I.8)
 - Steel supports (and ferrous rails): B50 primer as needed for rust, then 1 coat B53. The spec names no system for aluminum railings (SW p.17) [see OBV-OQ-07]
 
-_(Mersco allowance of FIELD LF for railings, pool fence and balcony steel supports (OBV-F-012 + F-013).)_
+_(Contractor Co. allowance of FIELD LF for railings, pool fence and balcony steel supports (OBV-F-012 + F-013).)_
 
 ## Alternates
 
@@ -120,7 +120,7 @@ Alternate pricing provides costs for optional work or materials not included in 
 
 - Spot repair of walkway texture and coating where the deck coating has delaminated to bare concrete, before the base-bid deck coating; patch product must suit the deck system (not yet named) (CT 2026-10-06) [unverified; see OBV-OQ-02]
 
-_(Mersco allowance of FIELD SF for walkway texture and coating spot repair (OBV-F-014).)_
+_(Contractor Co. allowance of FIELD SF for walkway texture and coating spot repair (OBV-F-014).)_
 
 ### A.2 Wall Spall Repair
 
@@ -132,7 +132,7 @@ _(Mersco allowance of FIELD SF for walkway texture and coating spot repair (OBV-
 - Apply smoothing compound as needed to blend repaired sections with adjacent concrete surfaces and achieve a uniform finish suitable for subsequent coating. (PFE p.3)
 - A full prime is required on all bare stucco and stucco repairs (SW p.5)
 
-_(Mersco allowance of FIELD SF for partial-depth wall spall repair (OBV-F-014). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD SF for partial-depth wall spall repair (OBV-F-014). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ### A.3 Column Repair
 
@@ -144,20 +144,20 @@ _(Mersco allowance of FIELD SF for partial-depth wall spall repair (OBV-F-014). 
 - Rebuild column surfaces using approved repair mortar, restoring original dimensions, geometry, and load-bearing continuity. (PFE p.3)
 - Apply smoothing compound as needed to blend repaired sections with adjacent concrete surfaces and achieve a uniform finish suitable for subsequent coating. (PFE p.3)
 
-_(Mersco allowance of FIELD CF for column repair (OBV-F-014). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD CF for column repair (OBV-F-014). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ### A.4 Grooved Stucco Removal and Replacement
 
 - Decorative (grooved) stucco: the spec lists it with an "option to repair/resurface"; remove the grooved finish to a sound base and apply a new textured finish to match the body walls, full-primed per p.5 (SW p.7 A.3; p.5)
 
-_(Mersco allowance of FIELD SF for grooved stucco removal and replacement (OBV-F-015). Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD SF for grooved stucco removal and replacement (OBV-F-015). Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ### A.5 Top-Floor Balcony Soffit Replacement
 
 - Top-floor balcony ceiling: ribbed metal soffit with an open access hatch (IMG_8356)
 - Replace the metal soffit, trim and access hatch frames on top-floor balcony ceilings; inspect and replace deteriorated furring (CT 2026-10-06) [unverified; see OBV-OQ-11]
 
-_(Mersco allowance of FIELD SF for top-floor balcony soffit replacement, plus FIELD access hatches (OBV-F-016). Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD SF for top-floor balcony soffit replacement, plus FIELD access hatches (OBV-F-016). Any concealed deterioration discovered during preparation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ### A.6 Pool Fence Post Pockets
 
@@ -167,13 +167,13 @@ _(Mersco allowance of FIELD SF for top-floor balcony soffit replacement, plus FI
 - Prepare exposed concrete surfaces per manufacturer requirements for patching materials. (PFE p.4)
 - Install approved repair mortar (Sika, Euclid, or engineer-specified equivalent) to rebuild post pockets to proper depth, shape, and structural integrity. (PFE p.4)
 
-_(Mersco allowance of FIELD each for pool fence post pocket repairs (OBV-F-013). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
+_(Contractor Co. allowance of FIELD each for pool fence post pocket repairs (OBV-F-013). Any concealed deterioration, structural deficiencies, or reinforcement loss discovered during excavation will be documented and brought to the Owner's attention, with corrective work addressed through a change order if required.)_
 
 ### A.7 Garage Doors
 
 - Garage doors: wire brush or power tool clean rust (SSPC-SP2/SP3, p.11 K.1), B50 primer as needed for rust, then 1 coat B53 (SW p.17) [see OBV-OQ-08]
 
-_(Mersco allowance of FIELD each for garage doors (OBV-F-009).)_
+_(Contractor Co. allowance of FIELD each for garage doors (OBV-F-009).)_
 
 ## Exclusions
 
@@ -193,27 +193,27 @@ _(Mersco allowance of FIELD each for garage doors (OBV-F-009).)_
 - Shutter boxes and guides, and any surface not listed in the spec's scope (SW p.7 A.4)
 - Windows and outdoor carpeting (to be kept free of paint) (SW p.13 M.6)
 
-## Open questions for Chris before pricing
+## Open questions for the estimator before pricing
 
 Nothing below is resolved in this bid. Where two readings exist both are shown and the figure stays unverified.
 
-- **OBV-OQ-01** Crack repair: p.10 I.6 (break at 1/4", Brush/Trowel Grade Elastomeric Patch) and p.15 (break at 1/16", Conseal Brush Grade, then Loxon S1) disagree. E.1 (p.8) says ask before starting. Ask Shawn Gooden which governs (SW p.10 + p.15)
-- **OBV-OQ-02** Walkway deck coating: walkways are in scope (p.7) but no deck system is named (p.15-18). Ask Shawn Gooden for the product, coats and warranty. Mersco's standard exclusion of "traffic-bearing systems" (PFE p.16) is left out of this bid because it would exclude a base item (SW p.7 + p.15-18)
+- **OBV-OQ-01** Crack repair: p.10 I.6 (break at 1/4", Brush/Trowel Grade Elastomeric Patch) and p.15 (break at 1/16", Conseal Brush Grade, then Loxon S1) disagree. E.1 (p.8) says ask before starting. Ask the SW rep which governs (SW p.10 + p.15)
+- **OBV-OQ-02** Walkway deck coating: walkways are in scope (p.7) but no deck system is named (p.15-18). Ask the SW rep for the product, coats and warranty. Contractor Co.'s standard exclusion of "traffic-bearing systems" (PFE p.16) is left out of this bid because it would exclude a base item (SW p.7 + p.15-18)
 - **OBV-OQ-03** p.7 A.3 puts walkways in the painting scope, while p.13 M.6 lists walkways among substrates "designated not to receive paint coatings". Confirm with Sherwin-Williams (SW p.7 A.3 + p.13 M.6)
-- **OBV-OQ-04** Product names that did not match SW's current catalog: "C1100A" caulk (not found), "Conseal" patch (not found), "A24 series" Loxon Conditioner (current sheets are LX03/LX02), "Trowel Grade" Elastomeric Patch (SW lists Brush and Knife grades). Ask Shawn Gooden for the intended products and their data sheets (OBV-C-025 + C-032 + C-034)
+- **OBV-OQ-04** Product names that did not match SW's current catalog: "C1100A" caulk (not found), "Conseal" patch (not found), "A24 series" Loxon Conditioner (current sheets are LX03/LX02), "Trowel Grade" Elastomeric Patch (SW lists Brush and Knife grades). Ask the SW rep for the intended products and their data sheets (OBV-C-025 + C-032 + C-034)
 - **OBV-OQ-05** Surface cleaner printed as "A-1 Beach". Confirm the intended product (possibly bleach); not corrected here (SW p.15)
-- **OBV-OQ-06** Owner chooses the 7-year (SuperPaint A89) or 10-year (Latitude K62) system, or Mersco prices both. The A89 coat count is not stated (SW p.16 + p.14 P.1)
+- **OBV-OQ-06** Owner chooses the 7-year (SuperPaint A89) or 10-year (Latitude K62) system, or Contractor Co. prices both. The A89 coat count is not stated (SW p.16 + p.14 P.1)
 - **OBV-OQ-07** Aluminum railings: the spec gives a washing step (I.8) but no coating system. Which rails are aluminum and what goes on them? (SW p.15-18)
-- **OBV-OQ-08** Garage doors have a coating system (p.17) but are not in the p.7 scope list or Chris's six base items as transcribed, so they are Alternate A.7 here. Chris to confirm (SW p.7 A.3 + p.17) [unverified]
-- **OBV-OQ-09** Chris's Oct 6 email is not in the packet. The base/alternate split and the alternate list come from the hand bid's summary. Upload the email so the customer rows can be quoted (CT 2026-10-06) [unverified]
+- **OBV-OQ-08** Garage doors have a coating system (p.17) but are not in the p.7 scope list or the estimator's six base items as transcribed, so they are Alternate A.7 here. The estimator to confirm (SW p.7 A.3 + p.17) [unverified]
+- **OBV-OQ-09** The estimator's Oct 6 email is not in the packet. The base/alternate split and the alternate list come from the hand bid's summary. Upload the email so the customer rows can be quoted (CT 2026-10-06) [unverified]
 - **OBV-OQ-10** 67 of the 72 photos are not uploaded. Every location the hand bid tied to them is FIELD until they arrive (IMG_8303-8374) [unverified]
-- **OBV-OQ-11** Soffit attachment for A.5: Chris reads it as wood furring on the roof slab. Open one hatch to confirm before pricing (CT + IMG_8356) [unverified]
+- **OBV-OQ-11** Soffit attachment for A.5: the estimator reads it as wood furring on the roof slab. Open one hatch to confirm before pricing (CT + IMG_8356) [unverified]
 - **OBV-OQ-12** Permits: Cocoa Beach lists fences, external handrails, facia work and balcony restoration as permit items (OBV-C-001); painting, stucco and soffit do not appear on that list. Ask the Building Division which items need permits (railing work, A.1, A.2, A.5, A.6) (OBV-C-001 + C-002)
 - **OBV-OQ-13** Coastal Construction Control Line: is 2515 Hwy A1A seaward of the line (check Map Direct, OBV-C-014)? If so, document the statutory repair exemption, which applies only within the existing foundation (OBV-C-011). The current rule text could not be read (OBV-C-012) (OBV-C-010 + C-011 + C-014)
 - **OBV-OQ-14** Get the certificate-of-occupancy year from the owner: EPA RRP applies if built before 1978 (OBV-C-022); the milestone inspection runs at 30 years and every 10 years after (OBV-C-015), an owner matter outside this bid (OBV-C-022 + C-015)
 - **OBV-OQ-15** The FBC 9th Edition (2026) takes effect 12/31/2026 (OBV-C-006). Permits applied for after that date fall under it (OBV-C-005 + C-006)
 - **OBV-OQ-16** Building lettering appears on the stucco wall in the spec cover photo. Paint around it, or remove and reinstall? The hand bid excluded it (SW p.1)
-- **OBV-OQ-17** Mersco's standard exclusion "Ceiling soffit coatings" (PFE p.16) conflicts with the spec's soffit painting (p.7 A.3, p.18), so it is left out. Chris to confirm (SW p.7 A.3 + PFE p.16)
+- **OBV-OQ-17** Contractor Co.'s standard exclusion "Ceiling soffit coatings" (PFE p.16) conflicts with the spec's soffit painting (p.7 A.3, p.18), so it is left out. The estimator to confirm (SW p.7 A.3 + PFE p.16)
 
 ## Field takeoff (FIELD rows)
 
@@ -240,7 +240,7 @@ Not in any source document. Each must be measured or answered before the allowan
 
 ## Materials (no pricing)
 
-Order quantities are printed only where the ledger has a dimensioned or counted value; spares and stock-length rounding are Mersco purchasing decisions and are not in the sources.
+Order quantities are printed only where the ledger has a dimensioned or counted value; spares and stock-length rounding are Contractor Co. purchasing decisions and are not in the sources.
 
 | Claim | Material | Qty | Unit | Source | Method |
 |---|---|---|---|---|---|
@@ -298,9 +298,9 @@ Every row was fetched on the date shown. Rows marked unverified did not open or 
 
 ## Terms
 
-Change orders: Adjustments can be made to the initial contract and scope of the project to account for changing needs that are mutually agreed upon by Mersco Restoration & Renovations and you, the customer. These adjustments are called change orders and must be written as a document and added to the contract. (PFE p.16)
+Change orders: Adjustments can be made to the initial contract and scope of the project to account for changing needs that are mutually agreed upon by Contractor Co. Restoration & Renovations and you, the customer. These adjustments are called change orders and must be written as a document and added to the contract. (PFE p.16)
 
-Costs: The customer is responsible for accessibility to areas of the building and utilities. Prompt payment at key milestones. Mersco Restoration & Renovations is responsible for management of materials, labor, schedule, job site quality and scope of work. (PFE p.16)
+Costs: The customer is responsible for accessibility to areas of the building and utilities. Prompt payment at key milestones. Contractor Co. Restoration & Renovations is responsible for management of materials, labor, schedule, job site quality and scope of work. (PFE p.16)
 
 Warranty: A 1-year workmanship warranty period will begin at completion of the job. (PFE p.16)
 
@@ -309,8 +309,8 @@ Allowance is the quantity of unit pricing included in the base bid. (PFE p.16)
 ---
 
 _Source tags_  
-_SW_ = Sherwin-Williams Paint Specifications for 2515 Hwy A1A, Shawn Gooden, 9/25/2026  
-_PFE_ = Mersco Proposal Format Example (2MOC Quality Inn Oceanfront)  
+_SW_ = Sherwin-Williams Paint Specifications for 2515 Hwy A1A, SW Rep, 9/25/2026  
+_PFE_ = Contractor Co. Proposal Format Example (Example Hotel Oceanfront)  
 _ARCH_ = Bid Pipeline Agent Team Architecture, 2026-10-07  
 _OBV-TB_ = Hand-made Ocean Beach test bid (superseded by this ledger)  
 _IMG_8316_ = Site photo IMG_8316  
@@ -319,5 +319,5 @@ _IMG_8332_ = Site photo IMG_8332
 _IMG_8343_ = Site photo IMG_8343  
 _IMG_8356_ = Site photo IMG_8356  
 _IMG-OTHER_ = The other 67 site photos (IMG_8303 to IMG_8374) — **missing**  
-_CT_ = Chris Turner email, 2026-10-06 (base bid and alternates list) — **missing**  
+_CT_ = Estimator email, 2026-10-06 (base bid and alternates list) — **missing**  
 _WEB_ = Fetched web pages (URL and retrieval date on each row)

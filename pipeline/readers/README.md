@@ -51,7 +51,7 @@ python3 -m pipeline live fixtures/ocean-beach --out runs/obv-live
 | `fixtures/<job>/units.yaml` | What a live run reads: the three S-1 views by box, SW p.17 as its text layer, the five photos as uploaded |
 
 A live run needs the packet at `--packet` (default `fixtures/packet`) and
-`ANTHROPIC_API_KEY` in the environment, or `MERSCO_ANTHROPIC_API_KEY` when the cloud environment will not pass the first name through, read through `broker.secret` (p.12). Without the key it stops with `NOT RUN`;
+`ANTHROPIC_API_KEY` in the environment, or `BIDS_ANTHROPIC_API_KEY` when the cloud environment will not pass the first name through, read through `broker.secret` (p.12). Without the key it stops with `NOT RUN`;
 with one, a 1-token call checks the key before any unit is read.
 
 Structured output does not take every constraint our schemas state (string
@@ -77,7 +77,7 @@ real gate there runs only with `CHRISBIDS_LIVE=1`, since it spends money.
 The fixture carries every figure printed on a view, including ones no
 quantity uses (the 12" and 8" wall dimensions on the Partial Foundation Plan,
 NAN-D-016 and D-017), so the gate fails a reader that adds a figure as well as
-one that misses one (Scott's ruling, 2026-10-08). Each live run prints every
+one that misses one (the owner's ruling, 2026-10-08). Each live run prints every
 figure it produced and its token totals at the end of the log.
 
 ## Takeoff (Phase 3)
@@ -109,4 +109,4 @@ on 2026-10-08 (Actions run 37780360959: readers on Haiku at high effort, two rea
 
 ## The ruling still open
 
-Architecture p.17 asks Chris for a ruling on scaled dimensions: never order from them, or order with a stated tolerance. Until he gives it, scaled rows are written with confidence `scaled`, carry no numeric value, and the broker refuses them in any allowance or order quantity.
+Architecture p.17 asks the estimator for a ruling on scaled dimensions: never order from them, or order with a stated tolerance. Until he gives it, scaled rows are written with confidence `scaled`, carry no numeric value, and the broker refuses them in any allowance or order quantity.

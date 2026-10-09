@@ -1,4 +1,4 @@
-Bid Pipeline — Agent Team Architecture (Scott Turner, 2026-10-07), text layer only.
+Bid Pipeline — Agent Team Architecture (owner, 2026-10-07), text layer only.
 Extracted with `pdftotext -layout` from bid-pipeline-architecture_2026-10-07.pdf, sha256 0f92692dfae80b5ad11d56ad7a735c4685b991beb7136390a40202d3d1dd23a2.
 Page numbers are the "Page N of 17" footers. Read by the advisor (docs/advisor.md); the PDF is the source of record.
 
@@ -8,7 +8,7 @@ Bid Pipeline — Agent Team Architecture
 
 
   Bid Pipeline — Agent Team Architecture
-    Oct 7, 2026         · ​@Scott Turner
+    Oct 7, 2026         · ​@owner
 
 
   The rule
@@ -138,7 +138,7 @@ Bid Pipeline — Agent Team Architecture
      Codes &                       Job address, job   Applicable code       Web search and     Citing a code
      Regulations                   type, detected     editions, AHJ         fetch, AHJ         from memory
                                    divisions,         permit                portals
-                                   Mersco licenses    requirements,
+                                   Contractor Co. licenses    requirements,
                                                       OSHA and
                                                       industry
                                                       standards
@@ -168,7 +168,7 @@ Bid Pipeline — Agent Team Architecture
      Agent                         Reads                 Produces           Allowed tools      Forbidden
 
      Scope Writer                  The claim ledger      Proposal in        Template           Any sentence
-                                   only                  Mersco division                       containing a
+                                   only                  Contractor Co. division                       containing a
                                                          format,                               figure not in
                                                          allowance                             the ledger
                                                          parentheticals,
@@ -184,7 +184,7 @@ Bid Pipeline — Agent Team Architecture
                                                          orphan figures
 
 
-  Pricing is deliberately a later agent: it reads Mersco's own rate book and labor factors, and
+  Pricing is deliberately a later agent: it reads Contractor Co.'s own rate book and labor factors, and
   every unit price it applies must cite a rate-book line the same way a quantity cites a
   drawing.
 
@@ -238,7 +238,7 @@ Bid Pipeline — Agent Team Architecture
 
   Method rules the auditor enforces
 
-         dimensioned and counted may feed a Mersco allowance as stated.
+         dimensioned and counted may feed a Contractor Co. allowance as stated.
          scaled must say so in the proposal text and carries a FIELD-verify note; it never
         becomes an order quantity without a site check.
          observed (from a photo) may name a condition and a location; it may never carry a
@@ -270,7 +270,7 @@ Bid Pipeline — Agent Team Architecture
 
 
 
-  CSI MasterFormat is the spine. Mersco already writes proposals by division (01 General
+  CSI MasterFormat is the spine. Contractor Co. already writes proposals by division (01 General
   Conditions, 03 Concrete, 05 Metals, 07 Thermal & Moisture, 09 Finishes, 31 Earthwork, 35
   Waterway & Marine). The Intake agent tags each source page with the divisions it
   touches; the orchestrator spawns one Takeoff and one Materials pass per division
@@ -289,7 +289,7 @@ Bid Pipeline — Agent Team Architecture
   permits, grain-handling OSHA 1910.272, FHA/condo rules) come from the same lookup,
   keyed by division and site type, with URLs stored in the ledger.
 
-  Customer requirements are a layer, not a rewrite. Chris's "keep the base bid simple"
+  Customer requirements are a layer, not a rewrite. The estimator's "keep the base bid simple"
   instruction, an owner's warranty choice, a PM's phasing note — these are customer rows
   that shape the base-vs-alternate split and the proposal's emphasis. They never change a
   spec figure. When they conflict with a spec, both rows print under Open Questions, which
@@ -372,7 +372,7 @@ Bid Pipeline — Agent Team Architecture
   instead of choosing.
 
 
-     Rule                                What it means in practice           Why it matters for Chris
+     Rule                                What it means in practice           Why it matters for the estimator
 
      Models extract, code                A model emits structured rows       A math error in a bid is a
      computes                            only ("bracket symbols counted:     margin error; code does not
@@ -402,7 +402,7 @@ Bid Pipeline — Agent Team Architecture
 
      Redundancy, not                     Each extraction runs 2–3 times      The pipeline never silently
      judgment                            (cheap on Haiku) and the fields     picks a winner on a figure that
-                                         are compared. Agreement             pays for Chris's week
+                                         are compared. Agreement             pays for the estimator's week
                                          passes; disagreement writes
                                           unverified and routes to a
                                          human
@@ -416,11 +416,11 @@ Bid Pipeline — Agent Team Architecture
 
 
 
-     Rule                                  What it means in practice            Why it matters for Chris
+     Rule                                  What it means in practice            Why it matters for the estimator
 
-     Rendered, not written                 Mersco's Format Example              Identical ledgers produce
-                                           paragraphs become a phrase           identical proposals; Mersco's
-                                           library keyed by division and        voice stays Mersco's
+     Rendered, not written                 Contractor Co.'s Format Example              Identical ledgers produce
+                                           paragraphs become a phrase           identical proposals; Contractor Co.'s
+                                           library keyed by division and        voice stays Contractor Co.'s
                                            task. The Scope Writer selects
                                            paragraphs and fills slots from
                                            the ledger; it composes no
@@ -435,7 +435,7 @@ Bid Pipeline — Agent Team Architecture
 
      Human release                         Output is a draft, a ledger, and a   The income stream has a
                                            diff against the previous run.       person at the gate
-                                           Chris releases; the pipeline
+                                           The estimator releases; the pipeline
                                            cannot
 
 
@@ -447,7 +447,7 @@ Bid Pipeline — Agent Team Architecture
   Permissioning
   Each agent is a service principal with one role and the minimum access that role needs.
   No agent sees everything, no agent can edit history, and the only principal who can
-  release a bid is Chris. Readers process untrusted documents, so they get no network and
+  release a bid is the estimator. Readers process untrusted documents, so they get no network and
   no free-text channel: a PDF or email carrying injected instructions has nothing to call out
   with and no way to talk to the orchestrator except through the schema.
 
@@ -498,18 +498,18 @@ Bid Pipeline — Agent Team Architecture
      Code and                      Codes & Regs,          Codes & Regs,           Auditor revalidates;
      product cache                 Materials, Auditor     Materials (append)      see freshness policy
 
-     Rate book and                 Pricing agent, Chris   Chris                   Scope Writer and
+     Rate book and                 Pricing agent, the estimator   The estimator                   Scope Writer and
      labor factors                                                                Readers never see
                                                                                   prices, so scope text
                                                                                   cannot leak margin
 
-     Proposal draft                Auditor, Chris         Scope Writer            Rendered from the
+     Proposal draft                Auditor, the estimator         Scope Writer            Rendered from the
                                                                                   ledger; the draft file is
                                                                                   regenerated, never
                                                                                   hand-edited by an
                                                                                   agent
 
-     Release to                    —                      Chris, by hand          Not a pipeline
+     Release to                    —                      The estimator, by hand          Not a pipeline
      customer                                                                     capability
 
 
@@ -523,11 +523,11 @@ Bid Pipeline — Agent Team Architecture
 
      Resource                      Read                Write                Notes
 
-     Prompts and                   All agents (their   Chris, via version   A prompt change is a
+     Prompts and                   All agents (their   The estimator, via version   A prompt change is a
      phrase library                own)                control              release, gated by
                                                                             golden tests
 
-     Audit log                     Chris               Every component,     Every model call: inputs
+     Audit log                     The estimator               Every component,     Every model call: inputs
                                                        append-only          hash, model ID, prompt
                                                                             version, output hash,
                                                                             cost
@@ -549,11 +549,11 @@ Bid Pipeline — Agent Team Architecture
 
   Human roles
 
-        Chris: release authority, rate book owner, approves prompt changes, answers
+        The estimator: release authority, rate book owner, approves prompt changes, answers
         unverified escalations.
         Field crew: fills FIELD rows through a form that writes measured rows with the
         person's name and date. They cannot change anything else.
-        Engineer or owner: never touches the system; their answers are entered by Chris as
+        Engineer or owner: never touches the system; their answers are entered by the estimator as
         customer rows with the message date.
 
 
@@ -660,7 +660,7 @@ Bid Pipeline — Agent Team Architecture
         fixed grid, link checks, arithmetic.
         Per-jurisdiction and per-manufacturer caches with the freshness policy above: the
         search is skipped, the fetch is not.
-        Cost per bid is a ledger field (tokens by agent, by model, in dollars), so Chris sees what
+        Cost per bid is a ledger field (tokens by agent, by model, in dollars), so the estimator sees what
         a bid cost to produce against what it is worth.
 
   For scale: producing the two test bids interactively with a frontier model cost about 8.5
@@ -710,7 +710,7 @@ Bid Pipeline — Agent Team Architecture
                                                                          resolves it and the resolution
                                                                          is cited
 
-     Customer list narrower              Chris's six-item base bid       Customer Requirements layer:
+     Customer list narrower              The estimator's six-item base bid       Customer Requirements layer:
      than spec                           omits garage doors, which       item included with a note, or
                                          the spec covers                 moved to an alternate, and the
                                                                          choice surfaced
@@ -766,7 +766,7 @@ Bid Pipeline — Agent Team Architecture
       rows. Re-run on the Nantucket and Ocean Beach packets; the rows must reproduce
       the figures in the two bids.
    3. Takeoff and Customer Requirements. Takeoff carries the derivation rule; Customer
-      Requirements carries the base-vs-alternate split. Scope Writer renders the Mersco
+      Requirements carries the base-vs-alternate split. Scope Writer renders the Contractor Co.
       template from rows.
 
 
@@ -779,26 +779,26 @@ Bid Pipeline — Agent Team Architecture
 
 
    4. Codes & Regulations and Materials. Web-fetching agents with URL-and-date storage.
-      Start with the three jurisdictions Mersco is licensed in (FL CGC, MD MHIC, DE) and
+      Start with the three jurisdictions Contractor Co. is licensed in (FL CGC, MD MHIC, DE) and
       the manufacturers in the current spec pool (Sherwin-Williams, Sika, Hilti, Euclid).
-   5. Pricing. Only after the above are audited clean on five real jobs. Mersco's rate book
+   5. Pricing. Only after the above are audited clean on five real jobs. Contractor Co.'s rate book
       becomes a Source Register entry like any other.
 
   Stack
 
         Orchestration: Claude Agent SDK with subagents per role; the orchestrator holds the
         plan, subagents hold narrow context.
-        Skills: one skill per reader type and one for the Mersco proposal template, so a new
+        Skills: one skill per reader type and one for the Contractor Co. proposal template, so a new
         document type or a template change is a skill edit, not a code change.
         Storage: job folder with sources/ (originals, never edited), register.csv ,
          ledger.csv , proposal.md , audit.log .
         Intake path: a watched mailbox or shared folder; a packet is a folder, a bid is a run.
 
-  What Chris has to supply
+  What the estimator has to supply
 
-        The Mersco proposal template as a file (the Format Example PDF looks like a Word
+        The Contractor Co. proposal template as a file (the Format Example PDF looks like a Word
         export plus a pricing system export; the Word side is what the Scope Writer needs).
-        Mersco's rate book and labor factors, when pricing is added.
+        Contractor Co.'s rate book and labor factors, when pricing is added.
         Three to five past bids with their packets, to use as regression tests.
         A ruling on scaled dimensions: never order from them, or order with a stated tolerance.
         License numbers and the jurisdictions he actually bids in, for the Codes agent's lookup

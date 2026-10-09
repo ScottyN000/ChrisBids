@@ -22,9 +22,9 @@ flowchart TD
     customer["<b>Customer Reqs</b><br/>base vs alternates<br/><i>planned</i>"]
     ledger[("<b>Claim ledger</b><br/>value, source, locator, method, derivation, audit result")]
     scope_writer["<b>Scope Writer</b><br/>reads the ledger only<br/><i>built</i>"]
-    draft[("<b>Proposal draft</b><br/>Mersco division format")]
+    draft[("<b>Proposal draft</b><br/>Contractor Co. division format")]
     auditor["<b>Auditor</b><br/>opens every cited source<br/><i>built</i>"]
-    ships(["<b>Bid ships</b><br/>with ledger and audit log; Chris releases by hand<br/><i>human</i>"])
+    ships(["<b>Bid ships</b><br/>with ledger and audit log; the estimator releases by hand<br/><i>human</i>"])
     packet --> intake
     intake --> register
     register --> orchestrator
@@ -81,7 +81,7 @@ flowchart TD
 | Scope Writer | built | 3 | scope_writer | [`pipeline/scope_writer.py`](../pipeline/scope_writer.py) |
 | Proposal draft | data | — | — | — |
 | Auditor | built | 1 | auditor | [`pipeline/auditor.py`](../pipeline/auditor.py) |
-| Bid ships | human | — | chris | — |
+| Bid ships | human | — | estimator | — |
 
 Status key: **built** is in the repo and tested; **replay-only** is built and tested on recorded model output
 with no live model call yet; **planned** is in the architecture doc but not built; **human** is a person's

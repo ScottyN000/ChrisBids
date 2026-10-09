@@ -31,7 +31,7 @@ MATRIX = {
     "auditor": (F(), None, None, False, True, False, True, False),
     "pricing": (F(), None, F(), False, False, True, False, False),
     "field_crew": (F({"dimensioned"}), F({"quantity"}), F(), False, False, False, False, True),
-    "chris": (F(), None, None, False, False, True, False, False),
+    "estimator": (F(), None, None, False, False, True, False, False),
 }
 
 

@@ -112,10 +112,10 @@ class GoldenCase(unittest.TestCase):
         self.assertGreater(len(opened), 20)
         self.assertEqual(report.failures, [])
         # Every committed file matches its register hash. The only problems are
-        # the Mersco documents no reader cites, which the repo does not carry.
+        # the Contractor Co. documents no reader cites, which the repo does not carry.
         self.assertEqual(sorted(report.hash_problems), sorted(
             f"{sid}: source/{name} is in the register but not in the packet" for sid, name in (
-                ("PFE", "mersco_proposal-format-example.pdf"),
+                ("PFE", "contractor_proposal-format-example.pdf"),
                 ("ARCH", "bid-pipeline-architecture_2026-10-07.pdf"),
                 ("OBV-TB", "ocean-beach-villas-repaint_scope-and-materials_2026-10-07.pdf"),
             )))

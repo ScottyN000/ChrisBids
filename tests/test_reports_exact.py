@@ -1,7 +1,7 @@
 """Exact text of the run reports and exports, and the broker's secret rule.
 
 Written to kill surviving mutants in ReadResult.text, Comparison.text,
-Ledger.register_csv / audit_json and Broker.secret: these are what Chris and
+Ledger.register_csv / audit_json and Broker.secret: these are what the estimator and
 the CI log read, so a change to them should be a change someone made on purpose.
 """
 import json
@@ -108,7 +108,7 @@ class SecretCase(unittest.TestCase):
     def test_secrets(self):
         env = {"CHRISBIDS_RATE_BOOK": "/books/rates.csv", "CHRISBIDS_API_KEY": "k"}
         with mock.patch.dict(os.environ, env):
-            for who in ("pricing", "chris"):
+            for who in ("pricing", "estimator"):
                 b = self.as_(who)
                 self.assertEqual(b.secret("CHRISBIDS_RATE_BOOK"), "/books/rates.csv")
                 b.close()
@@ -124,29 +124,29 @@ class SecretCase(unittest.TestCase):
                 b.secret("HOME")
             b.close()
         with mock.patch.dict(os.environ, {}, clear=True):
-            b = self.as_("chris")
+            b = self.as_("estimator")
             self.assertEqual(b.secret("CHRISBIDS_API_KEY"), "")
             self.assertEqual(b.secret("ANTHROPIC_API_KEY"), "")
             b.close()
 
-    def test_the_anthropic_key_falls_back_to_its_mersco_name_only_when_unset(self):
-        with mock.patch.dict(os.environ, {"MERSCO_ANTHROPIC_API_KEY": "m"}, clear=True):
+    def test_the_anthropic_key_falls_back_to_its_bids_name_only_when_unset(self):
+        with mock.patch.dict(os.environ, {"BIDS_ANTHROPIC_API_KEY": "m"}, clear=True):
             b = self.as_("intake")
             self.assertEqual(b.secret("ANTHROPIC_API_KEY"), "m")
             b.close()
-        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "a", "MERSCO_ANTHROPIC_API_KEY": "m"}, clear=True):
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "a", "BIDS_ANTHROPIC_API_KEY": "m"}, clear=True):
             b = self.as_("intake")
             self.assertEqual(b.secret("ANTHROPIC_API_KEY"), "a")
             b.close()
-        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "", "MERSCO_ANTHROPIC_API_KEY": "m"}, clear=True):
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "", "BIDS_ANTHROPIC_API_KEY": "m"}, clear=True):
             b = self.as_("intake")
             self.assertEqual(b.secret("ANTHROPIC_API_KEY"), "m")
             b.close()
-        with mock.patch.dict(os.environ, {"MERSCO_ANTHROPIC_API_KEY": "m"}, clear=True):
+        with mock.patch.dict(os.environ, {"BIDS_ANTHROPIC_API_KEY": "m"}, clear=True):
             b = self.as_("intake")
             self.assertEqual(b.secret("CHRISBIDS_API_KEY"), "")   # no fallback for other secrets
-            with self.assertRaisesRegex(LedgerError, "^MERSCO_ANTHROPIC_API_KEY is not a broker secret"):
-                b.secret("MERSCO_ANTHROPIC_API_KEY")               # only reachable through its alias
+            with self.assertRaisesRegex(LedgerError, "^BIDS_ANTHROPIC_API_KEY is not a broker secret"):
+                b.secret("BIDS_ANTHROPIC_API_KEY")               # only reachable through its alias
             b.close()
 
 

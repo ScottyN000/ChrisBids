@@ -54,7 +54,7 @@ class BrokerStampsCase(unittest.TestCase):
         reader = self.intake.as_principal("photo_reader", agent_label="photo reader")
         row = reader.append(claim(claim_id="P-001", method="observed", confidence="inferred", value="",
                                   value_num=None, unit="", statement="peeling",
-                                  agent="Chris Turner", timestamp="2020-01-01T00:00:00Z"))
+                                  agent="Estimator", timestamp="2020-01-01T00:00:00Z"))
         self.assertEqual(row.agent, "photo reader")
         self.assertEqual(row.timestamp, "2026-10-07T00:00:00Z")
 
@@ -63,7 +63,7 @@ class BrokerStampsCase(unittest.TestCase):
         db = sqlite3.connect(self.intake.ledger.path)
         for sql in ("UPDATE claims SET principal = 'auditor'",
                     "UPDATE register SET status = 'present'",
-                    "UPDATE audit_log SET principal = 'chris'"):
+                    "UPDATE audit_log SET principal = 'estimator'"):
             with self.subTest(sql=sql), self.assertRaises(sqlite3.DatabaseError):
                 db.execute(sql)
         db.close()

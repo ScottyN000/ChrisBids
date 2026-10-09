@@ -1,6 +1,6 @@
 """Scope Writer: the proposal, selected by a model and rendered by code (architecture p.4, p.10, p.13).
 
-The Scope Writer reads the claim ledger and the Mersco phrase library and
+The Scope Writer reads the claim ledger and the Contractor Co. phrase library and
 nothing else: no document, no price (p.11). Its model's one job is to select:
 which rows and which library phrases go in which division, grouped into tasks,
 with which allowance rows and which exclusion and terms phrases. It composes no
@@ -11,7 +11,7 @@ proposal except through a ledger row or a library phrase.
 Code checks every layout against the ledger and the library and discards one
 that breaks a rule. The layout is read `repeats` times; the runs must agree on
 what goes where (order and titles aside), or nothing is rendered: a choice
-between two layouts is Chris's, not code's. The agreed layout is rendered by
+between two layouts is the estimator's, not code's. The agreed layout is rendered by
 `proposal.render`, the same code that renders the golden fixtures, and the
 Auditor's orphan check runs on the result.
 """
@@ -38,7 +38,7 @@ NAME = "scope_writer"
 PRINCIPAL = "scope_writer"
 
 # Section titles, as the Proposal Format Example and the two test bids write
-# them. A division with no title here cannot be placed until Chris's template
+# them. A division with no title here cannot be placed until the estimator's template
 # names it; its rows are reported unplaced, never dropped silently.
 DIVISION_TITLES = {
     "01": "Division 01 General Conditions",
@@ -403,7 +403,7 @@ def render(layout: dict, claims: list[Claim], phrases: dict[str, dict], broker: 
         "proposal": to_fixture_layout(layout),
         "rows": rows,
         "status_line": broker.ledger.meta("status_line") or "Draft rendered from the claim ledger. Not priced. "
-                                                             "Not released: only Chris releases a bid.",
+                                                             "Not released: only the estimator releases a bid.",
         "codes_note": broker.ledger.meta("codes_note"),
     }
     return proposal.render(data, {r["id"]: r for r in rows}, phrases, broker.ledger.register())

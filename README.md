@@ -35,12 +35,14 @@ docker compose run --rm pipeline verify-fixtures --out /runs/verify
 CHRISBIDS_PACKET=/mnt/project-files docker compose run --rm tests
 ```
 
-Mutation testing, which CI runs on every PR that touches `pipeline/` or `tests/`
-([`.github/workflows/mutation.yml`](.github/workflows/mutation.yml)):
+Mutation testing ([`.github/workflows/mutation.yml`](.github/workflows/mutation.yml)). On a
+PR, CI runs only the mutants in the `pipeline/` modules the PR changes; a weekly run on
+main runs them all:
 
 ```
 pip install pytest mutmut
 python3 -m mutmut run                     # small edits to pipeline/, the tests run against each
+python3 -m mutmut run $(python3 tools/changed_mutants.py origin/main)   # only this branch's modules
 python3 -m mutmut results                 # the mutants no test caught
 python3 -m mutmut export-cicd-stats && python3 tools/mutation_gate.py
 ```

@@ -458,6 +458,21 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, rows).flag, "")
         self.assertEqual(takeoff.symbol_notes(it("Anchors", f"{{{ANCH}}} * {{{other.claim_id}}}", 21), rows), [])
 
+    def test_a_dimension_the_runs_labelled_differently_flags_the_item_unless_the_symbols_confirm_it(self):
+        worded = reader_row(END, 11, "in", "Top wall segment / First bracket from the wall face")
+        worded = Claim(**{**worded.__dict__, "derivation": "11\" dimension string = 11 in; runs word the label differently"})
+        rows = dict(BY_ID, **{END: worded})
+        c = takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, rows)
+        self.assertEqual((c.flag, c.derivation), (
+            "unverified", f"3 x ((182 - 2 x 11) / 32 + 1) = 18; uses {END}, whose label the runs word differently"))
+        self.assertEqual(takeoff.label_notes(it("Spaces", SPACES, 5, "spaces"), rows),
+                         [f"uses {END}, whose label the runs word differently"])
+        six = reader_row("NAN-DR-FND-04", 6, "each", "Bracket symbols drawn", method="counted")
+        self.assertEqual(takeoff.label_notes(self.ANCHORS, {**rows, six.claim_id: six}), [])
+        self.assertEqual(takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, {**rows, six.claim_id: six}).flag, "")
+        self.assertEqual(len(takeoff.label_notes(self.ANCHORS, {**rows, self.SYMBOLS.claim_id: self.SYMBOLS})), 1)
+        self.assertEqual(takeoff.label_notes(self.ANCHORS, BY_ID), [])
+
     def test_only_symbols_of_the_assembly_the_rows_are_per_are_compared(self):
         piers = reader_row("NAN-DR-FND-05", 2, "each", "New pier symbols drawn", method="counted")
         rows = dict(BY_ID, **{r.claim_id: r for r in (self.SYMBOLS, piers)})

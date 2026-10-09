@@ -41,7 +41,9 @@ class DrawingCase(unittest.TestCase):
         (v,) = vote("drawing", runs)
         self.assertEqual((v.seen, v.status, v.labels), (3, "agree", ["Top wall segment: 11\"", "First bracket from the wall face"]))
         c = one("drawing", FND, v)
-        self.assertEqual((c.statement, c.flag), ("Top wall segment: 11\" / First bracket from the wall face: 11\"", ""))
+        self.assertEqual((c.statement, c.flag, c.derivation), (
+            "Top wall segment: 11\" / First bracket from the wall face: 11\"", "",
+            "11\" dimension string = 11 in; runs word the label differently"))
         (v,) = vote("drawing", [[item("count", "Brackets", count=6, unit="each")],
                                 [item("count", "Bracket symbols", count=6, unit="each")]])
         self.assertEqual((v.labels, one("drawing", FND, v).statement), ([], "Brackets"))

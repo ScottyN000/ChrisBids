@@ -18,7 +18,10 @@ A number of assemblies comes from the dimension strings (run, spacing, end
 offsets), never from the symbols drawn; code compares the two. When a counted
 symbol row on the view the dimensions came from (one that counts what the
 per-assembly rows are per) disagrees with the number the dimensions give, every item resting on that number is flagged unverified with
-both figures in its derivation (determinism: keep both, never pick).
+both figures in its derivation (determinism: keep both, never pick). An item
+resting on a dimension whose runs worded the label differently is flagged the
+same way, unless an agreeing symbol row confirms the number, because the model
+chose which wording to follow.
 """
 from __future__ import annotations
 
@@ -30,7 +33,7 @@ from . import schema
 from .broker import Broker
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
-from .readers.rows import Unit
+from .readers.rows import DIFFERING_LABELS, Unit
 from .schema import Claim, LedgerError
 
 NAME = "takeoff"
@@ -213,27 +216,44 @@ def assembly_names(by_id: dict[str, Claim]) -> list[str]:
     return _join(c.unit[4:].strip().lower() for c in by_id.values() if c.unit.startswith("per "))
 
 
-def symbol_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
-    """One note per counted symbol row, on a view the item's dimensions came from, that disagrees
-    with the number of assemblies those dimensions give. Both figures stay on the ledger.
-
-    A symbol row counts the assembly when its statement names what the per-assembly
-    rows are per; a view's other symbols (a pier beside the brackets) are not compared.
-    When no row is per anything, every symbol count on the view is compared.
+def symbol_rows(item: dict, by_id: dict[str, Claim]) -> list[Claim]:
+    """The counted symbol rows that count the item's assemblies: on a view the item's
+    dimensions came from, naming what the per-assembly rows are per (a pier beside the
+    brackets is not one). When no row is per anything, every symbol count on the view.
     """
-    n = assemblies(item, by_id)
-    if n is None:
-        return []
     refs = schema.CALC_REF.findall(item["calc"])
     views = {(by_id[r].source_id, by_id[r].locator) for r in refs if by_id[r].method == "dimensioned"}
     names = assembly_names(by_id)
     return [
-        f"{c.claim_id} counts {c.value} symbols where the dimensions give {_num(n)}"
-        for c in by_id.values()
+        c for c in by_id.values()
         if c.method == "counted" and c.unit == "each" and (c.source_id, c.locator) in views
         and (not names or any(name in c.statement.lower() for name in names))
-        and abs(c.value_num - n) > 1e-9
     ]
+
+
+def symbol_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
+    """One note per symbol row that disagrees with the number of assemblies the item's
+    dimensions give. Both figures stay on the ledger."""
+    n = assemblies(item, by_id)
+    if n is None:
+        return []
+    return [
+        f"{c.claim_id} counts {c.value} symbols where the dimensions give {_num(n)}"
+        for c in symbol_rows(item, by_id) if abs(c.value_num - n) > 1e-9
+    ]
+
+
+def label_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
+    """A note when the item rests on a dimension whose runs worded the label differently,
+    since the model then chose which wording to follow; none when a symbol row on the
+    view agrees with the number the dimensions give, which confirms the choice."""
+    used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
+    differing = [c.claim_id for c in used if DIFFERING_LABELS in c.derivation]
+    if not differing:
+        return []
+    if assemblies(item, by_id) is not None and symbol_rows(item, by_id) and not symbol_notes(item, by_id):
+        return []
+    return [f"uses {', '.join(differing)}, whose label the runs word differently"]
 
 
 def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str, Claim]) -> Claim:
@@ -245,6 +265,7 @@ def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[s
     if shaky:
         notes.append(f"uses flagged {', '.join(shaky)}")
     notes.extend(symbol_notes(item, by_id))
+    notes.extend(label_notes(item, by_id))
     shown = derivation(item["calc"], by_id)
     sources = _join(s for c in used for s in schema.sources_of(c.source_id))
     return Claim(

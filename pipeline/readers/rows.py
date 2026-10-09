@@ -146,11 +146,16 @@ def _base(claim_id: str, src: Unit, **kw) -> Claim:
     return Claim(claim_id=claim_id, source_id=src.source_id, locator=src.locator, tag=src.tag, **kw)
 
 
+DIFFERING_LABELS = "runs word the label differently"
+
+
 def _drawing(claim_id: str, unit: Unit, v: Voted, flag: str, note: str) -> Claim:
     it = v.item
     kind, label = it["kind"], it["label"].strip()
     if kind == "dimension":
         label = v.label or label
+        if len(v.labels) > 1:
+            note = "; ".join(filter(None, [note, DIFFERING_LABELS]))
         texts = v.readings.get("text")
         if texts:
             return _base(claim_id, unit, statement=f"{label}: {_readings(texts)}", method="dimensioned",

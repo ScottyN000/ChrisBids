@@ -15,6 +15,14 @@
   --ledger: #2f7d4f;      /* filing-cabinet green */
   --warn: #b3261e;
   --ink: #1f4e79;         /* blueprint ink */
+  --wall: #d6dde6;        /* the back wall */
+  --plank: #d9b98a;       /* floor boards */
+  --plank2: #cfae7e;
+  --wood: #a9743f;        /* desks */
+  --steel: #8d99a6;       /* trays, handles */
+  --skin: #f1c9a5;
+  --vest: #ff8a1f;        /* hi-vis */
+  --paper: #fbf7ea;
   --display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -23,11 +31,13 @@
   :root:not([data-theme="light"]) {
     --bg: #0f151c; --floor: #161e27; --panel: #1b2530; --line: #2f3d4b; --fg: #e6ecf2; --muted: #93a3b3;
     --accent: #ff8a3d; --ledger: #4fb076; --warn: #ff6b60; --ink: #7fb3e6; color-scheme: dark;
+    --wall: #243040; --plank: #5a4634; --plank2: #4f3d2d; --wood: #7a5230; --steel: #6b7886; --skin: #e0b48e; --vest: #ff8a1f; --paper: #efe8d6;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f151c; --floor: #161e27; --panel: #1b2530; --line: #2f3d4b; --fg: #e6ecf2; --muted: #93a3b3;
   --accent: #ff8a3d; --ledger: #4fb076; --warn: #ff6b60; --ink: #7fb3e6; color-scheme: dark;
+  --wall: #243040; --plank: #5a4634; --plank2: #4f3d2d; --wood: #7a5230; --steel: #6b7886; --skin: #e0b48e; --vest: #ff8a1f; --paper: #efe8d6;
 }
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.4; }
@@ -44,7 +54,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .file { position: relative; overflow: hidden; }
 .file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 10px; flex: 1; min-height: 0; }
-.floorbox { background: var(--floor); border: 1px solid var(--line); border-radius: 10px; position: relative; min-width: 0; min-height: 420px; overflow: hidden; }
+.floorbox { background: var(--floor); border: 1px solid var(--line); border-radius: 10px; position: relative; min-width: 0; min-height: 520px; overflow: hidden; overflow-x: auto; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15), 0 10px 30px -18px rgba(0,0,0,0.45); }
 canvas { display: block; width: 100%; height: 100%; }
 .caption { position: absolute; left: 12px; bottom: 10px; font-family: var(--mono); font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--floor) 80%, transparent); padding: 2px 6px; border-radius: 4px; max-width: calc(100% - 24px); }
 aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -65,7 +75,7 @@ td.n, th.n { text-align: right; font-family: var(--mono); }
 .pill.hot { border-color: var(--accent); color: var(--accent); }
 footer { color: var(--muted); font-size: 12px; }
 footer a { color: var(--ink); }
-@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } .floorbox { min-height: 360px; } }
+@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } .floorbox { min-height: 460px; } .caption { position: sticky; left: 12px; } }
 @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
 </style>
 
@@ -123,24 +133,24 @@ footer a { color: var(--ink); }
 
   // ---- the floor plan: stations on a 1000 x 560 grid, scaled to the canvas ----
   const PLAN = {
-    packet:        { x: 60,  y: 100, kind: 'tray',   name: 'Bid packet' },
-    intake:        { x: 180, y: 100, kind: 'desk',   name: 'Intake',        hat: 'yellow' },
-    register:      { x: 300, y: 100, kind: 'tray',   name: 'Source Register' },
-    orchestrator:  { x: 420, y: 100, kind: 'board',  name: 'Orchestrator',  hat: 'white' },
-    drawing:       { x: 560, y: 60,  kind: 'desk',   name: 'Drawing Reader', hat: 'orange' },
-    spec:          { x: 560, y: 150, kind: 'desk',   name: 'Spec Reader',    hat: 'orange' },
-    photo:         { x: 560, y: 240, kind: 'desk',   name: 'Photo Reader',   hat: 'orange' },
-    correspondence:{ x: 560, y: 330, kind: 'desk',   name: 'Correspondence', hat: 'orange' },
-    takeoff:       { x: 720, y: 100, kind: 'bench',  name: 'Takeoff',        hat: 'blue' },
-    codes:         { x: 720, y: 210, kind: 'desk',   name: 'Codes & Regs',   hat: 'blue' },
-    materials:     { x: 720, y: 300, kind: 'desk',   name: 'Materials',      hat: 'blue' },
-    customer:      { x: 720, y: 390, kind: 'desk',   name: 'Customer Reqs',  hat: 'blue', planned: true },
-    ledger:        { x: 430, y: 460, kind: 'cabinet',name: 'Claim ledger' },
-    scope_writer:  { x: 600, y: 470, kind: 'desk',   name: 'Scope Writer',   hat: 'green' },
-    auditor:       { x: 760, y: 470, kind: 'desk',   name: 'Auditor',        hat: 'white' },
-    ships:         { x: 920, y: 470, kind: 'door',   name: 'Bid ships' },
+    packet:        { x: 70,  y: 200, kind: 'tray',   name: 'Bid packet' },
+    intake:        { x: 180, y: 190, kind: 'desk',   name: 'Intake',        hat: 'yellow' },
+    register:      { x: 300, y: 200, kind: 'tray',   name: 'Source Register' },
+    orchestrator:  { x: 410, y: 190, kind: 'desk',   name: 'Orchestrator',  hat: 'white' },
+    drawing:       { x: 560, y: 160, kind: 'desk',   name: 'Drawing Reader', hat: 'orange' },
+    spec:          { x: 560, y: 250, kind: 'desk',   name: 'Spec Reader',    hat: 'orange' },
+    photo:         { x: 560, y: 340, kind: 'desk',   name: 'Photo Reader',   hat: 'orange' },
+    correspondence:{ x: 560, y: 430, kind: 'desk',   name: 'Correspondence', hat: 'orange' },
+    takeoff:       { x: 740, y: 170, kind: 'bench',  name: 'Takeoff',        hat: 'blue' },
+    codes:         { x: 740, y: 270, kind: 'desk',   name: 'Codes & Regs',   hat: 'blue' },
+    materials:     { x: 740, y: 360, kind: 'desk',   name: 'Materials',      hat: 'blue' },
+    customer:      { x: 740, y: 450, kind: 'desk',   name: 'Customer Reqs',  hat: 'blue', planned: true },
+    ledger:        { x: 330, y: 500, kind: 'cabinet',name: 'Claim ledger' },
+    scope_writer:  { x: 150, y: 420, kind: 'desk',   name: 'Scope Writer',   hat: 'green' },
+    auditor:       { x: 150, y: 530, kind: 'desk',   name: 'Auditor',        hat: 'white' },
+    ships:         { x: 920, y: 530, kind: 'door',   name: 'Bid ships' },
   };
-  const HAT = { yellow: '#f2c200', white: '#f4f4f4', orange: null, blue: '#3b7dd8', green: '#3fa66a' };
+  const HAT = { yellow: '#f2c200', white: '#f4f4f4', orange: null, blue: '#3b7dd8', green: '#3fa66a' };   // null: the accent colour
 
   // ---- playback state ----
   let run = null, events = [], cursor = 0, playing = false, speed = 1, raf = 0, last = 0;
@@ -278,109 +288,258 @@ footer a { color: var(--ink); }
     }
   }
 
-  // ---- drawing ----
+  // ---- drawing: an oblique view of the shop, every object a small box with a top and a front ----
   const cv = $('floor'); const ctx = cv.getContext('2d');
   function fit() {
+    // on a phone the floor keeps a readable size and scrolls sideways inside its box
     const box = cv.parentElement.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
-    cv.width = Math.round(box.width * dpr); cv.height = Math.round(box.height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); cv._w = box.width; cv._h = box.height;
+    const w = Math.max(box.width, window.innerWidth < 860 ? 820 : 0), h = box.height;
+    cv.style.width = w + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); cv._w = w; cv._h = h;
   }
   function pos(st) { const p = PLAN[st] || { x: 500, y: 280 }; const s = Math.min(cv._w / 1000, cv._h / 560); const ox = (cv._w - 1000 * s) / 2, oy = (cv._h - 560 * s) / 2; return { x: ox + p.x * s, y: oy + p.y * s, s }; }
   function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+  const DEPTH = 0.55;                 // the receding axis goes up and to the right, this much per unit
+  function shade(hex, k) {            // k > 0 lighter, k < 0 darker
+    const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    const f = c => Math.max(0, Math.min(255, Math.round(k > 0 ? c + (255 - c) * k : c * (1 + k))));
+    return `rgb(${f(r)},${f(g)},${f(b)})`;
+  }
+  function poly(pts) { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); }
+  // a box standing on the floor: front-bottom centre at (x, y), width w, depth d, height h
+  function box3d(x, y, w, d, h, color, edge) {
+    const dx = d * DEPTH, dy = -d * DEPTH;
+    ctx.fillStyle = shade(color, 0.28); poly([[x - w / 2, y - h], [x + w / 2, y - h], [x + w / 2 + dx, y - h + dy], [x - w / 2 + dx, y - h + dy]]); ctx.fill();
+    ctx.fillStyle = shade(color, -0.3); poly([[x + w / 2, y - h], [x + w / 2 + dx, y - h + dy], [x + w / 2 + dx, y + dy], [x + w / 2, y]]); ctx.fill();
+    ctx.fillStyle = color; ctx.fillRect(x - w / 2, y - h, w, h);
+    if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.strokeRect(x - w / 2, y - h, w, h); poly([[x - w / 2, y - h], [x + w / 2, y - h], [x + w / 2 + dx, y - h + dy], [x - w / 2 + dx, y - h + dy]]); ctx.stroke(); }
+  }
+  function shadow(x, y, rx, ry, a) { ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fill(); }
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  let C = {};                                   // the palette, read from CSS each frame
+  function palette() {
+    C = { fg: css('--fg'), muted: css('--muted'), line: css('--line'), accent: css('--accent'), ledger: css('--ledger'), warn: css('--warn'), ink: css('--ink'), panel: css('--panel'), floor: css('--floor'),
+          wall: css('--wall'), plank: css('--plank'), plank2: css('--plank2'), wood: css('--wood'), steel: css('--steel'), skin: css('--skin'), vest: css('--vest'), paper: css('--paper'), dark: css('--bg') };
+  }
+
+  function drawFloor(s) {
+    const W = cv._w, H = cv._h, wallH = Math.min(96 * s, H * 0.2);
+    // back wall with a window strip and the shop sign
+    ctx.fillStyle = C.wall; ctx.fillRect(0, 0, W, wallH);
+    ctx.fillStyle = shade(C.wall, -0.18); ctx.fillRect(0, wallH - 6 * s, W, 6 * s);      // skirting
+    for (let x = 60 * s; x < W - 320 * s; x += 150 * s) {                                  // windows, clear of the sign
+      ctx.fillStyle = shade(C.ink, 0.55); ctx.fillRect(x, 14 * s, 70 * s, wallH - 36 * s);
+      ctx.strokeStyle = shade(C.wall, -0.3); ctx.lineWidth = 2; ctx.strokeRect(x, 14 * s, 70 * s, wallH - 36 * s);
+      ctx.beginPath(); ctx.moveTo(x + 35 * s, 14 * s); ctx.lineTo(x + 35 * s, wallH - 22 * s); ctx.moveTo(x, (14 * s + wallH - 22 * s) / 2); ctx.lineTo(x + 70 * s, (14 * s + wallH - 22 * s) / 2); ctx.stroke();
+    }
+    ctx.fillStyle = C.accent; roundRect(W - 230 * s, 16 * s, 190 * s, 38 * s, 4 * s); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(12, 20 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('CONTRACTOR CO. BID SHOP', W - 135 * s, 35 * s); ctx.textBaseline = 'top';
+    // floor planks, darker toward the back
+    const rows = Math.ceil((H - wallH) / (22 * s));
+    for (let i = 0; i < rows; i++) {
+      const y = wallH + i * 22 * s; const far = 1 - i / rows;
+      ctx.fillStyle = shade(i % 2 ? C.plank : C.plank2, -0.18 * far); ctx.fillRect(0, y, W, 22 * s);
+      ctx.strokeStyle = shade(C.plank, -0.25); ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+      const off = (i % 3) * 110 * s; for (let x = off; x < W; x += 330 * s) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 22 * s); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+    }
+    // walkways between the stations, painted on the floor
+    ctx.strokeStyle = shade(C.plank, -0.35); ctx.lineWidth = 7 * s; ctx.lineCap = 'round'; ctx.globalAlpha = 0.35;
+    for (const e of run.edges || []) { if (!PLAN[e.from] || !PLAN[e.to]) continue; const a = pos(e.from), b = pos(e.to); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    ctx.globalAlpha = 1; ctx.lineCap = 'butt';
+    ctx.strokeStyle = C.accent; ctx.lineWidth = 1.2 * s; ctx.setLineDash([5 * s, 9 * s]); ctx.globalAlpha = 0.5;
+    for (const e of run.edges || []) { if (!PLAN[e.from] || !PLAN[e.to]) continue; const a = pos(e.from), b = pos(e.to); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+  }
 
   function draw() {
     if (!run) return;
-    const fg = css('--fg'), muted = css('--muted'), line = css('--line'), accent = css('--accent'), ledger = css('--ledger'), warn = css('--warn'), ink = css('--ink'), panel = css('--panel'), floor = css('--floor');
+    palette();
     ctx.clearRect(0, 0, cv._w, cv._h);
     const s = pos('intake').s;
-    // floor grid, like a drafting sheet
-    ctx.strokeStyle = line; ctx.lineWidth = 0.5; ctx.globalAlpha = 0.5;
-    for (let x = 0; x < cv._w; x += 40 * s) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cv._h); ctx.stroke(); }
-    for (let y = 0; y < cv._h; y += 40 * s) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cv._w, y); ctx.stroke(); }
-    ctx.globalAlpha = 1;
-    // routes
-    ctx.strokeStyle = line; ctx.lineWidth = 2 * s; ctx.setLineDash([6 * s, 6 * s]);
-    for (const e of run.edges || []) { if (!PLAN[e.from] || !PLAN[e.to]) continue; const a = pos(e.from), b = pos(e.to); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-    ctx.setLineDash([]);
-    // stations
+    drawFloor(s);
+    const items = [];                     // everything on the floor, sorted by its foot so nearer things draw later
     for (const st in PLAN) {
       const p = PLAN[st], q = pos(st); const w = workers[st] || {};
       const busy = (w.busy || 0) > clock, flash = (w.flash || 0) > clock;
-      ctx.font = `${Math.max(10, 13 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      if (p.kind === 'cabinet') {
-        drawCabinet(q.x, q.y, s, ledger, panel, fg, (run.claims || []).length, countDone());
-      } else if (p.kind === 'door') {
-        ctx.fillStyle = panel; ctx.strokeStyle = fg; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 22 * s, q.y - 40 * s, 44 * s, 70 * s); ctx.strokeRect(q.x - 22 * s, q.y - 40 * s, 44 * s, 70 * s);
-        ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(q.x + 14 * s, q.y - 2 * s, 3 * s, 0, 7); ctx.fill();
-        ctx.fillStyle = muted; ctx.fillText('the estimator releases by hand', q.x, q.y + 34 * s);
-      } else if (p.kind === 'tray') {
-        ctx.fillStyle = panel; ctx.strokeStyle = ink; ctx.lineWidth = 1.5; ctx.fillRect(q.x - 30 * s, q.y - 14 * s, 60 * s, 28 * s); ctx.strokeRect(q.x - 30 * s, q.y - 14 * s, 60 * s, 28 * s);
-        const n = st === 'register' ? countRegistered() : 0;
-        for (let i = 0; i < Math.min(n, 8); i++) { ctx.fillStyle = i % 2 ? panel : floor; ctx.strokeStyle = muted; ctx.lineWidth = 1; ctx.fillRect(q.x - 24 * s + i * 2 * s, q.y - 10 * s - i * 1.5 * s, 46 * s, 20 * s); ctx.strokeRect(q.x - 24 * s + i * 2 * s, q.y - 10 * s - i * 1.5 * s, 46 * s, 20 * s); }
-        if (st === 'register' && n) { ctx.fillStyle = fg; ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.fillText(String(n), q.x, q.y - 6 * s); }
-      } else {
-        // a desk with a worker behind it
-        const dim = p.planned && !(stacks[st] && stacks[st].size);
-        ctx.globalAlpha = dim ? 0.35 : 1;
-        ctx.fillStyle = panel; ctx.strokeStyle = flash ? warn : (busy ? accent : line); ctx.lineWidth = busy || flash ? 2.5 : 1.5;
-        roundRect(q.x - 34 * s, q.y - 8 * s, 68 * s, 22 * s, 4 * s); ctx.fill(); ctx.stroke();
-        drawWorker(q.x, q.y - 26 * s, s, p.hat, busy, clock, fg, accent, panel);
-        // waiting packets beside the desk
-        const waiting = stacks[st] ? stacks[st].size : 0;
-        for (let i = 0; i < Math.min(waiting, 6); i++) { ctx.fillStyle = floor; ctx.strokeStyle = muted; ctx.lineWidth = 1; ctx.fillRect(q.x + 40 * s, q.y + 6 * s - i * 5 * s, 16 * s, 11 * s); ctx.strokeRect(q.x + 40 * s, q.y + 6 * s - i * 5 * s, 16 * s, 11 * s); }
-        if (waiting > 6) { ctx.fillStyle = muted; ctx.font = `${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.fillText('+' + (waiting - 6), q.x + 58 * s, q.y - 24 * s); ctx.textAlign = 'center'; }
-        if (busy && w.bubble) bubble(q.x, q.y - 62 * s, s, w.bubble, panel, fg, line);
-        ctx.globalAlpha = 1;
-      }
-      ctx.fillStyle = fg; ctx.font = `${Math.max(10, 13 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center';
-      ctx.fillText(p.name.toUpperCase(), q.x, q.y + (p.kind === 'cabinet' ? 60 : p.kind === 'door' ? 44 : 18) * s);
+      items.push({ y: q.y, fn: () => drawStation(st, p, q, s, w, busy, flash) });
+      if (busy || flash) items.push({ y: 1e9, fn: () => { if (w.bubble) bubble(q.x, q.y - (p.kind === 'bench' ? 96 : 92) * s, s, flash ? 'REFUSED by the broker' : w.bubble, flash); } });
     }
-    // flying slips
     for (let i = slips.length - 1; i >= 0; i--) {
       const sl = slips[i]; const t = (clock - sl.t0) / (sl.t1 - sl.t0);
       if (t >= 1.3) { slips.splice(i, 1); continue; }
       const a = pos(sl.from), b = pos(sl.to); let k = ease(Math.min(1, Math.max(0, t)));
-      if (sl.kind === 'bounce' && t > 0.5) k = ease(1 - (t - 0.5)) ;
-      const x = a.x + (b.x - a.x) * k, y = a.y + (b.y - a.y) * k - Math.sin(Math.PI * Math.min(1, k)) * 18 * s;
-      ctx.save(); ctx.translate(x, y); ctx.rotate((k - 0.5) * 0.4);
-      ctx.fillStyle = sl.kind === 'bounce' ? warn : (sl.kind === 'slip' ? '#fff6d6' : panel); ctx.strokeStyle = sl.kind === 'slip' ? ledger : ink; ctx.lineWidth = 1;
-      ctx.fillRect(-9 * s, -6 * s, 18 * s, 12 * s); ctx.strokeRect(-9 * s, -6 * s, 18 * s, 12 * s);
-      ctx.strokeStyle = muted; ctx.beginPath(); ctx.moveTo(-6 * s, -2 * s); ctx.lineTo(6 * s, -2 * s); ctx.moveTo(-6 * s, 2 * s); ctx.lineTo(3 * s, 2 * s); ctx.stroke();
-      ctx.restore();
+      if (sl.kind === 'bounce' && t > 0.5) k = ease(1 - (t - 0.5));
+      const x = a.x + (b.x - a.x) * k, y = a.y + (b.y - a.y) * k;
+      if (sl.kind === 'page') items.push({ y: y + 1, fn: () => drawCourier(x, y, s, b.x >= a.x, sl.label) });
+      else items.push({ y: y + 1, fn: () => drawSlip(x, y - Math.sin(Math.PI * Math.min(1, k)) * 40 * s, s, k, sl.kind, y) });
     }
+    items.sort((a, b) => a.y - b.y);
+    for (const it of items) it.fn();
+    // a vignette so the floor sits in the room
+    const g = ctx.createRadialGradient(cv._w / 2, cv._h / 2, cv._h * 0.4, cv._w / 2, cv._h / 2, cv._h * 1.1);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.22)'); ctx.fillStyle = g; ctx.fillRect(0, 0, cv._w, cv._h);
+  }
+
+  function label(text, x, y, s, dim) {
+    ctx.font = `700 ${Math.max(10, 12 * s)}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const w = ctx.measureText(text).width + 10 * s;
+    ctx.fillStyle = dim ? C.muted : C.fg; ctx.globalAlpha = dim ? 0.5 : 0.85; roundRect(x - w / 2, y, w, 15 * s, 3 * s); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = C.panel; ctx.fillText(text, x, y + 2 * s);
+  }
+
+  function drawStation(st, p, q, s, w, busy, flash) {
+    const dim = p.planned && !(stacks[st] && stacks[st].size);
+    ctx.save(); if (dim) ctx.globalAlpha = 0.4;
+    if (busy) { const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, 70 * s); g.addColorStop(0, 'rgba(255,200,80,0.35)'); g.addColorStop(1, 'rgba(255,200,80,0)'); ctx.fillStyle = g; ctx.fillRect(q.x - 70 * s, q.y - 70 * s, 140 * s, 140 * s); }
+    if (p.kind === 'cabinet') drawCabinet(q.x, q.y, s, (run.claims || []).length);
+    else if (p.kind === 'door') drawDoor(q.x, q.y, s);
+    else if (p.kind === 'tray') drawTray(st, q.x, q.y, s);
+    else drawDesk(st, p, q, s, w, busy, flash);
+    ctx.restore();
+    label(p.name.toUpperCase(), q.x + (p.kind === 'cabinet' ? 10 : 0) * s, q.y + (p.kind === 'cabinet' ? 14 : p.kind === 'door' ? 10 : 8) * s, s, dim);
+  }
+
+  function drawDesk(st, p, q, s, w, busy, flash) {
+    const dw = (p.kind === 'bench' ? 92 : 74) * s, dd = 26 * s, dh = 24 * s;
+    shadow(q.x + 8 * s, q.y + 2 * s, dw * 0.6, 8 * s, 0.18);
+    // the worker sits behind the desk; the desk's front is drawn over the lower body
+    drawWorker(q.x - 4 * s, q.y - dh - 2 * s, s, p.hat, busy, clock, st);
+    box3d(q.x, q.y, dw, dd, dh, flash ? C.warn : C.wood, shade(C.wood, -0.45));
+    if (busy || flash) { ctx.strokeStyle = flash ? C.warn : C.accent; ctx.lineWidth = 2.5; ctx.strokeRect(q.x - dw / 2, q.y - dh, dw, dh); }
+    drawProp(st, q.x + dw / 2 - 16 * s, q.y - dh - 2 * s, s, busy);
+    // waiting packets stacked beside the desk
+    const waiting = stacks[st] ? stacks[st].size : 0;
+    for (let i = 0; i < Math.min(waiting, 6); i++) box3d(q.x + dw / 2 + 16 * s, q.y - i * 4 * s, 18 * s, 12 * s, 3.5 * s, C.paper, shade(C.paper, -0.35));
+    if (waiting > 6) { ctx.fillStyle = C.fg; ctx.font = `${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.fillText('+' + (waiting - 6), q.x + dw / 2 + 28 * s, q.y - 38 * s); }
+    const finished = done[st] ? done[st].size : 0;
+    if (finished) { ctx.fillStyle = C.ledger; ctx.font = `700 ${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.fillText(`${finished} done`, q.x + dw / 2 + 6 * s, q.y - dh - 12 * s); }
+  }
+
+  // what sits on each desk: a thing a person at that station would have
+  function drawProp(st, x, y, s, busy) {
+    ctx.save(); ctx.translate(x, y); ctx.lineWidth = 1; ctx.strokeStyle = shade(C.fg, -0.2);
+    const kind = { drawing: 'roll', spec: 'binder', photo: 'camera', correspondence: 'letters', takeoff: 'calc', codes: 'book', materials: 'swatch', customer: 'binder', scope_writer: 'typewriter', auditor: 'glass', orchestrator: 'board', intake: 'scanner' }[st] || 'screen';
+    if (kind === 'roll') { ctx.fillStyle = shade(C.ink, 0.5); ctx.fillRect(-12 * s, -6 * s, 24 * s, 7 * s); ctx.fillStyle = C.paper; ctx.beginPath(); ctx.ellipse(12 * s, -2.5 * s, 3 * s, 3.5 * s, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.strokeRect(-12 * s, -6 * s, 24 * s, 7 * s); }
+    else if (kind === 'binder') { ctx.fillStyle = C.ink; ctx.fillRect(-7 * s, -14 * s, 12 * s, 14 * s); ctx.fillStyle = C.paper; ctx.fillRect(-5 * s, -12 * s, 8 * s, 10 * s); ctx.strokeRect(-7 * s, -14 * s, 12 * s, 14 * s); }
+    else if (kind === 'camera') { ctx.fillStyle = shade(C.fg, 0.1); roundRect(-10 * s, -9 * s, 18 * s, 10 * s, 2 * s); ctx.fill(); ctx.fillStyle = C.steel; ctx.beginPath(); ctx.arc(-1 * s, -4 * s, 3.5 * s, 0, 7); ctx.fill(); ctx.fillStyle = busy ? C.accent : C.muted; ctx.fillRect(4 * s, -8 * s, 2 * s, 2 * s); }
+    else if (kind === 'letters') { for (let i = 0; i < 3; i++) { ctx.fillStyle = C.paper; ctx.fillRect(-10 * s + i * 3 * s, -8 * s - i * 2 * s, 16 * s, 9 * s); ctx.strokeRect(-10 * s + i * 3 * s, -8 * s - i * 2 * s, 16 * s, 9 * s); } ctx.beginPath(); ctx.moveTo(-4 * s, -12 * s); ctx.lineTo(4 * s, -7 * s); ctx.lineTo(12 * s, -12 * s); ctx.stroke(); }
+    else if (kind === 'calc') { ctx.fillStyle = C.steel; roundRect(-8 * s, -14 * s, 14 * s, 14 * s, 2 * s); ctx.fill(); ctx.fillStyle = busy ? '#b8e986' : C.paper; ctx.fillRect(-6 * s, -12 * s, 10 * s, 4 * s); ctx.fillStyle = C.fg; for (let i = 0; i < 6; i++) ctx.fillRect(-6 * s + (i % 3) * 3.5 * s, -6 * s + Math.floor(i / 3) * 3 * s, 2 * s, 2 * s); }
+    else if (kind === 'book') { ctx.fillStyle = '#8b2e2e'; ctx.fillRect(-9 * s, -12 * s, 16 * s, 12 * s); ctx.fillStyle = C.paper; ctx.fillRect(-7 * s, -12 * s, 12 * s, 1.5 * s); ctx.fillStyle = '#e5c97a'; ctx.fillRect(-9 * s, -8 * s, 16 * s, 1.5 * s); }
+    else if (kind === 'swatch') { const cs = ['#d9a066', '#8fb7a6', '#c86b5c', '#e6d8b8']; for (let i = 0; i < 4; i++) { ctx.fillStyle = cs[i]; ctx.save(); ctx.translate(-6 * s, -2 * s); ctx.rotate(-0.35 * i); ctx.fillRect(0, -3 * s, 16 * s, 5 * s); ctx.strokeRect(0, -3 * s, 16 * s, 5 * s); ctx.restore(); } }
+    else if (kind === 'typewriter') { ctx.fillStyle = shade(C.fg, 0.25); roundRect(-11 * s, -9 * s, 22 * s, 9 * s, 2 * s); ctx.fill(); ctx.fillStyle = C.paper; ctx.fillRect(-6 * s, -18 * s + (busy ? Math.sin(clock / 70) * 1.5 * s : 0), 12 * s, 10 * s); ctx.fillStyle = C.muted; for (let i = 0; i < 8; i++) ctx.fillRect(-9 * s + i * 2.5 * s, -6 * s, 1.5 * s, 1.5 * s); }
+    else if (kind === 'glass') { ctx.strokeStyle = C.steel; ctx.lineWidth = 2.5 * s; ctx.beginPath(); ctx.arc(-2 * s, -8 * s, 5 * s, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.moveTo(2 * s, -4 * s); ctx.lineTo(8 * s, 1 * s); ctx.stroke(); ctx.fillStyle = 'rgba(160,210,255,0.5)'; ctx.beginPath(); ctx.arc(-2 * s, -8 * s, 4 * s, 0, 7); ctx.fill(); }
+    else if (kind === 'board') { ctx.fillStyle = C.paper; ctx.fillRect(-16 * s, -22 * s, 22 * s, 22 * s); ctx.strokeRect(-16 * s, -22 * s, 22 * s, 22 * s); ctx.strokeStyle = C.ink; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-13 * s, -18 * s + i * 5 * s); ctx.lineTo(-13 * s + (8 + (i * 7) % 9) * s, -18 * s + i * 5 * s); ctx.stroke(); } ctx.fillStyle = C.accent; ctx.fillRect(-13 * s, -18 * s + 2 * 5 * s - 1 * s, 2 * s, 2 * s); }
+    else if (kind === 'scanner') { ctx.fillStyle = C.steel; roundRect(-12 * s, -8 * s, 24 * s, 8 * s, 2 * s); ctx.fill(); ctx.fillStyle = busy ? '#8ff' : shade(C.steel, 0.3); ctx.fillRect(-10 * s, -6 * s, 20 * s, 2 * s); if (busy) { ctx.fillStyle = 'rgba(120,255,255,0.35)'; ctx.fillRect(-10 * s + ((clock / 12) % 18) * s, -14 * s, 2 * s, 8 * s); } }
+    else { ctx.fillStyle = shade(C.fg, 0.15); ctx.fillRect(-8 * s, -14 * s, 16 * s, 11 * s); ctx.fillStyle = C.paper; ctx.fillRect(-7 * s, -13 * s, 14 * s, 9 * s); }
+    ctx.restore();
+  }
+
+  function drawWorker(x, y, s, hat, busy, t, st) {
+    // y is the belt line; the head is above it. Idle workers breathe; busy ones work with their hands.
+    const breathe = Math.sin(t / 600 + (st ? st.length : 0)) * 0.6 * s, bob = busy ? Math.sin(t / 110) * 1.2 * s : breathe;
+    ctx.save(); ctx.translate(x, y + bob);
+    const vest = HAT[hat] === null ? C.vest : C.vest;
+    ctx.fillStyle = vest; roundRect(-13 * s, -22 * s, 26 * s, 26 * s, 5 * s); ctx.fill();                  // torso in a hi-vis vest
+    ctx.fillStyle = '#d8d8d8'; ctx.fillRect(-13 * s, -12 * s, 26 * s, 2.5 * s); ctx.fillRect(-13 * s, -6 * s, 26 * s, 2.5 * s);   // reflective stripes
+    ctx.fillStyle = shade(C.fg, 0.35); ctx.fillRect(-4 * s, -22 * s, 8 * s, 10 * s);                      // shirt under the vest
+    // arms: busy workers' hands move over the desk; idle ones rest
+    ctx.strokeStyle = vest; ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
+    const reach = busy ? Math.sin(t / 90) * 4 * s : 0, reach2 = busy ? Math.cos(t / 90) * 4 * s : 0;
+    ctx.beginPath(); ctx.moveTo(-11 * s, -16 * s); ctx.lineTo(-18 * s + reach, 0); ctx.moveTo(11 * s, -16 * s); ctx.lineTo(18 * s + reach2, 0); ctx.stroke();
+    ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(-18 * s + reach, 0, 3 * s, 0, 7); ctx.arc(18 * s + reach2, 0, 3 * s, 0, 7); ctx.fill();   // hands
+    ctx.fillStyle = C.skin; ctx.fillRect(-3 * s, -27 * s, 6 * s, 6 * s);                                  // neck
+    ctx.beginPath(); ctx.arc(0, -34 * s, 10 * s, 0, 7); ctx.fill();                                       // head
+    ctx.fillStyle = C.fg; const blink = Math.sin(t / 900 + (st ? st.length * 1.7 : 0)) > 0.97;
+    if (blink) ctx.fillRect(-5 * s, -35 * s, 3 * s, 1 * s), ctx.fillRect(2 * s, -35 * s, 3 * s, 1 * s);
+    else { ctx.beginPath(); ctx.arc(-3.5 * s, -35 * s, 1.2 * s, 0, 7); ctx.arc(3.5 * s, -35 * s, 1.2 * s, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = shade(C.skin, -0.4); ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.arc(0, -31 * s, 3 * s, busy ? 0.3 : 0.2, busy ? 2.8 : 2.9); ctx.stroke();   // mouth
+    const hatColor = HAT[hat] || C.accent;                                                                // hard hat with a brim
+    ctx.fillStyle = hatColor; ctx.beginPath(); ctx.arc(0, -36 * s, 10.5 * s, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = shade(hatColor, -0.25); roundRect(-13 * s, -37.5 * s, 26 * s, 3 * s, 1.5 * s); ctx.fill();
+    ctx.fillStyle = shade(hatColor, 0.45); ctx.fillRect(-2 * s, -45 * s, 4 * s, 7 * s);                   // the ridge on top
+    ctx.restore();
+  }
+
+  // a runner carrying a page from the register to a reader's desk
+  function drawCourier(x, y, s, right, text) {
+    const step = Math.sin(clock / 70);
+    shadow(x, y + 2 * s, 9 * s, 3.5 * s, 0.22);
+    ctx.save(); ctx.translate(x, y - Math.abs(step) * 1.5 * s); if (!right) ctx.scale(-1, 1);
+    ctx.strokeStyle = shade(C.fg, 0.3); ctx.lineWidth = 4 * s; ctx.lineCap = 'round';                   // legs
+    ctx.beginPath(); ctx.moveTo(-3 * s, -8 * s); ctx.lineTo(-3 * s + step * 6 * s, 0); ctx.moveTo(3 * s, -8 * s); ctx.lineTo(3 * s - step * 6 * s, 0); ctx.stroke();
+    ctx.fillStyle = C.vest; roundRect(-8 * s, -24 * s, 16 * s, 17 * s, 4 * s); ctx.fill();               // vest
+    ctx.fillStyle = '#d8d8d8'; ctx.fillRect(-8 * s, -16 * s, 16 * s, 2 * s);
+    ctx.strokeStyle = C.vest; ctx.lineWidth = 4 * s; ctx.beginPath(); ctx.moveTo(6 * s, -20 * s); ctx.lineTo(14 * s, -14 * s); ctx.stroke();   // arm out front
+    ctx.fillStyle = C.paper; ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.fillRect(10 * s, -24 * s, 14 * s, 18 * s); ctx.strokeRect(10 * s, -24 * s, 14 * s, 18 * s);   // the page
+    ctx.strokeStyle = C.muted; ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(12 * s, -21 * s + i * 4 * s); ctx.lineTo(22 * s - (i % 2) * 4 * s, -21 * s + i * 4 * s); } ctx.stroke();
+    ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(0, -31 * s, 7 * s, 0, 7); ctx.fill();               // head
+    ctx.fillStyle = '#f2c200'; ctx.beginPath(); ctx.arc(0, -32 * s, 7.5 * s, Math.PI, 0); ctx.fill(); ctx.fillRect(-9 * s, -33 * s, 18 * s, 2 * s);   // yellow hat
+    ctx.restore();
+    if (text) { ctx.fillStyle = C.fg; ctx.font = `${Math.max(9, 10 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(text, x, y + 6 * s); }
+  }
+
+  // a claim slip tossed toward the ledger (green) or bounced back by the broker (red)
+  function drawSlip(x, y, s, k, kind, floorY) {
+    shadow(x, floorY + 2 * s, 8 * s, 3 * s, 0.12 + 0.1 * (1 - Math.min(1, Math.abs(floorY - y) / (40 * s))));
+    ctx.save(); ctx.translate(x, y); ctx.rotate((k - 0.5) * 0.9);
+    ctx.fillStyle = kind === 'bounce' ? '#ffd9d6' : '#fff6d6'; ctx.strokeStyle = kind === 'bounce' ? C.warn : C.ledger; ctx.lineWidth = 1.2;
+    ctx.fillRect(-11 * s, -7 * s, 22 * s, 14 * s); ctx.strokeRect(-11 * s, -7 * s, 22 * s, 14 * s);
+    ctx.strokeStyle = C.muted; ctx.beginPath(); ctx.moveTo(-7 * s, -3 * s); ctx.lineTo(7 * s, -3 * s); ctx.moveTo(-7 * s, 1 * s); ctx.lineTo(4 * s, 1 * s); ctx.moveTo(-7 * s, 5 * s); ctx.lineTo(6 * s, 5 * s); ctx.stroke();
+    if (kind === 'bounce') { ctx.strokeStyle = C.warn; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-6 * s, -5 * s); ctx.lineTo(6 * s, 5 * s); ctx.moveTo(6 * s, -5 * s); ctx.lineTo(-6 * s, 5 * s); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function bubble(x, y, s, text, warn) {
+    ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; const w = ctx.measureText(text).width + 16 * s, h = 22 * s;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 8 * s; ctx.shadowOffsetY = 3 * s;
+    ctx.fillStyle = C.panel; roundRect(x - w / 2, y - h, w, h, 6 * s); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = warn ? C.warn : C.line; ctx.lineWidth = 1.2; roundRect(x - w / 2, y - h, w, h, 6 * s); ctx.stroke();
+    ctx.fillStyle = C.panel; ctx.beginPath(); ctx.moveTo(x - 5 * s, y - 1); ctx.lineTo(x, y + 7 * s); ctx.lineTo(x + 5 * s, y - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = warn ? C.warn : C.fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y - h / 2); ctx.textBaseline = 'top';
+  }
+
+  function drawTray(st, x, y, s) {
+    shadow(x + 6 * s, y + 2 * s, 34 * s, 7 * s, 0.16);
+    box3d(x, y, 64 * s, 22 * s, 8 * s, C.steel, shade(C.steel, -0.4));
+    const n = st === 'register' ? countRegistered() : 5;
+    for (let i = 0; i < Math.min(n, 9); i++) box3d(x + i * 1.5 * s, y - 8 * s - i * 2.5 * s, 50 * s, 16 * s, 2.5 * s, i % 2 ? C.paper : shade(C.paper, -0.08), shade(C.paper, -0.3));
+    if (st === 'register' && n) { ctx.fillStyle = C.fg; ctx.font = `700 ${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`${n} filed`, x, y - 52 * s); }
+    if (st === 'packet') { ctx.fillStyle = C.accent; ctx.font = `700 ${Math.max(9, 11 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.fillText('IN', x - 22 * s, y - 34 * s); }
+  }
+
+  function drawDoor(x, y, s) {
+    shadow(x + 8 * s, y + 2 * s, 30 * s, 7 * s, 0.16);
+    box3d(x, y, 54 * s, 14 * s, 88 * s, shade(C.wall, -0.1), shade(C.wall, -0.4));   // frame
+    ctx.fillStyle = shade(C.wood, -0.1); ctx.fillRect(x - 22 * s, y - 80 * s, 44 * s, 80 * s);                       // the door
+    ctx.strokeStyle = shade(C.wood, -0.45); ctx.lineWidth = 1; ctx.strokeRect(x - 16 * s, y - 72 * s, 32 * s, 30 * s); ctx.strokeRect(x - 16 * s, y - 36 * s, 32 * s, 30 * s);
+    ctx.fillStyle = '#f2c200'; ctx.beginPath(); ctx.arc(x + 15 * s, y - 40 * s, 3 * s, 0, 7); ctx.fill();            // handle
+    ctx.fillStyle = C.ledger; roundRect(x - 20 * s, y - 100 * s, 40 * s, 12 * s, 2 * s); ctx.fill();                  // exit sign
+    ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(8, 9 * s)}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('RELEASED BY HAND', x, y - 94 * s); ctx.textBaseline = 'top';
+  }
+
+  function drawCabinet(x, y, s, total) {
+    const n = appended(); const recent = events.slice(Math.max(0, cursor - 1), cursor)[0];
+    const open = recent && recent.action === 'append' && clock - nextAt < 0 ? Math.max(0, 1 - (nextAt - clock) / 400) : 0;
+    shadow(x + 14 * s, y + 2 * s, 46 * s, 9 * s, 0.2);
+    box3d(x, y, 76 * s, 30 * s, 96 * s, C.ledger, shade(C.ledger, -0.45));
+    for (let i = 0; i < 4; i++) {
+      const dy = y - 90 * s + i * 22 * s, slide = i === 0 ? open * 10 * s : 0;
+      ctx.fillStyle = shade(C.ledger, 0.12); ctx.fillRect(x - 32 * s, dy + slide, 64 * s, 18 * s);
+      ctx.strokeStyle = shade(C.ledger, -0.5); ctx.lineWidth = 1; ctx.strokeRect(x - 32 * s, dy + slide, 64 * s, 18 * s);
+      ctx.fillStyle = C.steel; roundRect(x - 8 * s, dy + 7 * s + slide, 16 * s, 4 * s, 2 * s); ctx.fill();
+      ctx.fillStyle = C.paper; ctx.fillRect(x - 14 * s, dy + 2 * s + slide, 28 * s, 3 * s);                             // the label card
+    }
+    // the fill gauge: rows on the ledger so far
+    const frac = total ? Math.min(1, n / total) : 0;
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x + 44 * s, y - 92 * s, 6 * s, 90 * s);
+    ctx.fillStyle = '#ffd34d'; ctx.fillRect(x + 44 * s, y - 2 * s - 90 * s * frac, 6 * s, 90 * s * frac);
+    ctx.fillStyle = C.fg; ctx.font = `700 ${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(`${n}/${total}`, x + 54 * s, y - 92 * s);
   }
   function countDone() { let n = 0; for (const st in done) n += done[st].size; return n; }
   function countRegistered() { let n = 0; for (let i = 0; i < cursor; i++) if (events[i].action === 'register') n++; return n; }
-  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-  function drawWorker(x, y, s, hat, busy, t, fg, accent, panel) {
-    const bob = busy ? Math.sin(t / 120) * 1.5 * s : 0;
-    ctx.save(); ctx.translate(x, y + bob);
-    ctx.fillStyle = fg; ctx.globalAlpha = 0.85;
-    roundRect(-9 * s, 6 * s, 18 * s, 16 * s, 4 * s); ctx.fill();          // body
-    ctx.globalAlpha = 1; ctx.fillStyle = panel; ctx.strokeStyle = fg; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.arc(0, 0, 7 * s, 0, 7); ctx.fill(); ctx.stroke();  // head
-    ctx.fillStyle = HAT[hat] || accent; ctx.beginPath(); ctx.arc(0, -1 * s, 7.5 * s, Math.PI, 0); ctx.fill();   // hard hat
-    ctx.fillRect(-9 * s, -1.5 * s, 18 * s, 2 * s);
-    ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(-2.5 * s, 1.5 * s, 0.8 * s, 0, 7); ctx.arc(2.5 * s, 1.5 * s, 0.8 * s, 0, 7); ctx.fill();
-    if (busy) { ctx.strokeStyle = fg; ctx.lineWidth = 1.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, 12 * s); ctx.lineTo(-16 * s, 18 * s + Math.sin(t / 90) * 3 * s); ctx.stroke(); }
-    ctx.restore();
-  }
-  function bubble(x, y, s, text, panel, fg, line) {
-    ctx.font = `${Math.max(10, 11 * s)}px "IBM Plex Mono", monospace`; const w = ctx.measureText(text).width + 14 * s, h = 18 * s;
-    ctx.fillStyle = panel; ctx.strokeStyle = line; ctx.lineWidth = 1; roundRect(x - w / 2, y - h, w, h, 5 * s); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x - 4 * s, y); ctx.lineTo(x, y + 5 * s); ctx.lineTo(x + 4 * s, y); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y - h / 2); ctx.textBaseline = 'top';
-  }
-  function drawCabinet(x, y, s, ledger, panel, fg, total, filed) {
-    ctx.fillStyle = panel; ctx.strokeStyle = ledger; ctx.lineWidth = 2; roundRect(x - 40 * s, y - 40 * s, 80 * s, 80 * s, 4 * s); ctx.fill(); ctx.stroke();
-    for (let i = 0; i < 3; i++) { ctx.strokeStyle = ledger; ctx.lineWidth = 1; ctx.strokeRect(x - 34 * s, y - 34 * s + i * 25 * s, 68 * s, 20 * s); ctx.fillStyle = ledger; ctx.fillRect(x - 6 * s, y - 25 * s + i * 25 * s, 12 * s, 2 * s); }
-    // the drawer fills as rows are appended (append events counted by the log)
-    const n = appended();
-    ctx.fillStyle = ledger; ctx.globalAlpha = 0.25; ctx.fillRect(x - 34 * s, y - 34 * s, 68 * s * Math.min(1, total ? n / total : 0), 20 * s); ctx.globalAlpha = 1;
-    ctx.fillStyle = fg; ctx.font = `${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center';
-    ctx.fillText(`${n} / ${total} rows`, x, y + 44 * s);
-  }
   function appended() { let n = 0; for (let i = 0; i < cursor; i++) if (events[i].action === 'append') n++; return n; }
 
   // ---- controls ----

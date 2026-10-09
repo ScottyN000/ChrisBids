@@ -541,7 +541,7 @@ class SymbolCheckCase(unittest.TestCase):
         no_per = {k: v for k, v in rows.items() if k != ANCH}
         self.assertEqual(takeoff.route_notes(spaces, no_per), [
             f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries dimension strings ({SPAN}, {SPACING}, {END})"])
-        # The brackets drawn again on a plan with no dimension strings (arch p.5: 6 symbols on both plans) are
+        # The brackets drawn again on a plan with no dimension strings (arch p.6: 6 symbols on both plans) are
         # still the brackets the foundation plan dimensions: the rule is job-wide, and the note names that view.
         elsewhere = reader_row("NAN-DR-FRM-01", 6, "each", "Bracket symbols drawn on the framing plan", method="counted",
                                locator="Partial First Floor Framing Plan", tag="S-1 Frm")
@@ -568,11 +568,20 @@ class SymbolCheckCase(unittest.TestCase):
         pier_run = reader_row("NAN-DR-FND-07", 96, "in", "Pier spacing: 8'-0\"")
         self.assertEqual(takeoff.route_notes(total, {**with_piers, pier_run.claim_id: pier_run}), [
             f"rests on the symbol count {piers.claim_id} where Partial Foundation Plan carries pier dimension strings ({pier_run.claim_id})"])
-        # A symbol row worded with no assembly name is held to every name.
+        # A symbol row worded with no assembly name is held to every name the item carries.
         bare = reader_row("NAN-DR-FND-04", 6, "each", "Symbols drawn", method="counted")
         self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{bare.claim_id}}}", 18),
                                              {**with_piers, bare.claim_id: bare}), [
             f"rests on the symbol count {bare.claim_id} where Partial Foundation Plan carries bracket dimension strings ({SPAN}, {SPACING})"])
+        unnamed = Claim(**{**piers.__dict__, "statement": "Symbols drawn"})
+        self.assertEqual(takeoff.route_notes(total, {**with_piers, piers.claim_id: unnamed, pier_run.claim_id: pier_run}), [
+            f"rests on the symbol count {piers.claim_id} where Partial Foundation Plan carries bracket and pier dimension "
+            f"strings ({SPAN}, {SPACING}, {pier_run.claim_id})"])
+        # The wrong symbol row is the error the check is for: bracket symbols under a per-pier row are held
+        # to the bracket strings, the name the symbols carry, not the pier the item is per.
+        self.assertEqual(takeoff.route_notes(it("Pier bolts", f"{{{per_pier.claim_id}}} * {{{six.claim_id}}}", 24),
+                                             {**with_piers, six.claim_id: six}), [
+            f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries bracket dimension strings ({SPAN}, {SPACING})"])
         # A view with no dimension string anywhere in the job naming the assembly is the prompt's own route.
         self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{elsewhere.claim_id}}}", 18),
                                              {ANCH: BY_ID[ANCH], elsewhere.claim_id: elsewhere, END: BY_ID[END]}), [])
@@ -610,6 +619,9 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.label_notes(it("Spaces", SPACES, 5, "spaces"), {**BY_ID, places.claim_id: places}), [])
         self.assertEqual(takeoff.label_notes(it("Anchors", f"{{{ANCH}}} * 2", 6), {**BY_ID, places.claim_id: places}),
                          [f"takes 2 from the label of {places.claim_id}, a count with no counted row"])
+        # A spacing callout with the count in front of the string (`5x2'-8"`) is read the same way.
+        callout = Claim(**{**kept.__dict__, "statement": "Bracket spacing, 5x2'-8\": 2'-8\""})
+        self.assertEqual(takeoff.label_notes(by_number, {**BY_ID, SPACING: callout}), [note])
 
     def test_only_symbols_of_the_assembly_the_rows_are_per_are_compared(self):
         piers = reader_row("NAN-DR-FND-05", 2, "each", "New pier symbols drawn", method="counted")

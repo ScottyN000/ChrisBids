@@ -88,7 +88,7 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
 # A bar size (`#4 bar`) and a lumber size (`2 x 4 blocking`, `2x4`, `2 X 4 BLOCKING`) are sizes, not
 # counts. A size is bare digits on both sides of the x with nothing after the second but a word or
 # another x, so a count of spacings is still a count however it is written: `5 x 2'-8"`, `5 @ 2'-8"`
-# (arch p.5), `5 × 2'-8"`, the same with no spaces as a CAD override prints them (`5@2'-8"`,
+# (arch p.6), `5 × 2'-8"`, the same with no spaces as a CAD override prints them (`5@2'-8"`,
 # `5x2'-8"`), arch p.4's own `11 + 5 x 32 + 11`, `5 x 2 ft`, `5 X 32 IN` (drawings print in capitals).
 # A count is followed by a word, by `@` or `×`, or by an x and a figure carrying a mark. A number
 # followed by a unit word (`11 inches`, `8 inch CMU`, `6 mil poly`) is a figure; a bare `in` is left
@@ -114,7 +114,8 @@ def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
     """Every run's wording of a dimension's label, first seen first, and whether a count
     had to be let through. Wordings that differ only in case or trailing punctuation are
     one. A wording carrying a bare count (`printed 5 times`, with the dimension string
-    itself taken out first) is a count with no counted row behind it (traceability), so
+    itself replaced by `0"` first, a figure that is never a count, so `5x2'-8"` keeps the
+    mark its count is read by) is a count with no counted row behind it (traceability), so
     it is dropped while another wording survives; when none does, the first is kept as
     printed, never rewritten. The second value is True whenever a wording carried a count,
     dropped or kept, so the row can say so and Takeoff can flag what rests on it. Sheet
@@ -128,7 +129,7 @@ def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
         if not wording or wording in seen:
             continue
         seen.add(wording)
-        (counted if bare_counts(label.replace(text, " ") if text else label) else labels).append(label)
+        (counted if bare_counts(label.replace(text, ' 0" ') if text else label) else labels).append(label)
     if labels:
         return labels, bool(counted)
     return counted[:1], bool(counted)

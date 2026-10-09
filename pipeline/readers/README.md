@@ -169,19 +169,22 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   `5 @ 2'-8"`, `5 × 2'-8"`, `5@2'-8"` and `5x2'-8"` with no spaces, arch p.4's `11 + 5 x 32 + 11`,
   `5 x 2 ft`, `5 X 32 IN`), as are `max 5 spaces` and `2 in each bay`. A count kept in a label and used
   in a formula as a plain number (`{PER} * (5 + 1)`) is noted on the item too, since that number cites no
-  row; an item that takes its number of assemblies from dimension rows is left alone there, since the
-  golden formula's own 2 (the two ends) would meet a `2 PLACES` label on every item. (d) An item that
+  row; an item that uses a dimensioned row at all is left alone there, since the golden formula's own 2
+  (the two ends) would meet a `2 PLACES` label on every item, so a sum with one product on the dimension
+  route and another on a plain number (`{PER} * (5 + 1) + {BOLTS} * ({RUN} - 2 * {END}) / {SPACING} + 1`)
+  is a known gap: its 5 is not noted. (d) An item that
   rests on a symbol count where
   the job carries dimension strings naming the assembly counted is flagged unverified whatever else it uses
   (`takeoff.route_notes`, those rows and their view on the note; a fastener total that takes the anchors
   from the symbols and the bolts from the dimensions is on that route too, and the symbol check passes such
   a sum by). The dimension strings that count are those naming what the item's per-assembly rows are per,
   else what the job's are per, as `symbol_rows` matches them, on any view (the brackets drawn again on the
-  framing plan are the brackets the foundation plan dimensions, arch p.5), so window tags beside a room
-  width (the prompt's own route when no run and spacing are listed) are not flagged; of those names a
-  symbol count is held to the ones its own wording carries (piers summed into a bracket total are held to
-  pier strings), and to all of them when it carries none; a job with no per-assembly row at all is held to
-  every dimension string on the symbols' own view. (e) The
+  framing plan are the brackets the foundation plan dimensions, arch p.6), so window tags beside a room
+  width (the prompt's own route when no run and spacing are listed) are not flagged; a symbol count is
+  held to the job's assembly names its own wording carries (piers summed into a bracket total are held to
+  pier strings; bracket symbols under a per-pier row to the bracket strings), and to all the item's names
+  when it carries none; a job with no per-assembly row at all is held to every dimension string on the
+  symbols' own view. (e) The
   per-PR mutation score goes in the PR description with the run it came from (now in the Every PR bar of
   `docs/advisor.md`).
 

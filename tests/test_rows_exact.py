@@ -112,6 +112,12 @@ class DrawingCase(unittest.TestCase):
                 (v,) = vote("drawing", [[item("dimension", label, text)]])
                 self.assertEqual((v.labels, v.counted_label), ([label], False))
                 self.assertEqual(bare_counts(label), [])
+        # A spacing callout carries its count in front of the string itself, with or without spaces.
+        for label in ["Bracket spacing, 5x2'-8\"", "BRACKET SPACING, 5X2'-8\"", "Bracket spacing, 5x 2'-8\"",
+                      "Bracket spacing, 5@2'-8\"", "Bracket spacing, 5 × 2'-8\"", "Bracket spacing, 5×2'-8\""]:
+            with self.subTest(label=label):
+                (v,) = vote("drawing", [[item("dimension", label, "2'-8\"")]])
+                self.assertEqual((v.labels, v.counted_label), ([label], True))
         # A dropped wording that carried a count still marks the row (Takeoff flags what rests on it).
         runs = [[item("dimension", "Bracket spacing (REF. DET. 1/S-1)", "11\"")],
                 [item("dimension", "Wall face to first bracket (2 places), see S-1", "11\"")]]

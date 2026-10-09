@@ -112,14 +112,16 @@ The spaces row depends on the drawing reader's labels. Two later runs (2026-10-0
 dimension", so Takeoff had no way to know it was the end offset and wrote only the 3 x 6 products; the gate
 reported `counted | derived | 5 | spaces` missing. The drawing prompt now requires a dimension's label to say
 what the string runs between, and its Foundation Plan example carries the spacing and end-offset strings
-with the labels the golden recording uses, so the vote keys ("kind", "label") line up across runs.
+with labels that let Takeoff tell the run, the spacing and the end offset apart (the vote keys a dimension
+on its text, so labels never affect the vote).
 The first run on that change (37937707097) produced the spaces row from the dimensions in one run and as
 `6 - 1` from the bracket count in the other, and counted the detail's steel angle as a part; both prompts now
 say so: spaces come from the dimension strings only, and a detail's members are not counts. The next run
 (37938174100) reproduced every reader row and the spaces, and wrote 18 bolts and 18 anchors twice, as
-3 x 6 symbols in one run and 3 x the spaced brackets in the other; the gate now matches a fixture figure
-reached by a second route once instead of reporting the second row extra (the ledger keeps both rows,
-each flagged "seen in 1 of 2 runs", as the vote rule says).
+3 x 6 symbols in one run and 3 x the spaced brackets in the other: two flagged rows where the fixture has
+one, which the gate rightly reports. The Takeoff prompt now fixes the route: a per-assembly total
+multiplies by the number the dimensions give (spaces + 1), never by the symbol count when a run and
+spacing are listed.
 
 ## The ruling still open
 

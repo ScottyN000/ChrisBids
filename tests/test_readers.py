@@ -92,7 +92,8 @@ class SchemaCase(unittest.TestCase):
     def test_the_drawing_example_labels_what_each_dimension_spans(self):
         """Takeoff derives the spaces only when the run, the spacing and the end offset are
         labelled as such; two live runs that labelled 11" as a wall dimension lost the row.
-        The example's labels are the golden recording's, so the vote key (kind, label) lines up."""
+        The example's labels say what each string spans, as the golden recording's do; the vote keys
+        a dimension on its text, so this is for Takeoff, not the vote."""
         text = (ROOT / "pipeline" / "readers" / "prompts" / "drawing.md").read_text()
         plan = json.loads(re.findall(r"```json\n(.*?)```", text, re.S)[0])
         labels = {it["text"]: it["label"] for it in plan["items"] if it["kind"] == "dimension"}

@@ -43,7 +43,7 @@ runs them all:
 ```
 pip install pytest mutmut
 python3 -m mutmut run                     # small edits to pipeline/, the tests run against each
-python3 -m mutmut run $(python3 tools/changed_mutants.py origin/main)   # only this branch's modules
+python3 tools/changed_mutants.py origin/main | grep -q . && python3 -m mutmut run $(python3 tools/changed_mutants.py origin/main)   # this branch's modules; nothing printed means nothing to run (bare `mutmut run` is everything)
 python3 -m mutmut results                 # the mutants no test caught
 python3 -m mutmut export-cicd-stats && python3 tools/mutation_gate.py
 ```

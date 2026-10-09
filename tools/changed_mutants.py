@@ -8,8 +8,10 @@ pattern list that matches nothing). A changed test file stands for the pipeline
 modules it imports, read from the base when the PR deletes it, and so does
 every test file that imports the changed one (a shared fake, a test another
 test builds on), so a PR that only weakens or removes a test is still measured
-against the code that test covers. A PR that touches the mutation tooling itself runs every module, since
-the picker cannot vouch for its own change.
+against the pipeline modules those tests import. Modules a test reaches only
+through those imports, like everything no PR touched, are left to the weekly
+full run. A PR that touches the mutation tooling itself runs every module,
+since the picker cannot vouch for its own change.
 
     python3 tools/changed_mutants.py origin/main      # one pattern per line; none means skip
 """

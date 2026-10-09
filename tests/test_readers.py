@@ -88,6 +88,22 @@ class SchemaCase(unittest.TestCase):
                 self.assertEqual(validate.errors(data, schema), [], f"{reader}: {block[:60]}")
                 self.assertEqual(rows.semantic_errors(reader, data), [], reader)
 
+    def test_the_drawing_example_labels_what_each_dimension_spans(self):
+        """Takeoff derives the spaces only when the run, the spacing and the end offset are
+        labelled as such; two live runs that labelled 11" as a wall dimension lost the row.
+        The example's labels are the golden recording's, so the vote key (kind, label) lines up."""
+        import re
+        text = (ROOT / "pipeline" / "readers" / "prompts" / "drawing.md").read_text()
+        plan = json.loads(re.findall(r"```json\n(.*?)```", text, re.S)[0])
+        labels = {it["text"]: it["label"] for it in plan["items"] if it["kind"] == "dimension"}
+        recorded = json.load(open(ROOT / "fixtures" / "nantucket" / "recordings" / "drawing.json"))
+        fnd = next(u for u in recorded["units"] if u["unit_id"] == "S-1#Fnd")
+        want = {it["text"]: it["label"] for it in fnd["runs"][0]["items"]
+                if it["kind"] == "dimension" and it["text"] in ("15'-2\"", "2'-8\"", "11\"")}
+        self.assertEqual(set(labels), set(want))
+        for text_, label in want.items():
+            self.assertIn(label, labels[text_], text_)
+
 
 class VoteCase(unittest.TestCase):
     def test_agreement_passes(self):

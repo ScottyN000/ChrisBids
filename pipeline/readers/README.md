@@ -107,6 +107,13 @@ it has to hold figures from several views at once (architecture p.13). It passed
 on 2026-10-08 (Actions run 37780360959: readers on Haiku at high effort, two reads; Takeoff 5 spaces and
 18 + 18 agreed by both runs, 6 brackets matched by the 6 symbols drawn).
 
+The spaces row depends on the drawing reader's labels. Two later runs (2026-10-08 23:20Z, run 37858877798;
+2026-10-09, run 37928226366) read the same dimension strings but labelled the 11" string "Top wall segment
+dimension", so Takeoff had no way to know it was the end offset and wrote only the 3 x 6 products; the gate
+reported `counted | derived | 5 | spaces` missing. The drawing prompt now requires a dimension's label to say
+what the string runs between, and its Foundation Plan example carries the spacing and end-offset strings
+with the labels the golden recording uses, so the vote keys ("kind", "label") line up across runs.
+
 ## The ruling still open
 
 Architecture p.17 asks the estimator for a ruling on scaled dimensions: never order from them, or order with a stated tolerance. Until that ruling is given, scaled rows are written with confidence `scaled`, carry no numeric value, and the broker refuses them in any allowance or order quantity.

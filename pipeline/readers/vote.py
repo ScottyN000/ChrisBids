@@ -85,8 +85,13 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
 # hyphen or a letter (`2'-8"`, `1/S-1`, `S-1`, `2x4`), or named by the word before it
 # (`detail 1`, `sheet 2`, `type 3`), is a figure or a reference and is left alone. `TYP.`
 # qualifies a count (`TYP. 2 PLACES`), it names nothing, so it is not a reference word.
-# A bar size (`#4 bar`) and a lumber size (`2 x 4 blocking`, `2x4`) are sizes, not counts.
-BARE_COUNT = re.compile(r"(?<![\w\-/.'\"#])(?<![xX×] )\(?(\d+)\)?(?!\s*[xX×]\s*\d)(?=\s+[A-Za-z])")
+# A bar size (`#4 bar`) and a lumber size (`2 x 4 blocking`, `2x4`) are sizes, not counts: both
+# figures of a size are bare digits, so `5 x 2'-8"` (a count of spacings, arch p.4) and `max 5
+# spaces` are still counts. A number followed by a unit word (`11 inches`, `8 inch CMU`, `6 mil
+# poly`) is a figure; a bare `in` is left alone, since `2 in each bay` is a count.
+BARE_COUNT = re.compile(r"(?<![\w\-/.'\"#])(?<!\d[xX×] )(?<!\d [xX×] )\(?(\d+)\)?"
+                        r"(?!\s*[xX×]\s*\d+(?![\d'\"\-/]))(?=\s+[A-Za-z])")
+FIGURE_UNIT = re.compile(r"(?i)^\s+(?:inches|inch|in\.|ft\.?|feet|foot|mil|ga\.?|gauge|mm|cm|lbs?|psi|psf|oz|kips?)(?![A-Za-z])")
 REFERENCE_WORDS = ("det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item")
 # A reference word right before the number, with only a stop, `#`, `:` and spaces between.
 NAMED_BY_REFERENCE = re.compile(r"(?i)\b(?:" + "|".join(REFERENCE_WORDS) + r")\.?\s*[#:]?\s*$")
@@ -94,9 +99,10 @@ NAMED_BY_REFERENCE = re.compile(r"(?i)\b(?:" + "|".join(REFERENCE_WORDS) + r")\.
 
 def bare_counts(label: str) -> list[str]:
     """The numbers in a label that are counts, as `BARE_COUNT` says, with those a
-    reference word right before them names left out (`detail 1`, not `per plan, 5 spaces`)."""
+    reference word right before them names (`detail 1`, not `per plan, 5 spaces`) and
+    those a unit word follows (`11 inches`) left out."""
     return [m.group(1) for m in BARE_COUNT.finditer(label)
-            if not NAMED_BY_REFERENCE.search(label[: m.start()])]
+            if not NAMED_BY_REFERENCE.search(label[: m.start()]) and not FIGURE_UNIT.match(label[m.end():])]
 
 
 def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
@@ -107,7 +113,8 @@ def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:
     it is dropped while another wording survives; when none does, the first is kept as
     printed, never rewritten. The second value is True whenever a wording carried a count,
     dropped or kept, so the row can say so and Takeoff can flag what rests on it. Sheet
-    and detail references (`REF. DET. 1/S-1`) and sizes (`#4 bar`, `2 x 4`) are not counts."""
+    and detail references (`REF. DET. 1/S-1`), sizes (`#4 bar`, `2 x 4`) and figures with a
+    unit word (`11 inches`) are not counts."""
     text = (items[0].get("text") or "").strip()
     labels, seen, counted = [], set(), []
     for it in items:

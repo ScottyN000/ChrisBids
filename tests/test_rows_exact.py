@@ -7,7 +7,7 @@ kill the surviving mutants in pipeline/readers/rows.py.
 import unittest
 
 from pipeline.readers import rows
-from pipeline.readers.vote import Voted, vote
+from pipeline.readers.vote import Voted, bare_counts, vote
 from pipeline.schema import Claim
 
 DET = rows.Unit(unit_id="S-1#Det1", source_id="S-1", locator="Support Detail 1/S-1",
@@ -78,9 +78,18 @@ class DrawingCase(unittest.TestCase):
             with self.subTest(label=label):
                 (v,) = vote("drawing", [[item("dimension", label, text)]])
                 self.assertEqual((v.labels, v.counted_label), ([label], True))
-        # One of each: the count is counted and the size is not.
-        (v,) = vote("drawing", [[item("dimension", "Bracket spacing, 2 places, 2 x 4 blocking between", "2'-8\"")]])
-        self.assertEqual(v.counted_label, True)
+        # Which number is the count: the size, the count of spacings (arch p.4's `11 + 5 x 32 + 11`)
+        # and a word ending in x are told apart.
+        for label, counts in [("Bracket spacing, 2 places, 2 x 4 blocking between", ["2"]),
+                              ("Bracket spacing, max 5 spaces", ["5"]), ("Bracket spacing, MAX 5 SPACES", ["5"]),
+                              ("Bracket run: 11\" + 5 x 2'-8\" + 11\"", ["5"]), ("approx 6 brackets", ["6"]),
+                              ("Blocking, 2 in each bay", ["2"])]:
+            with self.subTest(label=label):
+                self.assertEqual(bare_counts(label), counts)
+        for label, text in [("Bracket spacing, max 5 spaces", "2'-8\""), ("Bracket run: 11\" + 5 x 2'-8\" + 11\"", "15'-2\"")]:
+            with self.subTest(label=label):
+                (v,) = vote("drawing", [[item("dimension", label, text)]])
+                self.assertEqual((v.labels, v.counted_label), ([label], True))
 
     def test_references_and_figures_in_a_label_are_not_counts(self):
         for label, text in [("Bracket spacing (REF. DET. 1/S-1)", "11\""), ("see S-1", "11\""),
@@ -88,10 +97,13 @@ class DrawingCase(unittest.TestCase):
                             ("Bracket run, sheet #2 to grid line 3", "15'-2\""), ("Wall face to bracket, 11\" typ", "11\""),
                             ("Rebar, #4 bar at 12\" o.c.", "12\""), ("Bracket run, 2 x 4 blocking between", "15'-2\""),
                             ("Bracket run, 2 X 4 blocking between", "15'-2\""), ("Post spacing, 4x4 posts", "8'-0\""),
-                            ("Blocking, 2 x 10 joists", "15'-2\"")]:
+                            ("Blocking, 2 x 10 joists", "15'-2\""), ("Wall face to first bracket, 11 inches", "11\""),
+                            ("East wall, 8 inch CMU", "8\""), ("Under slab, 6 mil poly", "4\""), ("Angle, 12 ga. steel", "4\""),
+                            ("Posts, 2 x 4 x 8 ft", "8'-0\"")]:
             with self.subTest(label=label):
                 (v,) = vote("drawing", [[item("dimension", label, text)]])
                 self.assertEqual((v.labels, v.counted_label), ([label], False))
+                self.assertEqual(bare_counts(label), [])
         # A dropped wording that carried a count still marks the row (Takeoff flags what rests on it).
         runs = [[item("dimension", "Bracket spacing (REF. DET. 1/S-1)", "11\"")],
                 [item("dimension", "Wall face to first bracket (2 places), see S-1", "11\"")]]

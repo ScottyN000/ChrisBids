@@ -503,13 +503,24 @@ class SymbolCheckCase(unittest.TestCase):
         rows = {**BY_ID, six.claim_id: six}
         by_symbols = it("Adhesive anchors", f"{{{ANCH}}} * {{{six.claim_id}}}", 18)
         note = (f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries dimension strings "
-                f"it does not use ({SPAN}, {SPACING}, {END})")
+                f"({SPAN}, {SPACING}, {END})")
         self.assertEqual(takeoff.route_notes(by_symbols, rows), [note])
         c = takeoff.derived_claim("NAN-TK-Q-03", by_symbols, 2, 2, rows)
         self.assertEqual((c.flag, c.derivation), ("unverified", f"3 x 6 = 18; {note}"))
-        # The dimension route is the symbol check's business, not this one's.
+        # The dimension route is not on this note (the symbol check compares it with the symbols).
         self.assertEqual(takeoff.route_notes(self.ANCHORS, rows), [])
         self.assertEqual(takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, rows).flag, "")
+        # A total that takes the anchors from the symbols and the bolts from the dimensions is on the
+        # symbol route too, which the symbol check passes by (a sum of per-assembly products): whether the
+        # symbols agree with the dimensions (6) or not (7), the item is flagged with the view's rows named.
+        bolts = reader_row("NAN-DR-DET-02", 3, "per bracket", "Bolts (TYP.)", method="counted")
+        for symbols, total in [(six, 36), (self.SYMBOLS, 39)]:
+            mixed = it("All fasteners", f"{{{ANCH}}} * {{{symbols.claim_id}}} + {{{bolts.claim_id}}} * ({SPACES} + 1)", total)
+            with_both = {**BY_ID, symbols.claim_id: symbols, bolts.claim_id: bolts}
+            self.assertEqual(takeoff.symbol_notes(mixed, with_both), [])
+            c = takeoff.derived_claim("NAN-TK-Q-05", mixed, 2, 2, with_both)
+            self.assertEqual((c.flag, c.derivation), ("unverified", f"3 x {symbols.value} + 3 x ((182 - 2 x 11) / 32 + 1) = {total}; "
+                             f"rests on the symbol count {symbols.claim_id} where Partial Foundation Plan carries dimension strings ({SPAN}, {SPACING}, {END})"))
         # A symbol count on a view with no dimension strings is the number of assemblies (the prompt's rule).
         elsewhere = reader_row("NAN-DR-FRM-01", 6, "each", "Support symbols", method="counted",
                                locator="Partial First Floor Framing Plan", tag="S-1 Frm")

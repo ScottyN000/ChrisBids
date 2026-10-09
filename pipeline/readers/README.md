@@ -164,12 +164,15 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   label differently` (12", 11" and 8"; the run and spacing did not) and 0 of the 4 Takeoff items were
   flagged, because the 6 bracket symbols on the view agreed with the number the dimensions give; the trigger
   is left as it is, since a narrower one would need code to read the labels for a run, a spacing and an
-  offset. (c) `#4 bar`, `2 x 4 blocking` and `4x4 posts` are sizes, not counts. (d) An item that multiplies
-  by a symbol count where the symbols' view carries dimension strings it does not use is flagged unverified
-  (`takeoff.route_notes`, the rows passed over on the note): the prompt forbids that route when a run and
-  spacing are listed, and code holds it to that without reading the labels, so a view whose only dimension
-  is a wall thickness flags such an item for a second look too. (e) The per-PR mutation score goes in the
-  PR body with the run it came from.
+  offset. (c) `#4 bar`, `2 x 4 blocking` and `4x4 posts` are sizes, and `11 inches`, `8 inch CMU`, `6 mil
+  poly` are figures, not counts; `5 x 2'-8"` (a count of spacings) and `max 5 spaces` still are. (d) An
+  item that rests on a symbol count where the symbols' view carries dimension strings is flagged unverified
+  whatever else it uses (`takeoff.route_notes`, the view's dimension rows on the note; a fastener total that
+  takes the anchors from the symbols and the bolts from the dimensions is on that route too, and the symbol
+  check passes such a sum by): the prompt forbids that route when a run and spacing are listed, and code
+  holds it to that without reading the labels, so a view whose only dimension is a wall thickness flags such
+  an item for a second look too. (e) The per-PR mutation score goes in the PR description with the run it
+  came from (now in the Every PR bar of `docs/advisor.md`).
 
 ## The ruling still open
 

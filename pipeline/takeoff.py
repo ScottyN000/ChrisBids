@@ -22,8 +22,8 @@ both figures in its derivation (determinism: keep both, never pick). An item
 resting on a dimension whose runs worded the label differently is flagged the
 same way, unless an agreeing symbol row confirms the number, because the model
 chose which wording to follow. An item that rests on a symbol count where the
-symbols' view carries dimension strings it does not use is flagged too: the
-dimension route was there to take (`route_notes`).
+symbols' view carries dimension strings is flagged too, whatever else it uses:
+the dimension route was there to take (`route_notes`).
 """
 from __future__ import annotations
 
@@ -216,6 +216,17 @@ def assemblies(item: dict, by_id: dict[str, Claim]) -> float | None:
         return None  # a formula that only evaluates with the real per-assembly count gives no number to check
 
 
+def _used(item: dict, by_id: dict[str, Claim]) -> list[Claim]:
+    """The rows an item's formula uses, first use first, each once."""
+    return [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
+
+
+def is_symbol_count(c: Claim) -> bool:
+    """A reader's count of the things drawn on a view (`6 each`): not a per-assembly
+    row, not a count in another unit (`1 plank`), not a derived row."""
+    return c.method == "counted" and c.unit == "each" and not c.calc
+
+
 def assembly_names(rows) -> list[str]:
     """What per-assembly rows are per: `3 per bracket` names the bracket (first word only,
     so `per bracket assembly` names it too)."""
@@ -234,8 +245,7 @@ def symbol_rows(item: dict, by_id: dict[str, Claim], claims=None) -> list[Claim]
     it defaults to the formula inputs.
     """
     claims = list(by_id.values()) if claims is None else claims
-    refs = schema.CALC_REF.findall(item["calc"])
-    used = [by_id[r] for r in dict.fromkeys(refs)]
+    used = _used(item, by_id)
     views = {(c.source_id, c.locator) for c in used if c.method == "dimensioned"}
     names = assembly_names(used)
     if not names:
@@ -244,9 +254,7 @@ def symbol_rows(item: dict, by_id: dict[str, Claim], claims=None) -> list[Claim]
         job_names = assembly_names(by_id.values())
         dims = " ".join(c.statement.lower() for c in used if c.method == "dimensioned")
         names = [n for n in job_names if n in dims] or job_names
-    on_view = [c for c in claims
-               if c.method == "counted" and c.unit == "each" and not c.calc
-               and (c.source_id, c.locator) in views]
+    on_view = [c for c in claims if is_symbol_count(c) and (c.source_id, c.locator) in views]
     named = [c for c in on_view if any(name in c.statement.lower() for name in names)]
     return named or on_view
 
@@ -265,28 +273,26 @@ def symbol_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
 
 
 def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
-    """A note when an item rests on a symbol count where the view the symbols are on
-    carries dimension strings the item does not use. The number of assemblies comes
-    from the dimensions (run, spacing, end offsets); a symbol count stands in only
-    when no run and spacing are listed (the prompt's rule). Code cannot tell a run
-    from a wall thickness without reading the labels, so any dimensioned row on that
-    view is enough to flag the item for a second look, with the rows it passed over
-    on the note. `claims` is every current row, as for `symbol_rows`; an item that
-    uses a dimensioned row itself is the symbol check's business, not this one's.
+    """A note per symbol count an item rests on where the view the symbols are on
+    carries dimension strings, whatever else the item uses: a fastener total that
+    takes the anchors from the symbols and the bolts from the dimensions is on that
+    route too (the symbol check passes a sum of per-assembly products by). The number
+    of assemblies comes from the dimensions (run, spacing, end offsets); a symbol count
+    stands in only when no run and spacing are listed (the prompt's rule). Code cannot
+    tell a run from a wall thickness without reading the labels, so any dimensioned row
+    on that view is enough to flag the item for a second look, with those rows on the
+    note. `claims` is every current row, as for `symbol_rows`.
     """
     claims = list(by_id.values()) if claims is None else claims
-    used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
-    if any(c.method == "dimensioned" for c in used):
-        return []
     notes = []
-    for c in used:
-        if c.method != "counted" or c.unit != "each" or c.calc:
-            continue  # a per-assembly row, a count in another unit or a derived row is not a symbol count
-        passed = [d.claim_id for d in claims
-                  if d.method == "dimensioned" and (d.source_id, d.locator) == (c.source_id, c.locator)]
-        if passed:
+    for c in _used(item, by_id):
+        if not is_symbol_count(c):
+            continue
+        dims = [d.claim_id for d in claims
+                if d.method == "dimensioned" and (d.source_id, d.locator) == (c.source_id, c.locator)]
+        if dims:
             notes.append(f"rests on the symbol count {c.claim_id} where {c.locator} carries dimension strings "
-                         f"it does not use ({', '.join(passed)})")
+                         f"({', '.join(dims)})")
     return notes
 
 
@@ -301,7 +307,7 @@ def label_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     derivation, the one place a ledger row records what the vote saw; the constants are
     shared, never retyped.
     """
-    used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
+    used = _used(item, by_id)
     notes = []
     differing = [c.claim_id for c in used if DIFFERING_LABELS in c.derivation]
     if differing and not (assemblies(item, by_id) is not None and symbol_rows(item, by_id, claims)
@@ -315,7 +321,7 @@ def label_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
 
 def derived_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str, Claim],
                   claims=None) -> Claim:
-    used = [by_id[r] for r in dict.fromkeys(schema.CALC_REF.findall(item["calc"]))]
+    used = _used(item, by_id)
     notes = []
     if seen < runs:
         notes.append(f"seen in {seen} of {runs} runs")

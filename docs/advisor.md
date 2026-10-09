@@ -75,7 +75,8 @@ Nantucket and Ocean Beach ledgers.
 changed tests import) at or above the floor in `tools/mutation_gate.py` (narrowed
 from the whole of `pipeline/` by the owner, 2026-10-09, to save Actions minutes); `docs/pipeline-dag.md` regenerated when the pipeline
 changes; bandit, pip-audit and gitleaks clean; `SECURITY.md` updated when a
-control or a known gap changes.
+control or a known gap changes; the PR description states the mutation score
+and the run it came from (advisor on PR #17, 2026-10-09).
 
 ## What to check
 

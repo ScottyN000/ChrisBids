@@ -120,7 +120,7 @@ footer a { color: var(--ink); }
       </div>
     </aside>
   </main>
-  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) and goes back to his post, and the estimator walks the finished bid out by hand. The bid is there only when the log says the run got that far (a Scope Writer draft and an audit with no failed row); a run that stopped at the ledger ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call whose model has no row in the price table is counted, not priced, and the meter says so instead of showing a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) and goes back to his post, and the estimator walks the finished bid out by hand. The bid is there only when every Scope Writer run was valid, the draft is in the run folder and the audited rows include no fail (the auditor's own orphan-figure and source-hash checks are not in the log, and the caption says so); any other run ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call whose model has no row in the price table is counted, not priced, and the meter says so instead of showing a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
 </div>
 
 <script id="runs" type="application/json">__RUNS__</script>
@@ -200,13 +200,16 @@ footer a { color: var(--ink); }
     $('pricesrc').textContent = src;
     renderPanels(); draw();
   }
-  // what the log says the run reached: a bid ships only when a draft was written and no audit verdict is a fail
+  // what the log and the run folder show the run reached. The bid stands on the floor only when every Scope Writer run was
+  // valid, the draft is in the run folder, and the audited rows include no fail. The auditor's own orphan-figure and
+  // source-hash checks are not in the log, so the caption says so rather than calling the audit passed.
   function reached() {
+    const sw = events.filter(e => e.action === 'model-call' && e.station === 'scope_writer');
     const audits = events.filter(e => e.action === 'audit');
     const count = word => audits.filter(e => e.detail.split(':')[0].trim() === word).length;
-    const r = { drafted: events.some(e => e.action === 'model-call' && e.station === 'scope_writer'), audits: audits.length,
+    const r = { scopeRuns: sw.length, valid: sw.filter(e => /;\s*valid$/.test(e.detail)).length, draft: !!run.draft, audits: audits.length,
                 passed: count('pass'), unverified: count('unverified'), failed: count('fail') };
-    r.ships = r.drafted && r.audits > 0 && r.failed === 0;
+    r.ships = r.scopeRuns > 0 && r.valid === r.scopeRuns && r.draft && r.audits > 0 && r.failed === 0;
     return r;
   }
 
@@ -214,7 +217,7 @@ footer a { color: var(--ink); }
   //      row's sequence number, so a replay says the same thing every time (determinism applies to jokes too). ----
   const LINES = {
     read1: {
-      drawing: ["Where's the north arrow?", "What's the scale? Says so on the sheet.", "Who dimensions anything in inches?", "Dimension strings. My happy place.", "Is that a 6 or a smudge?"],
+      drawing: ["Where's the north arrow?", "What's the scale? Says so on the sheet.", "Who dimensions anything in inches?", "Dimension strings. My happy place.", "Is that a digit or a smudge?"],
       spec: ["Another division. Riveting.", "How many coats? The spec says, or it's a question.", "Rep's phone number is not a requirement.", "Read every clause. Lived to tell.", "Submittals, submittals, submittals."],
       photo: ["Nice gutter.", "That's not peeling, that's texture.", "No numbers from photos. House rule.", "Same wall, new angle. Bold.", "Someone loves their railing."],
       correspondence: ["The estimator wrote ASAP. Define ASAP.", "Reply-all. Of course it's reply-all.", "The customer says 'as discussed'. Discussed where?"],
@@ -227,15 +230,23 @@ footer a { color: var(--ink); }
     read3: ["THREE times. Three.", "I could draw this from memory now.", "Third read. The page hasn't changed. I have.", "Three reads and we still don't pick. We vote."],
     write: ["Filed. Nobody can edit it now. Nobody.", "Into the cabinet it goes.", "Signed, dated, no take-backs.", "One row, one page, one locator. Next."],
     flagged: ["Two readings, zero decisions. Flag it.", "Not my call. Flag it for a human.", "Sticky note. Someone with a pulse decides."],
-    register: ["Hash it, stamp it, next.", "Another PDF. Love that for me.", "Another photo of the same wall. Filed.", "I never forget a hash.", "Symlink? Nice try. Skipped."],
-    denied: ["Not your lane, pal.", "The access matrix says no.", "Nice try. Role check failed.", "Only the Auditor touches that column."],
+    register: {   // by the row's kind (its detail)
+      drawing: ["Another sheet. Hash it, stamp it, next.", "A drawing. Filed under its own hash."],
+      photo: ["Another photo of the same wall. Filed.", "A photo. Hashed. Next."],
+      spec: ["Another spec. Love that for me.", "A spec. Hashed, stamped, filed."],
+      correspondence: ["An email. Into the register it goes.", "Correspondence. Filed, not read."],
+      default: ["Hash it, stamp it, next.", "I never forget a hash."],
+    },
+    denied: ["Not your lane, pal.", "The access matrix says no.", "Nice try. Role check failed."],
+    deniedAudit: ["Only the Auditor touches that column.", "The audit field? Not yours."],
     rejected: ["No page, no entry.", "Fill the slip in properly.", "That's not a locator, that's a guess.", "Back. Try again."],
     fetchDenied: ["That site's not on the list.", "Allowlisted domains only.", "Nope. Not that one."],
     fetch: ["Allowlisted. Go ahead.", "Reading it off the site, not from memory.", "Quote it word for word or not at all."],
     audit: ["Opening the source. Every time.", "Show me the page.", "Cited? Let's see it."],
     owner: {
-      haiku: ["Haiku. Good. Cheap.", "That one cost less than a stamp.", "Frugal. The word is frugal."],
-      sonnet: ["Sonnet? Who approved Sonnet?", "Sonnet for the Takeoff. Fine. FINE.", "That's a Sonnet call. I felt that."],
+      haiku: ["Haiku. Good. Cheap.", "Small model, small bill.", "Frugal. The word is frugal."],
+      sonnet: ["Sonnet? Who approved Sonnet?", "That's a Sonnet call. I felt that."],
+      sonnetTakeoff: ["Sonnet for the Takeoff. Fine. FINE.", "The Takeoff gets Sonnet. Nobody else."],
       other: ["Cha-ching. That was my money.", "Was that billed? Tell me it wasn't billed."],
       unpriced: ["Billed. Priced? Nobody knows.", "What did that cost? Exactly. Nobody can say."],
       replay: ["Recorded answers. Free. Keep going.", "Replay run. Not a penny. Beautiful.", "Zero dollars. My favourite number."],
@@ -276,14 +287,15 @@ footer a { color: var(--ink); }
     const dur = (DUR[e.action] || DUR.default);
     if (e.action === 'register') {
       slips.push({ from: 'packet', to: 'register', t0: clock, t1: clock + dur, kind: 'page', label: e.subject });
-      w.busy = clock + dur; w.bubble = `files ${e.subject}`; w.quip = pick(LINES.register, e.seq); d.claims += 1;
+      w.busy = clock + dur; w.bubble = `files ${e.subject}`; w.quip = pick(LINES.register[e.detail] || LINES.register.default, e.seq); d.claims += 1;
       log(`${e.principal} registers ${e.subject} (${e.detail})`, e.action);
     } else if (e.action === 'model-call') {
       if (stacks[e.station]) { stacks[e.station].delete(e.subject); }
       w.busy = clock + dur; w.bubble = `${e.replay ? 'replays' : 'reads'} ${e.subject}, run ${e.run || '?'}`;
       w.quip = e.run >= 3 ? pick(LINES.read3, e.seq) : e.run === 2 ? pick(LINES.read2, e.seq) : pick(LINES.read1[e.station] || LINES.read1.default, e.seq);
       const m = (e.model || '').toLowerCase();
-      owner.say = pick(e.replay ? LINES.owner.replay : e.cost == null ? LINES.owner.unpriced : m.includes('haiku') ? LINES.owner.haiku : m.includes('sonnet') ? LINES.owner.sonnet : LINES.owner.other, e.seq); owner.until = clock + dur;
+      owner.say = pick(e.replay ? LINES.owner.replay : e.cost == null ? LINES.owner.unpriced : m.includes('haiku') ? LINES.owner.haiku
+        : m.includes('sonnet') ? (e.station === 'takeoff' ? LINES.owner.sonnetTakeoff : LINES.owner.sonnet) : LINES.owner.other, e.seq); owner.until = clock + dur;
       if (stacks[e.station] && stacks[e.station].size >= 3 && e.seq % 3 === 0) { owner.say = pick(LINES.owner.backlog, e.seq); }
       // a courier brings the station what its model reads: a page from the register, or rows from the cabinet; a fetched page needs no courier
       const input = stationOf(e.station).input;
@@ -314,7 +326,7 @@ footer a { color: var(--ink); }
       // denied: the access matrix said no. rejected: the slip failed the method rules. Both bounce.
       slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'bounce', label: e.subject });
       w.flash = clock + dur; w.refusal = e.action === 'rejected' ? `REJECTED ${e.subject}: ${e.detail}` : ''; d.denied += 1;
-      broker.arm = clock + dur; broker.say = pick(e.action === 'rejected' ? LINES.rejected : LINES.denied, e.seq); broker.until = clock + dur * 1.5;
+      broker.arm = clock + dur; broker.say = pick(e.action === 'rejected' ? LINES.rejected : /audit/.test(e.subject) ? LINES.deniedAudit : LINES.denied, e.seq); broker.until = clock + dur * 1.5;
       owner.say = pick(LINES.owner.denied, e.seq); owner.until = clock + dur * 1.5;
       log(`${e.principal} ${e.action === 'rejected' ? 'rejected' : 'refused'}: ${e.subject}${e.action === 'rejected' ? ` (${e.detail})` : ''}`, 'denied');
     } else if (e.action === 'fetch') {
@@ -400,9 +412,12 @@ footer a { color: var(--ink); }
     : `In the bag: $${spend.toFixed(4)}, this run's meter.`;
   function finishLine() {
     const flagged = (run.claims || []).filter(c => c.flag).length, r = run._end;
-    const f = flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.';
-    if (r.ships) return `${f} Draft written; audit: ${r.passed} passed, ${r.unverified} unverified, none failed. The bid can go.`;
-    return `${f} No bid to ship: ${!r.drafted ? 'no draft was written' : r.audits === 0 ? 'the draft was not audited' : `${r.failed} rows failed the audit`}.`;
+    const parts = [flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.'];
+    parts.push(r.scopeRuns ? `Scope Writer ran: ${r.valid} of ${r.scopeRuns} run${r.scopeRuns === 1 ? '' : 's'} valid; draft in the run folder: ${r.draft ? 'yes' : 'no'}.` : 'The Scope Writer did not run.');
+    parts.push(r.audits ? `Ledger rows audited: ${r.passed} pass, ${r.unverified} unverified, ${r.failed} fail (the draft's orphan check is not in the log).` : 'No audit rows.');
+    const why = !r.scopeRuns ? 'no draft' : r.valid < r.scopeRuns ? 'a Scope Writer run was discarded' : !r.draft ? 'no draft in the run folder' : !r.audits ? 'no audit' : `${r.failed} row${r.failed === 1 ? '' : 's'} failed`;
+    parts.push(r.ships ? 'The estimator takes the bid out by hand.' : `No bid on the floor: ${why}.`);
+    return parts.join(' ');
   }
 
   // ---- side panels ----

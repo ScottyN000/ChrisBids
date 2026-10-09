@@ -39,6 +39,14 @@ STATION_OF_PRINCIPAL = {n.principal: n.id for n in dag.NODES if n.principal} | O
 
 TIER = re.compile(r"\((?:for prompts )?(up to|over) ([\d,]+) tokens\)")
 RUN = re.compile(r"run (\d+)")
+SNAPSHOT = r"-\d{8}"   # a dated id (`claude-haiku-5-5-20260301`) is the model it is a snapshot of; any other suffix is another model
+
+
+def same_model(asked: str, served: str) -> bool:
+    """The ledger records the id the client asked for; calls.jsonl records the id the API says
+    served the call. They name the same model when equal, or when the served id is the asked
+    id plus a snapshot date."""
+    return served == asked or re.fullmatch(re.escape(asked) + SNAPSHOT, served) is not None
 
 
 def station_for(principal: str) -> str:
@@ -66,19 +74,14 @@ def row_key(name: str) -> str:
 
 
 def price_rows(models: dict, model: str, prompt_tokens: int) -> list[tuple[str, dict]]:
-    """The price table rows for a call's model id: those whose key is the id or the id's
-    longest prefix at a `-` (`claude-sonnet-4-5` is Sonnet 4.5, not Sonnet 4; a dated id
-    `claude-haiku-5-5-20260301` is Haiku 5.5), then, among tiers by prompt size, the one
-    the call's prompt falls in. One row prices the call; none or several do not."""
+    """The price table rows for a call's model id: those whose key is the id, or the id less a
+    snapshot date (`claude-haiku-5-5-20260301` is Haiku 5.5; `claude-opus-4-5` is not Opus 4,
+    and gets no row when its own is missing), then, among tiers by prompt size, the one the
+    call's prompt falls in. One row prices the call; none or several do not."""
     model = model.lower()
-    best = [(name, p) for name, p in models.items()
-            if model == row_key(name) or model.startswith(row_key(name) + "-")]
-    if not best:
-        return []
-    longest = max(len(row_key(name)) for name, _ in best)
     hits = []
-    for name, p in best:
-        if len(row_key(name)) != longest:
+    for name, p in models.items():
+        if not same_model(row_key(name), model):
             continue
         tier = TIER.search(name)
         if not tier:
@@ -94,13 +97,15 @@ def priced(call: dict, prices: dict | None) -> dict:
     """The call with `cost` (USD) and `priced_as` (the row name) added, or `cost` None
     and `unpriced` saying why. Cache writes are priced at the 5-minute rate, the one
     the pipeline asks for."""
-    u = call.get("usage") or {}
-    prompt = sum(u.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    u = call.get("usage")
     model = call.get("model") or ""
     if not prices or not prices.get("models"):
         return {**call, "cost": None, "priced_as": None, "unpriced": "no price table in this export"}
     if not model:
         return {**call, "cost": None, "priced_as": None, "unpriced": "the call names no model"}
+    if not isinstance(u, dict) or not u:
+        return {**call, "cost": None, "priced_as": None, "unpriced": "the usage line has no token counts"}
+    prompt = sum(u.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
     rows = price_rows(prices["models"], model, prompt)
     if len(rows) != 1:
         why = f"no price row for {model}" if not rows else f"{len(rows)} price rows match {model}"
@@ -141,11 +146,12 @@ def events(db: sqlite3.Connection, usage: dict | None = None, prices: dict | Non
                 lines = usage.get((e["subject"], e["run"]), [])
                 if len(lines) != 1:
                     e["unpriced"] = "no usage line in calls.jsonl" if not lines else f"{len(lines)} usage lines for this call"
-                elif lines[0].get("model") and lines[0]["model"] != e["model"]:
+                elif lines[0].get("model") and not same_model(e["model"], lines[0]["model"]):
                     # the ledger row is the record; a usage line naming another model prices nothing
                     e["unpriced"] = f"the ledger says {e['model']}, calls.jsonl says {lines[0]['model']}"
                 else:
-                    c = priced({**lines[0], "model": e["model"]}, prices)
+                    # priced by the id the API billed (the ledger's id, or its dated snapshot)
+                    c = priced({**lines[0], "model": lines[0].get("model") or e["model"]}, prices)
                     e.update({"usage": c.get("usage"), "cost": c["cost"], "priced_as": c["priced_as"], "unpriced": c["unpriced"]})
         out.append(e)
     return out
@@ -171,6 +177,7 @@ def export(run_dir: Path, prices: dict | None = None) -> dict:
             "job": meta.get("job", ""), "run_id": meta.get("run_id", ""), "created_at": meta.get("created_at", ""),
             "stations": stations, "edges": edges, "events": events(db, usage_lines(run_dir), prices),
             "claims": claims(db), "prices": prices,
+            "draft": (run_dir / "proposal.md").exists(),   # the Scope Writer's draft, when the run rendered one
         }
 
 

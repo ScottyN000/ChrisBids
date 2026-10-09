@@ -82,9 +82,14 @@ class PriceRowCase(unittest.TestCase):
         both = {"Claude Sonnet 4": {}, "Claude Sonnet 4.5": {}}
         self.assertEqual(one("claude-sonnet-4-5", 1, both), ["Claude Sonnet 4.5"])
         self.assertEqual(one("claude-sonnet-4-20250514", 1, both), ["Claude Sonnet 4"])
-        for missing in ("claude-opus-5-5", "claude-sonnet-5", "claude-sonnet-5-55", "replay", ""):
+        # an id with another suffix is another model: it never falls back to the shorter family row
+        for missing in ("claude-opus-5-5", "claude-sonnet-5", "claude-sonnet-5-55", "claude-opus-4-5", "claude-opus-4-1", "claude-haiku-5-5-x", "replay", ""):
             with self.subTest(missing):
                 self.assertEqual(one(missing, 1), [])
+        self.assertEqual(one("claude-sonnet-4-5", 1, {"Claude Sonnet 4": {}}), [])
+        self.assertTrue(export_run.same_model("claude-haiku-5-5", "claude-haiku-5-5-20260301"))
+        self.assertFalse(export_run.same_model("claude-haiku-5-5", "claude-haiku-5-5-2026030"))
+        self.assertFalse(export_run.same_model("claude-haiku-5-5-20260301", "claude-haiku-5-5"))
         # two rows the tier wording cannot tell apart are both returned, and price nothing
         vague = {"Claude Sonnet 4.5 (prompts up to 200K tokens)": {}, "Claude Sonnet 4.5 (prompts over 200K tokens)": {}}
         self.assertEqual(len(one("claude-sonnet-4-5", 300000, vague)), 2)
@@ -103,6 +108,9 @@ class PriceRowCase(unittest.TestCase):
             ({**LIVE_CALL, "model": "claude-sonnet-4-5"}, vague, "2 price rows match claude-sonnet-4-5"),
             ({**LIVE_CALL, "model": ""}, PRICES, "the call names no model"),
             ({k: v for k, v in LIVE_CALL.items() if k != "model"}, PRICES, "the call names no model"),
+            ({**LIVE_CALL, "usage": None}, PRICES, "the usage line has no token counts"),
+            ({**LIVE_CALL, "usage": {}}, PRICES, "the usage line has no token counts"),
+            ({k: v for k, v in LIVE_CALL.items() if k != "usage"}, PRICES, "the usage line has no token counts"),
         ]:
             with self.subTest(why):
                 u = export_run.priced(call, prices)
@@ -120,7 +128,7 @@ class ExportCase(unittest.TestCase):
             db = sqlite3.connect(run_dir / "ledger.db")
             self.assertEqual(len(data["events"]), db.execute("select count(*) from audit_log").fetchone()[0])
             self.assertEqual(len(data["claims"]), db.execute("select count(*) from claims").fetchone()[0])
-            self.assertEqual((data["job"], data["prices"]["source_url"]), ("NAN", "u"))
+            self.assertEqual((data["job"], data["prices"]["source_url"], data["draft"]), ("NAN", "u", False))
             self.assertNotIn("calls", data)
             calls = [e for e in data["events"] if e["action"] == "model-call"]
             self.assertEqual((calls[0]["station"], calls[0]["run"], calls[0]["model"]), ("drawing", 1, "replay (recorded expected output)"))
@@ -136,9 +144,10 @@ class ExportCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp) / "live"
             run_dir.mkdir()
+            # the ledger carries the id the client asked for (`cli live --model`); the usage line the dated id the API served
             live_ledger(run_dir, [
-                ("drawing_reader", "model-call", "S-1#Fnd", "claude-haiku-5-5-20260301; drawing@1; run 1"),   # one usage line: priced
-                ("drawing_reader", "model-call", "S-1#Fnd", "claude-haiku-5-5-20260301; drawing@1; run 2"),   # no usage line
+                ("drawing_reader", "model-call", "S-1#Fnd", "claude-haiku-5-5; drawing@1; run 1"),            # one usage line: priced
+                ("drawing_reader", "model-call", "S-1#Fnd", "claude-haiku-5-5; drawing@1; run 2"),            # no usage line
                 ("drawing_reader", "model-call", "S-1#Fnd", "replay; drawing@1; run 3"),                      # a replay bills nothing
                 ("takeoff", "model-call", "NAN#takeoff", "claude-opus-5-5; takeoff@1; run 1"),                 # no price row
                 ("takeoff", "model-call", "NAN#takeoff", "claude-haiku-5-5; takeoff@1; run 2"),                # two usage lines (the folder was run twice)
@@ -152,10 +161,13 @@ class ExportCase(unittest.TestCase):
                      {**LIVE_CALL, "reader": "takeoff", "unit_id": "NAN#takeoff", "run": 2, "model": "claude-haiku-5-5"},
                      {**LIVE_CALL, "reader": "spec", "unit_id": "SW#1", "run": 1, "model": "claude-sonnet-5-5"}]
             (run_dir / "recordings" / "calls.jsonl").write_text("\n".join(json.dumps(c) for c in lines) + "\n\n")
+            self.assertFalse(export_run.export(run_dir)["draft"])
+            (run_dir / "proposal.md").write_text("# draft\n")
             data = export_run.export(run_dir, prices=PRICES)
+            self.assertTrue(data["draft"])
             calls = [e for e in data["events"] if e["action"] == "model-call"]
             self.assertEqual([(e["model"], e["run"], e["replay"]) for e in calls],
-                             [("claude-haiku-5-5-20260301", 1, False), ("claude-haiku-5-5-20260301", 2, False), ("replay", 3, True),
+                             [("claude-haiku-5-5", 1, False), ("claude-haiku-5-5", 2, False), ("replay", 3, True),
                               ("claude-opus-5-5", 1, False), ("claude-haiku-5-5", 2, False), ("claude-haiku-5-5", 1, False)])
             self.assertAlmostEqual(calls[0]["cost"], HAIKU_COST)
             self.assertEqual((calls[0]["priced_as"], calls[0]["usage"], calls[0]["unpriced"]),

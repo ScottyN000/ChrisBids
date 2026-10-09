@@ -88,12 +88,14 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
 # A bar size (`#4 bar`) and a lumber size (`2 x 4 blocking`, `2x4`, `2 X 4 BLOCKING`) are sizes, not
 # counts. A size is bare digits on both sides of the x with nothing after the second but a word or
 # another x, so a count of spacings is still a count however it is written: `5 x 2'-8"`, `5 @ 2'-8"`
-# (arch p.5), `5 × 2'-8"`, arch p.4's own `11 + 5 x 32 + 11`, `5 x 2 ft`, `5 X 32 IN` (drawings print
-# in capitals). A number followed by a unit word (`11 inches`, `8 inch CMU`, `6 mil poly`) is a
-# figure; a bare `in` is left alone, since `2 in each bay` is a count.
+# (arch p.5), `5 × 2'-8"`, the same with no spaces as a CAD override prints them (`5@2'-8"`,
+# `5x2'-8"`), arch p.4's own `11 + 5 x 32 + 11`, `5 x 2 ft`, `5 X 32 IN` (drawings print in capitals).
+# A count is followed by a word, by `@` or `×`, or by an x and a figure carrying a mark. A number
+# followed by a unit word (`11 inches`, `8 inch CMU`, `6 mil poly`) is a figure; a bare `in` is left
+# alone, since `2 in each bay` is a count.
 SIZE_SECOND = r"\d+(?![\d'\"\-/])(?!\s*(?:[+=\-*/]|(?i:in|inches|inch|ft|feet|foot)\b))"
 BARE_COUNT = re.compile(r"(?<![\w\-/.'\"#])(?<!\d[xX×] )(?<!\d [xX×] )\(?(\d+)\)?"
-                        r"(?!\s*[xX×]\s*" + SIZE_SECOND + r")(?=\s+[A-Za-z@×])")
+                        r"(?!\s*[xX×]\s*" + SIZE_SECOND + r")(?=\s+[A-Za-z]|\s*[@×]|\s*[xX×]\s*\d+['\"])")
 FIGURE_UNIT = re.compile(r"(?i)^\s+(?:inches|inch|in\.|ft\.?|feet|foot|mil|ga\.?|gauge|mm|cm|lbs?|psi|psf|oz|kips?)(?![A-Za-z])")
 REFERENCE_WORDS = ("det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item")
 # A reference word right before the number, with only a stop, `#`, `:` and spaces between.

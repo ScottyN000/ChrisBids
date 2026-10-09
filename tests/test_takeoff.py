@@ -12,6 +12,7 @@ from pipeline import schema, takeoff
 from pipeline.broker import Broker
 from pipeline.readers import compare, validate
 from pipeline.readers.clients import prompt, prompt_version
+from pipeline.readers.vote import bare_counts
 from pipeline.schema import Claim, LedgerError
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -554,6 +555,24 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.route_notes(by_symbols, {**rows, "NAN-DR-FRM-02": far}), [
             f"rests on the symbol count {six.claim_id} where Partial Foundation Plan and Partial First Floor Framing Plan "
             f"carry bracket dimension strings ({SPAN}, {SPACING}, NAN-DR-FRM-02)"])
+        # Of the names, a symbol count is held to the ones its own wording carries: piers summed into a bracket
+        # total are held to pier strings (none here), not the bracket's; a pier string flags them, cited.
+        piers = reader_row("NAN-DR-FND-05", 2, "each", "New pier symbols drawn", method="counted")
+        per_pier = reader_row("NAN-DR-DET-03", 4, "per pier", "Bolts per pier", method="counted",
+                              locator="Pier Detail 2/S-1", tag="S-1 Det 2")
+        with_piers = {**BY_ID, piers.claim_id: piers, per_pier.claim_id: per_pier}
+        total = it("All bolts", f"{{{ANCH}}} * ({SPACES} + 1) + {{{per_pier.claim_id}}} * {{{piers.claim_id}}}", 26)
+        self.assertEqual(takeoff.symbol_notes(total, with_piers), [])
+        self.assertEqual(takeoff.route_notes(total, with_piers), [])
+        self.assertEqual(takeoff.derived_claim("NAN-TK-Q-07", total, 2, 2, with_piers).flag, "")
+        pier_run = reader_row("NAN-DR-FND-07", 96, "in", "Pier spacing: 8'-0\"")
+        self.assertEqual(takeoff.route_notes(total, {**with_piers, pier_run.claim_id: pier_run}), [
+            f"rests on the symbol count {piers.claim_id} where Partial Foundation Plan carries pier dimension strings ({pier_run.claim_id})"])
+        # A symbol row worded with no assembly name is held to every name.
+        bare = reader_row("NAN-DR-FND-04", 6, "each", "Symbols drawn", method="counted")
+        self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{bare.claim_id}}}", 18),
+                                             {**with_piers, bare.claim_id: bare}), [
+            f"rests on the symbol count {bare.claim_id} where Partial Foundation Plan carries bracket dimension strings ({SPAN}, {SPACING})"])
         # A view with no dimension string anywhere in the job naming the assembly is the prompt's own route.
         self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{elsewhere.claim_id}}}", 18),
                                              {ANCH: BY_ID[ANCH], elsewhere.claim_id: elsewhere, END: BY_ID[END]}), [])
@@ -582,6 +601,15 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.label_notes(by_number, BY_ID), [])
         self.assertEqual(takeoff.label_notes(by_number, BY_ID, list(rows.values())), [note])
         self.assertEqual(takeoff.label_notes(by_number, rows, list(BY_ID.values())), [])
+        # The golden formula's own 2 (the two ends) meets a marked `2 PLACES` string on the view: an item that
+        # takes its number of assemblies from the dimensions is left alone, one with no dimension row is not.
+        places = Claim(**{**reader_row("NAN-DR-FND-06", 12, "in", "Top wall: 12\" TYP. 2 PLACES").__dict__,
+                          "derivation": "12\" dimension string = 12 in; a run put a count in the label with no counted row"})
+        self.assertEqual(bare_counts(places.statement), ["2"])
+        self.assertEqual(takeoff.label_notes(self.ANCHORS, {**BY_ID, places.claim_id: places}), [])
+        self.assertEqual(takeoff.label_notes(it("Spaces", SPACES, 5, "spaces"), {**BY_ID, places.claim_id: places}), [])
+        self.assertEqual(takeoff.label_notes(it("Anchors", f"{{{ANCH}}} * 2", 6), {**BY_ID, places.claim_id: places}),
+                         [f"takes 2 from the label of {places.claim_id}, a count with no counted row"])
 
     def test_only_symbols_of_the_assembly_the_rows_are_per_are_compared(self):
         piers = reader_row("NAN-DR-FND-05", 2, "each", "New pier symbols drawn", method="counted")

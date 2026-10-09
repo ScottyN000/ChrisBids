@@ -286,24 +286,28 @@ def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     those naming what the item's own per-assembly rows are per (`Bracket spacing:
     2'-8"` for a per-bracket row), else what the job's are per, as `symbol_rows`
     matches them, on any view; window tags beside a room width are the prompt's own
-    route and are not flagged. A job with no per-assembly row at all is held to every
-    dimension string on the symbols' own view. The rows that count go on the note with
-    their view. `claims` is every current row, as for `symbol_rows`.
+    route and are not flagged. Of those names, a symbol count is held to the ones its
+    own wording carries (`New pier symbols drawn` summed into a bracket total is held
+    to pier strings, not the bracket's), and to all of them when it carries none, so a
+    reader's wording cannot switch the check off. A job with no per-assembly row at all
+    is held to every dimension string on the symbols' own view. The rows that count go
+    on the note with their view. `claims` is every current row, as for `symbol_rows`.
     """
     claims = list(by_id.values()) if claims is None else claims
     used = _used(item, by_id)
     names = assembly_names(used) or assembly_names(claims)
+    dims = [d for d in claims if d.method == "dimensioned"]
     notes = []
     for c in used:
         if not is_symbol_count(c):
             continue
-        dims = [d for d in claims if d.method == "dimensioned"]
-        if names:
-            named = [d for d in dims if any(n in d.statement.lower() for n in names)]
+        own = [n for n in names if n in c.statement.lower()] or names
+        if own:
+            named = [d for d in dims if any(n in d.statement.lower() for n in own)]
         else:
             named = [d for d in dims if (d.source_id, d.locator) == (c.source_id, c.locator)]
         if named:
-            what = " and ".join(n for n in names if any(n in d.statement.lower() for d in named))
+            what = " and ".join(n for n in own if any(n in d.statement.lower() for d in named))
             views = _join(d.locator for d in named)
             notes.append(f"rests on the symbol count {c.claim_id} where {' and '.join(views)} "
                          f"{'carries' if len(views) == 1 else 'carry'} {what + ' ' if what else ''}"
@@ -320,8 +324,9 @@ def label_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     from `5 spaces at 2'-8"`), which the prompt allows for a number the row wording gives:
     an item whose own constants include a count found in the label of a current row so
     marked that the item does not use is noted too, since that number cites no row (a
-    row it uses is noted already). A formula's own 1 and 2 (the fence post, the two
-    ends) can meet such a label by chance; the note asks for a second look, no more.
+    row it uses is noted already). An item that takes its number of assemblies from
+    dimension rows is left alone there: the golden formula's own 1 and 2 (the fence
+    post, the two ends) would meet a `2 PLACES` label on every item of the job.
 
     The row says so with `rows.DIFFERING_LABELS` or `rows.COUNT_IN_LABEL` in its
     derivation, the one place a ledger row records what the vote saw; the constants are
@@ -336,6 +341,8 @@ def label_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     counted = [c.claim_id for c in used if COUNT_IN_LABEL in c.derivation]
     if counted:
         notes.append(f"uses {', '.join(counted)}, whose label a run gave a count with no counted row")
+    if any(c.method == "dimensioned" for c in used):
+        return notes
     constants = set(re.findall(r"\d+", schema.CALC_REF.sub("", item["calc"])))
     used_ids = {c.claim_id for c in used}
     for c in (list(by_id.values()) if claims is None else claims):

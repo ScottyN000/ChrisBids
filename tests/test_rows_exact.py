@@ -44,11 +44,17 @@ class DrawingCase(unittest.TestCase):
         self.assertEqual((c.statement, c.flag, c.derivation), (
             "Top wall segment: 11\" or First bracket from the wall face: 11\"", "",
             "11\" dimension string = 11 in; runs word the label differently"))
+        (v,) = vote("drawing", [[item("count", "Brackets", count=6, unit="each")],
+                                [item("count", "Bracket symbols", count=6, unit="each")]])
+        self.assertEqual((v.labels, one("drawing", FND, v).statement), ([], "Brackets"))
+
+    def test_a_wording_carrying_a_count_is_dropped_while_another_survives(self):
         runs = [[item("dimension", "Bracket spacing, printed 5 times along the run", "2'-8\"")],
                 [item("dimension", "Bracket spacing: 2'-8\"", "2'-8\"")]]
         (v,) = vote("drawing", runs)
         self.assertEqual((v.labels, v.counted_label), (["Bracket spacing: 2'-8\""], False))
-        # When every wording carries a count, the first is kept as printed and the row says so.
+
+    def test_when_every_wording_carries_a_count_the_first_is_kept_as_printed_and_marked(self):
         (v,) = vote("drawing", [[item("dimension", "5 spaces at 2'-8\"", "2'-8\"")]])
         self.assertEqual((v.labels, v.counted_label), (["5 spaces at 2'-8\""], True))
         self.assertEqual(one("drawing", FND, v).derivation,
@@ -57,23 +63,30 @@ class DrawingCase(unittest.TestCase):
                                 [item("dimension", "Wall face to first bracket, 2 places, see 1/S-1", "11\"")]])
         self.assertEqual((v.labels, v.counted_label), (["Wall face to first bracket (2 PLACES)"], True))
         self.assertEqual(one("drawing", FND, v).statement, "Wall face to first bracket (2 PLACES): 11\"")
-        # A count made of the string's own digits is still a count.
-        (v,) = vote("drawing", [[item("dimension", "Bracket spacing, 2 places", "2'-8\"")],
-                                [item("dimension", "8 brackets at 2'-8\"", "2'-8\"")]])
-        self.assertEqual((v.labels, v.counted_label), (["Bracket spacing, 2 places"], True))
-        (v,) = vote("drawing", [[item("dimension", "Bracket spacing (5) SPACES", "2'-8\"")],
-                                [item("dimension", "11\" TYP. 2 PLACES", "2'-8\"")]])
-        self.assertEqual((v.labels, v.counted_label), (["Bracket spacing (5) SPACES"], True))
-        # Sheet and detail references, and numbers joined to a letter, are not counts.
+
+    def test_what_counts_as_a_count_in_a_label(self):
+        """A number standing alone before a word is a count, in parentheses or not, made of the
+        string's digits or not, after a reference word that is not right before it or not."""
+        for label, text in [("Bracket spacing, 2 places", "2'-8\""), ("8 brackets at 2'-8\"", "2'-8\""),
+                            ("Bracket spacing (5) SPACES", "2'-8\""), ("11\" TYP. 2 PLACES", "2'-8\""),
+                            ("Bracket spacing per plan, 5 spaces", "2'-8\""),
+                            ("Bracket spacing along grid line, 5 spaces", "2'-8\""),
+                            ("Wall face to first bracket, see detail 1 (2 places)", "11\"")]:
+            with self.subTest(label=label):
+                (v,) = vote("drawing", [[item("dimension", label, text)]])
+                self.assertEqual((v.labels, v.counted_label), ([label], True))
+
+    def test_references_and_figures_in_a_label_are_not_counts(self):
+        for label, text in [("Bracket spacing (REF. DET. 1/S-1)", "11\""), ("see S-1", "11\""),
+                            ("Bracket run, see detail 1 (2x4 blocking)", "15'-2\""),
+                            ("Bracket run, sheet #2 to grid line 3", "15'-2\""), ("Wall face to bracket, 11\" typ", "11\"")]:
+            with self.subTest(label=label):
+                (v,) = vote("drawing", [[item("dimension", label, text)]])
+                self.assertEqual((v.labels, v.counted_label), ([label], False))
         runs = [[item("dimension", "Bracket spacing (REF. DET. 1/S-1)", "11\"")],
                 [item("dimension", "Wall face to first bracket (2 places), see S-1", "11\"")]]
         (v,) = vote("drawing", runs)
         self.assertEqual((v.labels, v.counted_label), (["Bracket spacing (REF. DET. 1/S-1)"], False))
-        (v,) = vote("drawing", [[item("dimension", "Bracket run, see detail 1 (2x4 blocking)", "15'-2\"")]])
-        self.assertEqual((v.labels, v.counted_label), (["Bracket run, see detail 1 (2x4 blocking)"], False))
-        (v,) = vote("drawing", [[item("count", "Brackets", count=6, unit="each")],
-                                [item("count", "Bracket symbols", count=6, unit="each")]])
-        self.assertEqual((v.labels, one("drawing", FND, v).statement), ([], "Brackets"))
 
     def test_dimension_fractional_keeps_its_fraction(self):
         v = Voted(item("dimension", "Gap", "1/2\""), seen=3, runs=3)

@@ -86,18 +86,16 @@ def _key(reader: str, item: dict, seen: dict) -> tuple:
 # (`detail 1`, `sheet 2`, `type 3`), is a figure or a reference and is left alone. `TYP.`
 # qualifies a count (`TYP. 2 PLACES`), it names nothing, so it is not a reference word.
 BARE_COUNT = re.compile(r"(?<![\w\-/.'\"])\(?(\d+)\)?(?=\s+[A-Za-z])")
-REFERENCE_WORDS = {"det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item"}
+REFERENCE_WORDS = ("det", "detail", "dtl", "sheet", "sht", "ref", "note", "type", "no", "mark", "section", "sect", "view", "plan", "elev", "elevation", "grid", "line", "level", "lvl", "step", "phase", "unit", "bldg", "building", "item")
+# A reference word right before the number, with only a stop, `#`, `:` and spaces between.
+NAMED_BY_REFERENCE = re.compile(r"(?i)\b(?:" + "|".join(REFERENCE_WORDS) + r")\.?\s*[#:]?\s*$")
 
 
 def bare_counts(label: str) -> list[str]:
     """The numbers in a label that are counts, as `BARE_COUNT` says, with those a
-    reference word names left out."""
-    out = []
-    for m in BARE_COUNT.finditer(label):
-        before = re.findall(r"[A-Za-z]+", label[: m.start()])
-        if not before or before[-1].lower() not in REFERENCE_WORDS:
-            out.append(m.group(1))
-    return out
+    reference word right before them names left out (`detail 1`, not `per plan, 5 spaces`)."""
+    return [m.group(1) for m in BARE_COUNT.finditer(label)
+            if not NAMED_BY_REFERENCE.search(label[: m.start()])]
 
 
 def dimension_labels(items: list[dict]) -> tuple[list[str], bool]:

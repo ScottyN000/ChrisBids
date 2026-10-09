@@ -120,7 +120,7 @@ footer a { color: var(--ink); }
       </div>
     </aside>
   </main>
-  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, where the finished bid waits, drops a bag of money (what is in it is the meter's total, nothing more), and the two walk out together. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call whose model has no row in the price table is counted, not priced, and the meter says so instead of showing a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
+  <footer>Replayed from the run's claim ledger (audit log and claims) and, on a live run, its calls.jsonl. Every move on the floor is one audit-log row; what the crew says is a reaction to the row they are working on, picked by that row's sequence number so a replay says the same thing every time. Three things are not in the ledger: the cat, the couriers' beer, and the closing scene. No row records a release (the pipeline never releases a bid; in the real process the estimator releases it by hand, as the sign over the door says), so the closing scene is staged: the owner walks over to the bouncer, drops a bag of money (what is in it is the meter's total, nothing more) and goes back to his post, and the estimator walks the finished bid out by hand. The bid is there only when the log says the run got that far (a Scope Writer draft and an audit with no failed row); a run that stopped at the ledger ends with the bag and no bid, and the caption says why. The bags pile up at the bouncer's feet, one per run finished on this page today, kept in this browser only. A replay run bills no tokens, so its meter stays at zero; a live call whose model has no row in the price table is counted, not priced, and the meter says so instead of showing a figure. Export a run with <code>tools/export_run.py</code> and load it here.</footer>
 </div>
 
 <script id="runs" type="application/json">__RUNS__</script>
@@ -131,32 +131,36 @@ footer a { color: var(--ink); }
   const $ = id => document.getElementById(id);
   const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-  // ---- the floor plan: stations on a 1000 x 560 grid, scaled to the canvas ----
+  // ---- the floor plan: where each DAG station stands on a 1000 x 560 grid, scaled to the canvas.
+  //      A station's name, status and what its model reads come from the export's stations (pipeline/dag.py and roles.py);
+  //      only its position, its furniture and its hat colour live here ----
   const PLAN = {
-    packet:        { x: 70,  y: 200, kind: 'tray',   name: 'Bid packet' },
-    intake:        { x: 180, y: 190, kind: 'desk',   name: 'Intake',        hat: 'yellow' },
-    register:      { x: 300, y: 200, kind: 'tray',   name: 'Source Register' },
-    orchestrator:  { x: 410, y: 190, kind: 'desk',   name: 'Orchestrator',  hat: 'white' },
-    drawing:       { x: 560, y: 160, kind: 'desk',   name: 'Drawing Reader', hat: 'orange' },
-    spec:          { x: 560, y: 250, kind: 'desk',   name: 'Spec Reader',    hat: 'orange' },
-    photo:         { x: 560, y: 340, kind: 'desk',   name: 'Photo Reader',   hat: 'orange' },
-    correspondence:{ x: 560, y: 430, kind: 'desk',   name: 'Correspondence', hat: 'orange' },
-    takeoff:       { x: 740, y: 170, kind: 'bench',  name: 'Takeoff',        hat: 'blue' },
-    codes:         { x: 740, y: 270, kind: 'desk',   name: 'Codes & Regs',   hat: 'blue' },
-    materials:     { x: 740, y: 360, kind: 'desk',   name: 'Materials',      hat: 'blue' },
-    customer:      { x: 740, y: 450, kind: 'desk',   name: 'Customer Reqs',  hat: 'blue', planned: true },
-    ledger:        { x: 330, y: 500, kind: 'cabinet',name: 'Claim ledger' },
-    scope_writer:  { x: 150, y: 410, kind: 'desk',   name: 'Scope Writer',   hat: 'green' },
-    draft:         { x: 222, y: 448, kind: 'tray',   name: 'Proposal draft' },
-    auditor:       { x: 150, y: 530, kind: 'desk',   name: 'Auditor',        hat: 'white' },
-    ships:         { x: 920, y: 530, kind: 'door',   name: 'Bid ships' },
+    packet:        { x: 70,  y: 200, kind: 'tray' },
+    intake:        { x: 180, y: 190, kind: 'desk', hat: 'yellow' },
+    register:      { x: 300, y: 200, kind: 'tray' },
+    orchestrator:  { x: 410, y: 190, kind: 'desk', hat: 'white' },
+    drawing:       { x: 560, y: 160, kind: 'desk', hat: 'orange' },
+    spec:          { x: 560, y: 250, kind: 'desk', hat: 'orange' },
+    photo:         { x: 560, y: 340, kind: 'desk', hat: 'orange' },
+    correspondence:{ x: 560, y: 430, kind: 'desk', hat: 'orange' },
+    takeoff:       { x: 740, y: 170, kind: 'bench', hat: 'blue' },
+    codes:         { x: 740, y: 270, kind: 'desk', hat: 'blue' },
+    materials:     { x: 740, y: 360, kind: 'desk', hat: 'blue' },
+    customer:      { x: 740, y: 450, kind: 'desk', hat: 'blue' },
+    ledger:        { x: 330, y: 500, kind: 'cabinet' },
+    scope_writer:  { x: 150, y: 410, kind: 'desk', hat: 'green' },
+    draft:         { x: 222, y: 448, kind: 'tray' },
+    auditor:       { x: 150, y: 530, kind: 'desk', hat: 'white' },
+    ships:         { x: 920, y: 530, kind: 'door' },
   };
   // the cast that is not a station: no log row is theirs, they only react
-  const EXTRAS = { owner: { x: 880, y: 390 }, broker: { x: 420, y: 505 }, cat: { x: 500, y: 540 }, bid: { x: 500, y: 514 }, pile: { x: 452, y: 546 } };
+  const EXTRAS = { owner: { x: 880, y: 390 }, estimator: { x: 835, y: 482 }, broker: { x: 420, y: 505 }, cat: { x: 500, y: 540 }, bid: { x: 500, y: 514 }, pile: { x: 452, y: 546 } };
+  const stationOf = st => (run && run._st && run._st[st]) || { id: st, label: st, status: '', input: '' };
+  const nameOf = st => stationOf(st).label || st;
   const HAT = { yellow: '#f2c200', white: '#f4f4f4', orange: null, blue: '#3b7dd8', green: '#3fa66a' };   // null: the accent colour
 
   // ---- playback state ----
-  let run = null, events = [], cursor = 0, playing = false, speed = 1, raf = 0, last = 0;
+  let run = null, events = [], cursor = 0, playing = false, speed = 1, last = 0;
   let clock = 0;                 // ms of floor time
   const workers = {};            // station -> {busy:until, bubble:text, flash:until}
   const slips = [];              // flying papers {from,to,t0,t1,kind}
@@ -167,6 +171,7 @@ footer a { color: var(--ink); }
   // a call the exporter could not price is counted here, with its reason, and never shown as a figure
   let spend = 0; const spendBy = {};  // station -> dollars, priced calls only
   let pricedCalls = 0, unpricedCalls = 0, unpricedWhy = '';
+  const clamp = v => Math.max(0, Math.min(1, v));
   const logEl = $('log');
 
   function load(r) {
@@ -174,33 +179,47 @@ footer a { color: var(--ink); }
     for (const k in workers) delete workers[k]; slips.length = 0;
     for (const k in stacks) delete stacks[k]; for (const k in done) delete done[k]; for (const k in did) delete did[k];
     spend = 0; for (const k in spendBy) delete spendBy[k]; pricedCalls = 0; unpricedCalls = 0; unpricedWhy = ''; logEl.innerHTML = '';
+    run._st = {}; for (const s of r.stations || []) run._st[s.id] = s;
     // backlog: every unit a station will read, from the model-call rows ahead of us
     for (const e of events) if (e.action === 'model-call') {
       (stacks[e.station] = stacks[e.station] || new Set()).add(e.subject);
       done[e.station] = done[e.station] || new Set();
     }
     // the ledger's unit of work is the claim row
-    const calls = r.calls || [];
-    run._callIndex = {}; for (const c of calls) run._callIndex[`${c.unit_id}|${c.run}`] = c;
     run._claimIndex = {}; for (const c of (r.claims || [])) run._claimIndex[c.claim_id] = c;
+    // what the log says about the run's calls and where it got to
+    run._calls = events.filter(e => e.action === 'model-call').length;
+    run._billed = events.filter(e => e.action === 'model-call' && !e.replay).length;
+    run._end = reached();
     owner.say = ''; owner.until = 0; broker.arm = 0; broker.nod = 0; broker.say = ''; broker.until = 0; finale = null; doorOpen = 0;
-    $('jobline').textContent = `${r.job || '?'} · ${r.run_id || ''} · ${events.length} log rows, ${(r.claims||[]).length} claims` + (calls.length ? `, ${calls.length} model calls billed` : ', replay (recorded answers, nothing billed)');
+    const billed = run._billed;
+    $('jobline').textContent = `${r.job || '?'} · ${r.run_id || ''} · ${events.length} log rows, ${(r.claims||[]).length} claims`
+      + (billed ? `, ${billed} model call${billed === 1 ? '' : 's'} billed` : run._calls ? ', replay (recorded answers, nothing billed)' : ', no model call');
     $('caption').textContent = 'Press Play. Every move on the floor is one row of the run\'s audit log.';
     const src = r.prices ? `Prices: ${r.prices.unit}, read from ${r.prices.source_url} at ${r.prices.fetched_at}. Cache writes at the 5-minute rate.` : 'No price table in this export (run tools/fetch_prices.py and pass --prices).';
     $('pricesrc').textContent = src;
     renderPanels(); draw();
+  }
+  // what the log says the run reached: a bid ships only when a draft was written and no audit verdict is a fail
+  function reached() {
+    const audits = events.filter(e => e.action === 'audit');
+    const count = word => audits.filter(e => e.detail.split(':')[0].trim() === word).length;
+    const r = { drafted: events.some(e => e.action === 'model-call' && e.station === 'scope_writer'), audits: audits.length,
+                passed: count('pass'), unverified: count('unverified'), failed: count('fail') };
+    r.ships = r.drafted && r.audits > 0 && r.failed === 0;
+    return r;
   }
 
   // ---- what the cast says. Each line is a reaction to one audit-log row and is picked by that
   //      row's sequence number, so a replay says the same thing every time (determinism applies to jokes too). ----
   const LINES = {
     read1: {
-      drawing: ["Where's the north arrow?", "Scale says quarter inch. I say squint.", "Who dimensions anything in inches?", "Dimension strings. My happy place.", "Is that a 6 or a smudge?"],
-      spec: ["Division 09. Riveting.", "Two coats. It's always two coats.", "Rep's phone number is not a requirement.", "Read every clause. Lived to tell.", "Submittals, submittals, submittals."],
+      drawing: ["Where's the north arrow?", "What's the scale? Says so on the sheet.", "Who dimensions anything in inches?", "Dimension strings. My happy place.", "Is that a 6 or a smudge?"],
+      spec: ["Another division. Riveting.", "How many coats? The spec says, or it's a question.", "Rep's phone number is not a requirement.", "Read every clause. Lived to tell.", "Submittals, submittals, submittals."],
       photo: ["Nice gutter.", "That's not peeling, that's texture.", "No numbers from photos. House rule.", "Same wall, new angle. Bold.", "Someone loves their railing."],
       correspondence: ["The estimator wrote ASAP. Define ASAP.", "Reply-all. Of course it's reply-all.", "The customer says 'as discussed'. Discussed where?"],
-      takeoff: ["Carry the one.", "Run minus two ends, over spacing. Breathe.", "Code does the arithmetic. I just write the formula.", "Brackets times three. Don't ask why."],
-      codes: ["Only .gov sites. The broker is watching.", "Chapter 16 says hello.", "Wind zone. Of course it's a wind zone."],
+      takeoff: ["Carry the one.", "Run minus two ends, over spacing. Breathe.", "Code does the arithmetic. I just write the formula.", "Count times the per. The row says which."],
+      codes: ["Allowlisted sites only. The broker is watching.", "Which chapter? The page will say.", "Wind zone? The code page decides."],
       materials: ["Data sheet says so. Who am I to argue.", "Coverage per gallon, as printed. Not as hoped.", "Primer first. The sheet insists."],
       default: ["On it.", "Reading.", "Let me see that."],
     },
@@ -218,21 +237,28 @@ footer a { color: var(--ink); }
       haiku: ["Haiku. Good. Cheap.", "That one cost less than a stamp.", "Frugal. The word is frugal."],
       sonnet: ["Sonnet? Who approved Sonnet?", "Sonnet for the Takeoff. Fine. FINE.", "That's a Sonnet call. I felt that."],
       other: ["Cha-ching. That was my money.", "Was that billed? Tell me it wasn't billed."],
+      unpriced: ["Billed. Priced? Nobody knows.", "What did that cost? Exactly. Nobody can say."],
       replay: ["Recorded answers. Free. Keep going.", "Replay run. Not a penny. Beautiful.", "Zero dollars. My favourite number."],
       denied: ["Good. Bounce it.", "That's what the broker is for."],
       backlog: ["Who's backed up? Them. Again.", "Why is there a pile? Why is there always a pile?"],
-      finale: {   // the last scene: the owner walks over with a bag of money, drops it at the bouncer, and leaves with the bid
-        walk: ["Right. I'll take it from here.", "Done? Good. Nobody touch it.", "Out of my way. That bid is mine."],
+      finale: {   // the last scene: the owner walks over with a bag of money, drops it at the bouncer, and goes back to his post
+        walk: ["Right. Let's see the damage.", "Done? Good. Nobody touch it.", "Out of my way. Bag coming through."],
         pay: ["One bag of money. Don't count it.", "Here. That's the whole budget.", "Paid. In cash. Like a gentleman."],
-        leave: ["Back to work, all of you.", "Don't spend anything while I'm out.", "Ladies. Gentlemen. Cat."],
+        leave: ["Back to work, all of you.", "Don't spend anything else today.", "Ladies. Gentlemen. Cat."],
       },
     },
-    broker: { paid: ["Counted. On the pile.", "Another one for the pile.", "Bag goes here. Bid goes with you."] },
+    est: {   // the estimator, the one person who releases a bid: takes it from the bouncer and walks it out by hand
+      take: ["Mine now. By hand, like the sign says.", "Thanks for the bag. I'll take the bid."],
+      leave: ["Off to the customer.", "Back by lunch."],
+      none: ["Nothing to release yet.", "No draft, no audit, no bid."],
+    },
+    broker: { paid: ["Counted. On the pile.", "Another one for the pile.", "Bag goes here. Bid goes with the estimator."] },
     bid: { waiting: ["Waiting to be released.", "By hand. The sign says so."], taken: ["Finally.", "Mind the bow tie."], leaving: ["Bye, everyone.", "Don't wait up."] },
   };
   const pick = (lines, seq) => lines[seq % lines.length];
   const owner = { say: '', until: 0 };            // the owner, pacing by the door with a stopwatch
-  // the finale, in floor ms from the moment the last row lands: walk to the bid, set the bag down and pick the bid up, walk out, door shuts
+  // the finale, in floor ms from the moment the last row lands: the owner walks to the bouncer (the estimator to the bid, when there is one),
+  // the bag goes down and the estimator takes the bid, the estimator walks it out while the owner goes back to his post, the door shuts
   const FINALE = { walk: 2400, pay: 1800, exit: 3200, close: 800 }; FINALE.total = FINALE.walk + FINALE.pay + FINALE.exit + FINALE.close;
   let finale = null;                              // { t0, dropped } once the run is done; null before
   const today = new Date(), DAY = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`, BAGS_KEY = 'bidshop.bags.' + DAY;
@@ -243,7 +269,7 @@ footer a { color: var(--ink); }
   const flaggedSoFar = () => { let n = 0; for (let i = 0; i < cursor; i++) { const e = events[i]; if (e.action === 'append' && run._claimIndex[e.subject] && run._claimIndex[e.subject].flag) n++; } return n; };
 
   // ---- applying one audit-log row to the floor ----
-  const DUR = { 'model-call': 1100, append: 420, register: 260, denied: 700, default: 300 };
+  const DUR = { 'model-call': 1100, append: 420, register: 260, denied: 700, rejected: 700, audit: 300, fetch: 500, default: 300 };
   function apply(e) {
     const w = workers[e.station] = workers[e.station] || {};
     const d = did[e.principal] = did[e.principal] || { calls: 0, claims: 0, denied: 0 };
@@ -257,16 +283,18 @@ footer a { color: var(--ink); }
       w.busy = clock + dur; w.bubble = `${e.replay ? 'replays' : 'reads'} ${e.subject}, run ${e.run || '?'}`;
       w.quip = e.run >= 3 ? pick(LINES.read3, e.seq) : e.run === 2 ? pick(LINES.read2, e.seq) : pick(LINES.read1[e.station] || LINES.read1.default, e.seq);
       const m = (e.model || '').toLowerCase();
-      owner.say = pick(e.replay ? LINES.owner.replay : m.includes('haiku') ? LINES.owner.haiku : m.includes('sonnet') ? LINES.owner.sonnet : LINES.owner.other, e.seq); owner.until = clock + dur;
+      owner.say = pick(e.replay ? LINES.owner.replay : e.cost == null ? LINES.owner.unpriced : m.includes('haiku') ? LINES.owner.haiku : m.includes('sonnet') ? LINES.owner.sonnet : LINES.owner.other, e.seq); owner.until = clock + dur;
       if (stacks[e.station] && stacks[e.station].size >= 3 && e.seq % 3 === 0) { owner.say = pick(LINES.owner.backlog, e.seq); }
-      if (e.run === 1) slips.push({ from: 'register', to: e.station, t0: clock, t1: clock + dur * 0.6, kind: 'page', label: e.subject });
+      // a courier brings the station what its model reads: a page from the register, or rows from the cabinet; a fetched page needs no courier
+      const input = stationOf(e.station).input;
+      if (e.run === 1 && (input === 'sources' || input === 'ledger')) slips.push({ from: input === 'sources' ? 'register' : 'ledger', to: e.station, t0: clock, t1: clock + dur * 0.6, kind: 'page', label: e.subject });
       d.calls += 1;
-      const c = run._callIndex && run._callIndex[`${e.subject}|${e.run}`];
-      if (c) {
-        if (c.cost != null) { spend += c.cost; spendBy[e.station] = (spendBy[e.station] || 0) + c.cost; pricedCalls += 1; }
-        else { unpricedCalls += 1; unpricedWhy = c.unpriced || 'not priced by the export'; }
+      if (!e.replay) {
+        if (e.cost != null) { spend += e.cost; spendBy[e.station] = (spendBy[e.station] || 0) + e.cost; pricedCalls += 1; }
+        else { unpricedCalls += 1; unpricedWhy = e.unpriced || 'not priced by the export'; }
       }
-      log(`${e.principal} ${w.bubble}${c ? ` · ${c.usage.input_tokens + (c.usage.cache_read_input_tokens||0) + (c.usage.cache_creation_input_tokens||0)} in, ${c.usage.output_tokens} out` : ''}`, e.action);
+      const u = e.usage;
+      log(`${e.principal} ${w.bubble}${u ? ` · ${(u.input_tokens||0) + (u.cache_read_input_tokens||0) + (u.cache_creation_input_tokens||0)} in, ${u.output_tokens||0} out` : e.replay ? '' : ` · ${e.unpriced}`}`, e.action);
     } else if (e.action === 'append') {
       slips.push({ from: e.station, to: 'ledger', t0: clock, t1: clock + dur, kind: 'slip', label: e.subject });
       d.claims += 1; if (done[e.station]) done[e.station].add(e.subject);
@@ -293,7 +321,7 @@ footer a { color: var(--ink); }
       w.busy = clock + dur; w.bubble = `fetches ${site(e.subject)}`; w.quip = pick(LINES.fetch, e.seq);
       log(`${e.principal} fetches ${e.subject}`, e.action);
     } else if (e.action === 'audit') {
-      w.busy = clock + dur; w.bubble = `audits ${e.subject}: ${e.detail}`; w.quip = pick(LINES.audit, e.seq);
+      w.busy = clock + dur; w.bubble = `audits ${e.subject}: ${e.detail.split(':')[0]}`; w.quip = pick(LINES.audit, e.seq);
       log(`${e.principal} audits ${e.subject}: ${e.detail}`, e.action);
     } else {
       w.busy = clock + dur; w.bubble = `${e.action} ${e.subject}`.trim();
@@ -320,47 +348,61 @@ footer a { color: var(--ink); }
       if (!finale.dropped && clock - finale.t0 >= FINALE.walk) {   // the bag lands at the bouncer's feet, once
         finale.dropped = true; bagDropped(); broker.nod = clock + 900; broker.say = pick(LINES.broker.paid, events.length); broker.until = clock + FINALE.pay * 0.45;
       }
-      if (clock >= finale.t0 + FINALE.total) $('caption').textContent += ` The owner dropped the bag at the bouncer and walked the bid out (staged: no row records a release). ${bags} run${bags === 1 ? '' : 's'} finished here today.`;
+      if (clock >= finale.t0 + FINALE.total) $('caption').textContent += ` The owner dropped the bag at the bouncer${run._end.ships ? ' and the estimator walked the bid out by hand' : ''} (staged: no row records this). ${bags} run${bags === 1 ? '' : 's'} finished here today.`;
     }
     draw();
-    raf = requestAnimationFrame(tick);
+    requestAnimationFrame(tick);
   }
   function startFinale() { owner.say = ''; owner.until = 0; finale = { t0: clock }; $('caption').textContent = `Done: ${(run.claims||[]).length} claims on the ledger. ${finishLine()}`; }
   // where everyone is in the finale at this floor clock; null before the run is done
   function finaleState(s) {
     if (!finale) return null;
-    const o = pos('owner'), d = pos('ships'), b = pos('bid'), ft = clock - finale.t0, n = events.length;
-    const stand = { x: b.x + 40 * s, y: b.y + 1 };                                   // beside the bid, at the bouncer
-    const f = { x: stand.x, y: stand.y, alpha: 1, walking: false, bag: true, dropped: false, bid: { x: b.x, y: b.y, walking: false, happy: false, say: '', sub: '' }, door: 0, gone: false, say: '', sub: '' };
+    const o = pos('owner'), e0 = pos('estimator'), d = pos('ships'), b = pos('bid'), ft = clock - finale.t0, n = events.length;
+    const payAt = { x: b.x + 40 * s, y: b.y + 1 };                                    // the owner's spot beside the bouncer
+    const takeAt = { x: b.x - 36 * s, y: b.y + 1 };                                   // the estimator's spot, the other side of the bid
+    const f = { owner: { x: payAt.x, y: payAt.y, walking: false, bag: true, dropped: false, say: '', sub: '' },
+                est: { x: e0.x, y: e0.y, walking: false, alpha: 1, gone: false, say: '' },
+                bid: run._end.ships ? { x: b.x, y: b.y, walking: false, happy: false, say: '', sub: '' } : null, door: 0 };
     if (ft < FINALE.walk) {
-      const k = ease(ft / FINALE.walk); f.walking = true; f.x = o.x + (stand.x - o.x) * k; f.y = o.y + (stand.y - o.y) * k;
-      if (k < 0.5) f.say = pick(LINES.owner.finale.walk, n);                          // one voice at a time
-      [f.bid.say, f.bid.sub] = k < 0.5 ? LINES.bid.waiting : LINES.bid.taken; f.bid.happy = k >= 0.5;
+      const k = ease(ft / FINALE.walk); f.owner.walking = true; f.owner.x = o.x + (payAt.x - o.x) * k; f.owner.y = o.y + (payAt.y - o.y) * k;
+      if (k < 0.5) f.owner.say = pick(LINES.owner.finale.walk, n);                   // one voice at a time
+      if (f.bid) { f.est.walking = true; f.est.x = e0.x + (takeAt.x - e0.x) * k; f.est.y = e0.y + (takeAt.y - e0.y) * k; [f.bid.say, f.bid.sub] = LINES.bid.waiting; }
+      else if (k >= 0.5) f.est.say = pick(LINES.est.none, n);
     } else if (ft < FINALE.walk + FINALE.pay) {
-      // the bag goes down at the bouncer's feet and the bouncer counts it; then the owner says what the bag held
-      f.bag = false; f.dropped = true; f.bid.happy = true;
-      if (ft >= FINALE.walk + FINALE.pay * 0.45) { f.say = pick(LINES.owner.finale.pay, n); f.sub = bagLine(); }
+      // the bag goes down at the bouncer's feet and the bouncer counts it; then the owner says what the bag held and the estimator takes the bid
+      f.owner.bag = false; f.owner.dropped = true;
+      if (f.bid) { f.est.x = takeAt.x; f.est.y = takeAt.y; f.bid.happy = true; [f.bid.say, f.bid.sub] = LINES.bid.taken; }
+      if (ft >= FINALE.walk + FINALE.pay * 0.45) {
+        f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine();
+        if (f.bid) { f.bid.say = ''; f.bid.sub = ''; f.est.say = pick(LINES.est.take, n); }
+      }
     } else if (ft < FINALE.walk + FINALE.pay + FINALE.exit) {
       const k = (ft - FINALE.walk - FINALE.pay) / FINALE.exit, far = d.x + 30 * s;
-      f.walking = true; f.bag = false; f.dropped = true; f.bid.happy = true; f.bid.walking = true;
-      f.x = stand.x + (far - stand.x) * k; f.y = stand.y + (d.y + 1 - stand.y) * k;
-      f.bid.x = f.x - 34 * s; f.bid.y = f.y - 1;                                      // the bid walks at the owner's side
-      f.door = Math.max(0, Math.min(1, (f.bid.x - (d.x - 150 * s)) / (90 * s)));
-      f.alpha = Math.max(0, Math.min(1, 1 - (f.x - (d.x - 6 * s)) / (28 * s)));
-      if (k < 0.2) { f.say = pick(LINES.owner.finale.pay, n); f.sub = bagLine(); } else if (k < 0.5) f.say = pick(LINES.owner.finale.leave, n);
-      if (k >= 0.5 && k < 0.75) f.bid.say = pick(LINES.bid.leaving, n);
+      f.owner.bag = false; f.owner.dropped = true; f.owner.walking = true;            // the owner goes back to his post
+      f.owner.x = payAt.x + (o.x - payAt.x) * ease(k); f.owner.y = payAt.y + (o.y - payAt.y) * ease(k);
+      if (k < 0.2) { f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine(); } else if (k < 0.5) f.owner.say = pick(LINES.owner.finale.leave, n);
+      if (f.bid) {                                                                     // the estimator walks the bid out through the door
+        f.est.walking = true; f.bid.walking = true; f.bid.happy = true;
+        f.est.x = takeAt.x + (far - takeAt.x) * k; f.est.y = takeAt.y + (d.y + 1 - takeAt.y) * k;
+        f.bid.x = f.est.x - 34 * s; f.bid.y = f.est.y - 1;                             // the bid walks at the estimator's side
+        f.door = clamp((f.est.x - (d.x - 150 * s)) / (90 * s)); f.est.alpha = clamp(1 - (f.est.x - (d.x - 6 * s)) / (28 * s));
+        if (k >= 0.3 && k < 0.6) f.est.say = pick(LINES.est.leave, n);
+        if (k >= 0.5 && k < 0.75) f.bid.say = pick(LINES.bid.leaving, n);
+      }
     } else {
-      f.gone = true; f.alpha = 0; f.bag = false; f.dropped = true;
-      f.door = Math.max(0, 1 - (ft - FINALE.walk - FINALE.pay - FINALE.exit) / FINALE.close);
+      f.owner.x = o.x; f.owner.y = o.y; f.owner.bag = false; f.owner.dropped = true;
+      if (f.bid) { f.bid = null; f.est.gone = true; f.est.alpha = 0; f.door = Math.max(0, 1 - (ft - FINALE.walk - FINALE.pay - FINALE.exit) / FINALE.close); }
     }
     return f;
   }
-  const bagLine = () => !(run.calls || []).length ? 'The bag is empty: a replay run bills no tokens.'
+  const bagLine = () => !run._billed ? (run._calls ? 'The bag is empty: a replay run bills no tokens.' : 'The bag is empty: no model call in this run.')
     : unpricedCalls ? `${unpricedCalls} of ${pricedCalls + unpricedCalls} calls not priced, so the bag is not counted.`
     : `In the bag: $${spend.toFixed(4)}, this run's meter.`;
   function finishLine() {
-    const flagged = (run.claims || []).filter(c => c.flag).length;
-    return flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.';
+    const flagged = (run.claims || []).filter(c => c.flag).length, r = run._end;
+    const f = flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.';
+    if (r.ships) return `${f} Draft written; audit: ${r.passed} passed, ${r.unverified} unverified, none failed. The bid can go.`;
+    return `${f} No bid to ship: ${!r.drafted ? 'no draft was written' : r.audits === 0 ? 'the draft was not audited' : `${r.failed} rows failed the audit`}.`;
   }
 
   // ---- side panels ----
@@ -373,16 +415,16 @@ footer a { color: var(--ink); }
     const rows = Object.entries(spendBy).sort((a, b) => b[1] - a[1]);
     const max = rows.length ? rows[0][1] : 0;
     for (const [st, v] of rows) {
-      const tr = tb.insertRow(); tr.insertCell().textContent = PLAN[st] ? PLAN[st].name : st;
+      const tr = tb.insertRow(); tr.insertCell().textContent = nameOf(st);
       const c = tr.insertCell(); c.className = 'n'; c.textContent = '$' + v.toFixed(4);
       const b = tr.insertCell(); b.innerHTML = `<div class="bar"><i style="width:${max ? (100 * v / max).toFixed(0) : 0}%"></i></div>`;
     }
-    if (!rows.length) { const tr = tb.insertRow(); const c = tr.insertCell(); c.colSpan = 3; c.className = 'sub'; c.textContent = (run.calls && run.calls.length) ? (unpricedCalls ? 'no priced call yet' : 'spend appears as calls are made') : 'replay run: recorded answers, no tokens billed'; }
+    if (!rows.length) { const tr = tb.insertRow(); const c = tr.insertCell(); c.colSpan = 3; c.className = 'sub'; c.textContent = run._billed ? (unpricedCalls ? 'no priced call yet' : 'spend appears as calls are made') : run._calls ? 'replay run: recorded answers, no tokens billed' : 'no model call in this run'; }
     const bl = $('backlog').tBodies[0]; bl.innerHTML = '';
     const items = Object.keys(stacks).map(st => ({ st, waiting: stacks[st].size, busy: workers[st] && workers[st].busy > clock }))
       .sort((a, b) => b.waiting - a.waiting);
     for (const it of items) {
-      const tr = bl.insertRow(); tr.insertCell().textContent = PLAN[it.st] ? PLAN[it.st].name : it.st;
+      const tr = bl.insertRow(); tr.insertCell().textContent = nameOf(it.st);
       const c = tr.insertCell(); c.className = 'n'; c.textContent = it.waiting ? `${it.waiting} waiting` : 'clear';
       const p = tr.insertCell(); p.innerHTML = it.busy ? '<span class="pill hot">working</span>' : it.waiting ? '<span class="pill">queued</span>' : '<span class="pill">idle</span>';
     }
@@ -432,8 +474,8 @@ footer a { color: var(--ink); }
   let C = {};                                   // the palette, read from CSS each frame
   const INK = '#1f2a36', BLACK = '#23262b';      // printed paper and the bouncer's shirt stay dark in both themes
   function palette() {
-    C = { fg: css('--fg'), muted: css('--muted'), line: css('--line'), accent: css('--accent'), ledger: css('--ledger'), warn: css('--warn'), ink: css('--ink'), panel: css('--panel'), floor: css('--floor'),
-          wall: css('--wall'), plank: css('--plank'), plank2: css('--plank2'), wood: css('--wood'), steel: css('--steel'), skin: css('--skin'), vest: css('--vest'), paper: css('--paper'), dark: css('--bg') };
+    C = { fg: css('--fg'), muted: css('--muted'), line: css('--line'), accent: css('--accent'), ledger: css('--ledger'), warn: css('--warn'), ink: css('--ink'), panel: css('--panel'),
+          wall: css('--wall'), plank: css('--plank'), plank2: css('--plank2'), wood: css('--wood'), steel: css('--steel'), skin: css('--skin'), vest: css('--vest'), paper: css('--paper') };
   }
 
   function drawFloor(s) {
@@ -496,19 +538,23 @@ footer a { color: var(--ink); }
       items.push({ y: q.y, fn: () => drawStation(st, p, q, s, w, busy, flash) });
       if (busy || flash) items.push({ y: 1e9, fn: () => { if (w.bubble || flash) bubble(q.x, q.y - (p.kind === 'bench' ? 96 : 92) * s, s, flash ? (w.refusal || 'REFUSED by the broker') : w.bubble, flash, flash ? '' : w.quip); } });
     }
-    const ownerAt = fs ? { x: fs.x, y: fs.y } : pos('owner'), brokerAt = pos('broker'), catAt = pos('cat'), pileAt = pos('pile');
-    if (!fs || !fs.gone) items.push({ y: ownerAt.y, fn: () => drawOwner(ownerAt.x, ownerAt.y, s, fs) });
+    const ownerAt = fs ? fs.owner : pos('owner'), estAt = fs ? fs.est : { ...pos('estimator'), alpha: 1, walking: false }, brokerAt = pos('broker'), catAt = pos('cat'), pileAt = pos('pile');
+    items.push({ y: ownerAt.y, fn: () => drawOwner(ownerAt.x, ownerAt.y, s, fs && fs.owner) });
+    if (!estAt.gone) items.push({ y: estAt.y, fn: () => drawEstimator(estAt.x, estAt.y, s, estAt) });
     items.push({ y: brokerAt.y, fn: () => drawBroker(brokerAt.x, brokerAt.y, s) });
     items.push({ y: catAt.y + 40 * s, fn: () => drawCat(catAt.y + 40 * s, s) });
-    if (fs) { if (fs.say && fs.alpha > 0.3) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, fs.say, false, fs.sub) }); }
-    else if (owner.until > clock && owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, owner.say, false) });
+    if (fs) {
+      if (fs.owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, fs.owner.say, false, fs.owner.sub) });
+      if (fs.est.say && fs.est.alpha > 0.3) items.push({ y: 1e9, fn: () => bubble(estAt.x, estAt.y - 78 * s, s, fs.est.say, false) });
+    } else if (owner.until > clock && owner.say) items.push({ y: 1e9, fn: () => bubble(ownerAt.x, ownerAt.y - 78 * s, s, owner.say, false) });
     if (broker.until > clock && broker.say) items.push({ y: 1e9, fn: () => bubble(brokerAt.x, brokerAt.y - 84 * s, s, broker.say, true) });
     if (bags > 0) items.push({ y: pileAt.y, fn: () => drawPile(pileAt.x, pileAt.y, s, bags) });   // the day's bags, at the bouncer's feet
-    const bidUp = fs ? !fs.gone : (cursor >= events.length && events.length > 0);
-    if (bidUp) {   // the finished bid waits at the bouncer until the owner reaches it, then walks out with him
+    // the finished bid waits at the bouncer only when the log says the run got that far (a draft, an audit with no fail); then the estimator takes it out
+    const bidUp = run._end.ships && (fs ? !!fs.bid : (cursor >= events.length && events.length > 0));
+    if (bidUp) {
       const b = fs ? fs.bid : { ...pos('bid'), walking: false, happy: false, say: LINES.bid.waiting[0], sub: LINES.bid.waiting[1] };
-      items.push({ y: b.y, fn: () => drawBid(b.x, b.y, s, b.happy, b.walking, fs ? fs.alpha : 1) });
-      if (b.say && (!fs || fs.alpha > 0.3)) items.push({ y: 1e9, fn: () => bubble(b.x, b.y - 70 * s, s, b.say, false, b.sub) });
+      items.push({ y: b.y, fn: () => drawBid(b.x, b.y, s, b.happy, b.walking, fs ? fs.est.alpha : 1) });
+      if (b.say && (!fs || fs.est.alpha > 0.3)) items.push({ y: 1e9, fn: () => bubble(b.x, b.y - 70 * s, s, b.say, false, b.sub) });
     }
     for (let i = slips.length - 1; i >= 0; i--) {
       const sl = slips[i]; const t = (clock - sl.t0) / (sl.t1 - sl.t0);
@@ -538,7 +584,7 @@ footer a { color: var(--ink); }
   }
 
   function drawStation(st, p, q, s, w, busy, flash) {
-    const dim = p.planned && !(stacks[st] && stacks[st].size);
+    const info = stationOf(st), dim = info.status === 'planned' && !(stacks[st] && stacks[st].size);
     ctx.save(); if (dim) ctx.globalAlpha = 0.4;
     if (busy) { const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, 70 * s); g.addColorStop(0, 'rgba(255,200,80,0.35)'); g.addColorStop(1, 'rgba(255,200,80,0)'); ctx.fillStyle = g; ctx.fillRect(q.x - 70 * s, q.y - 70 * s, 140 * s, 140 * s); }
     if (p.kind === 'cabinet') drawCabinet(q.x, q.y, s, (run.claims || []).length);
@@ -546,7 +592,11 @@ footer a { color: var(--ink); }
     else if (p.kind === 'tray') drawTray(st, q.x, q.y, s);
     else drawDesk(st, p, q, s, w, busy, flash);
     ctx.restore();
-    label(p.name.toUpperCase(), q.x - (p.kind === 'cabinet' ? 8 : 0) * s, q.y + (p.kind === 'cabinet' ? 14 : p.kind === 'door' ? 10 : 8) * s, s, dim);
+    const lx = q.x - (p.kind === 'cabinet' ? 8 : 0) * s, ly = q.y + (p.kind === 'cabinet' ? 14 : p.kind === 'door' ? 10 : 8) * s;
+    label(nameOf(st).toUpperCase(), lx, ly, s, dim);
+    if (info.status === 'planned' || info.status === 'replay-only') {   // what pipeline/dag.py says about the station
+      ctx.fillStyle = C.muted; ctx.font = `${Math.max(8, 9 * s)}px "IBM Plex Mono", ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(info.status, lx, ly + 16 * s);
+    }
   }
 
   function drawDesk(st, p, q, s, w, busy, flash) {
@@ -674,11 +724,11 @@ footer a { color: var(--ink); }
   }
 
   // the owner: no hard hat, a tie, a stopwatch, and a foot that taps faster the more is spent.
-  // In the finale (`f`) he walks over with the bag of money, drops it at the bouncer, and walks out with the bid.
+  // In the finale (`f`) he walks over with the bag of money, drops it at the bouncer, and goes back to his post.
   // The finale is the one staged scene: no audit-log row records a release (the estimator does that by hand, off the floor).
   function drawOwner(x, y, s, f) {
     const tap = Math.sin(clock / (spend > 0 ? 90 : 260)), step = f && f.walking ? Math.sin(clock / 80) : 0;
-    ctx.save(); ctx.globalAlpha = f ? f.alpha : 1;
+    ctx.save();
     shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
     ctx.translate(x, y);
     ctx.strokeStyle = '#3a3f47'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
@@ -703,8 +753,33 @@ footer a { color: var(--ink); }
     ctx.fillStyle = INK; ctx.fillRect(-4 * s, -41 * s, 8 * s, 1.6 * s);                                                  // moustache
     if (f && f.dropped) { ctx.strokeStyle = INK; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.arc(0, -40 * s, 3 * s, 0.2, Math.PI - 0.2); ctx.stroke(); }   // the one smile of the day
     ctx.translate(-x, -y);
-    if (!(f && f.dropped && f.walking)) label('THE OWNER', x, y + 8 * s, s, false);   // no name tag over the door's
+    if (!(f && f.walking)) label('THE OWNER', x, y + 8 * s, s, false);
     ctx.restore();
+  }
+
+  // the estimator: the one person who releases a bid (the ships station's principal). Flannel shirt, a cap, a tape measure on
+  // the belt and a pencil behind the ear; stands by the door until a bid is ready, then walks it out by hand.
+  function drawEstimator(x, y, s, f) {
+    const step = f && f.walking ? Math.sin(clock / 80) : 0, idle = Math.sin(clock / 700) * 0.6 * s;
+    ctx.save(); ctx.globalAlpha = f && f.alpha != null ? f.alpha : 1;
+    shadow(x, y + 2 * s, 12 * s, 4 * s, 0.2);
+    ctx.translate(x, y + (f && f.walking ? 0 : idle));
+    ctx.strokeStyle = '#3b4a63'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round'; ctx.beginPath();                      // jeans
+    ctx.moveTo(-4 * s, -10 * s); ctx.lineTo(-5 * s + step * 5 * s, 0); ctx.moveTo(4 * s, -10 * s); ctx.lineTo(6 * s - step * 5 * s, 0); ctx.stroke();
+    ctx.fillStyle = '#9b3b3b'; roundRect(-11 * s, -32 * s, 22 * s, 24 * s, 4 * s); ctx.fill();                      // flannel shirt
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = -8; i <= 8; i += 5) { ctx.moveTo(i * s, -32 * s); ctx.lineTo(i * s, -8 * s); } for (let j = -29; j <= -10; j += 5) { ctx.moveTo(-11 * s, j * s); ctx.lineTo(11 * s, j * s); } ctx.stroke();   // the check
+    ctx.strokeStyle = '#9b3b3b'; ctx.lineWidth = 4.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -27 * s); ctx.lineTo(-15 * s, -15 * s); ctx.moveTo(9 * s, -27 * s); ctx.lineTo(15 * s, -16 * s); ctx.stroke();   // arms
+    ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(-15 * s, -14 * s, 2.8 * s, 0, 7); ctx.arc(15 * s, -15 * s, 2.8 * s, 0, 7); ctx.fill();   // hands
+    ctx.fillStyle = '#4a3b2a'; ctx.fillRect(-11 * s, -11 * s, 22 * s, 3 * s);                                         // belt
+    ctx.fillStyle = '#f2c200'; roundRect(6 * s, -13 * s, 7 * s, 7 * s, 1.5 * s); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.strokeRect(6 * s, -13 * s, 7 * s, 7 * s);   // the tape measure
+    ctx.fillStyle = C.skin; ctx.fillRect(-3 * s, -37 * s, 6 * s, 6 * s); ctx.beginPath(); ctx.arc(0, -44 * s, 9 * s, 0, 7); ctx.fill();   // neck, head
+    ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(-3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.arc(3.5 * s, -45 * s, 1.2 * s, 0, 7); ctx.fill();   // eyes
+    ctx.strokeStyle = shade(C.skin, -0.4); ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.arc(0, -41 * s, 3 * s, 0.2, Math.PI - 0.2); ctx.stroke();   // an easy smile
+    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(0, -46 * s, 9.5 * s, Math.PI, 0); ctx.fill(); ctx.fillRect(-2 * s, -47 * s, 14 * s, 2.5 * s);   // cap and brim, facing the door
+    ctx.strokeStyle = '#f2c200'; ctx.lineWidth = 1.5 * s; ctx.beginPath(); ctx.moveTo(-9 * s, -45 * s); ctx.lineTo(-7 * s, -38 * s); ctx.stroke();   // pencil behind the ear
+    ctx.restore();
+    if (!(f && f.walking)) label('THE ESTIMATOR', x, y + 8 * s, s, false);
   }
 
   // the bag of money: burlap, a tied neck and a dollar sign. What is in it is the meter's total, said out loud when it is set down.
@@ -745,7 +820,7 @@ footer a { color: var(--ink); }
     ctx.fillText(`${n} run${n === 1 ? '' : 's'} finished here today`, x, y + 6 * s);
   }
 
-  // the finished bid, waiting at the bouncer: the pipeline never releases it, a person walks it out (staged; no row records this)
+  // the finished bid, waiting at the bouncer: the pipeline never releases it, the estimator walks it out (staged; no row records this)
   function drawBid(x, y, s, happy, walking, alpha) {
     const tap = Math.max(0, Math.sin(clock / 120)), step = walking ? Math.sin(clock / 80) : 0;
     ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha;
@@ -841,6 +916,6 @@ footer a { color: var(--ink); }
   for (const key of Object.keys(RUNS)) { const o = document.createElement('option'); o.value = key; o.textContent = RUNS[key].title || key; $('job').appendChild(o); }
   fit();
   const first = Object.keys(RUNS)[0]; if (first) load(RUNS[first]);
-  raf = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 })();
 </script>

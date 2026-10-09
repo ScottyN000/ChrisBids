@@ -59,6 +59,18 @@ class ChangedMutantsCase(unittest.TestCase):
                     self.assertEqual(changed_mutants.patterns([f], root),
                                      ["pipeline.ledger.*", "pipeline.readers.live.*", "pipeline.web.*"])
 
+    def test_a_changed_helper_stands_for_the_tests_that_import_it(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = make_root(d)
+            (root / "tests" / "webfake.py").write_text("import json\n")
+            (root / "tests" / "test_web.py").write_text("from tests.webfake import Sites\nfrom pipeline import web\n")
+            (root / "tests" / "test_broker.py").write_text("from pipeline import ledger\n")
+            (root / "tests" / "test_security.py").write_text("from .test_broker import make\nfrom pipeline.readers import live\n")
+            (root / "tests" / "test_other.py").write_text("from pipeline import consts\n")
+            self.assertEqual(changed_mutants.patterns(["tests/webfake.py"], root), ["pipeline.web.*"])
+            self.assertEqual(changed_mutants.patterns(["tests/test_broker.py"], root),
+                             ["pipeline.ledger.*", "pipeline.readers.live.*"])
+
     def test_nothing_is_printed_when_there_is_no_pattern(self):
         self.assertEqual(changed_mutants.render([]), "")
         self.assertEqual(changed_mutants.render(["pipeline.web.*"]), "pipeline.web.*\n")

@@ -12,8 +12,10 @@ another model, with a line that has no token counts, with no model, with no
 price table, or with no single row for its model is exported unpriced with
 the reason, and the visual shows that instead of a figure (a figure standing
 in for an unknown is what traceability forbids). The export also says
-whether the run folder holds the Scope Writer's draft and, when the run was
-a whole bid, the verdict on the last line of its bid.txt.
+whether the run folder holds the Scope Writer's draft, what the last line of
+bid.txt says when the run was a whole bid, and, from those and the log, how
+the run ended (`ending`): whether the finished bid is on the floor and, if
+not, why. The page draws that; it decides nothing.
 
     python3 tools/export_run.py runs/nan-live --out timeline.json [--prices prices.json]
 
@@ -168,14 +170,48 @@ def claims(db: sqlite3.Connection) -> list[dict]:
     return [dict(zip(cols, row)) for row in rows]
 
 
-def bid_verdict(run_dir: Path) -> str | None:
-    """`OK` or `NOT OK` from the last line of bid.txt, which a whole-bid run writes with the
-    auditor's orphan-figure and source-hash checks folded in; None when the folder has none."""
+def bid_verdict(run_dir: Path, meta: dict) -> str | None:
+    """The verdict of a whole-bid run (`pipeline bid`, run id `bid-<job>` in the ledger's meta):
+    `OK` or `NOT OK` from the last line of its bid.txt, which folds in the auditor's orphan-figure
+    and source-hash checks, or `missing` when the run wrote none (it stopped before the verdict)
+    or the line is not one. None for any other run: `pipeline scope` and `pipeline replay` rebuild
+    the ledger in place and leave an older bid.txt where it was, so that file says nothing about them."""
+    if meta.get("run_id") != f"bid-{meta.get('job', '')}":
+        return None
     path = run_dir / "bid.txt"
     if not path.exists():
-        return None
+        return "missing"
     last = path.read_text().rstrip().rsplit("\n", 1)[-1]
-    return last[len("bid: "):] if last.startswith("bid: ") else None
+    return last[len("bid: "):] if last.startswith("bid: ") else "missing"
+
+
+def ending(evs: list[dict], draft: bool, verdict: str | None) -> dict:
+    """What the log and the run folder show the run reached, and whether the finished bid is on
+    the floor: every Scope Writer run valid (the call row's detail ends `; valid`), a draft in
+    the folder, audit rows with no `fail`, and on a whole bid a bid.txt that says OK. `why` names
+    the first of those that fails, or is empty when the bid ships."""
+    sw = [e for e in evs if e["action"] == "model-call" and e["station"] == "scope_writer"]
+    verdicts = [e["detail"].split(":")[0].strip() for e in evs if e["action"] == "audit"]
+    r = {"scope_runs": len(sw), "valid": sum(1 for e in sw if re.search(r";\s*valid$", e["detail"])),
+         "draft": bool(draft), "audits": len(verdicts), "passed": verdicts.count("pass"),
+         "unverified": verdicts.count("unverified"), "failed": verdicts.count("fail"), "verdict": verdict}
+    if not r["scope_runs"]:
+        why = "the Scope Writer did not run"
+    elif r["valid"] < r["scope_runs"]:
+        why = "a Scope Writer run was discarded"
+    elif not r["draft"]:
+        why = "no draft in the run folder"
+    elif not r["audits"]:
+        why = "no audit rows"
+    elif r["failed"]:
+        why = f"{r['failed']} row{'' if r['failed'] == 1 else 's'} failed"
+    elif verdict == "missing":
+        why = "the bid run wrote no verdict"
+    elif verdict is not None and verdict != "OK":
+        why = f"bid.txt says {verdict}"
+    else:
+        why = ""
+    return {**r, "why": why, "ships": not why}
 
 
 def export(run_dir: Path, prices: dict | None = None) -> dict:
@@ -186,12 +222,13 @@ def export(run_dir: Path, prices: dict | None = None) -> dict:
         stations = [{"id": n.id, "label": n.label, "detail": n.detail, "status": n.status,
                      "principal": n.principal, "input": station_input(n)} for n in dag.NODES]
         edges = [{"from": a, "to": b, "label": label} for a, b, label in dag.EDGES]
+        evs = events(db, usage_lines(run_dir), prices)
+        draft = (run_dir / "proposal.md").exists()   # a draft in the folder (a run never removes an older one)
+        verdict = bid_verdict(run_dir, meta)         # bid.txt's `bid: OK` / `bid: NOT OK` / `missing`, on a whole bid only
         return {
             "job": meta.get("job", ""), "run_id": meta.get("run_id", ""), "created_at": meta.get("created_at", ""),
-            "stations": stations, "edges": edges, "events": events(db, usage_lines(run_dir), prices),
-            "claims": claims(db), "prices": prices,
-            "draft": (run_dir / "proposal.md").exists(),   # a draft in the folder (a run never removes an older one)
-            "verdict": bid_verdict(run_dir),               # bid.txt's `bid: OK` / `bid: NOT OK`, when the run was a whole bid
+            "stations": stations, "edges": edges, "events": evs, "claims": claims(db), "prices": prices,
+            "draft": draft, "verdict": verdict, "ending": ending(evs, draft, verdict),
         }
 
 

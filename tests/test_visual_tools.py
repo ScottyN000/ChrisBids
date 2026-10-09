@@ -37,13 +37,13 @@ LIVE_CALL = {"reader": "drawing", "unit_id": "S-1#Fnd", "run": 1, "model": "clau
              "stop_reason": "end_turn", "input_sha256": "ab" * 32, "usage": USAGE}
 
 
-def live_ledger(run_dir: Path, rows: list[tuple[str, str, str, str]]) -> None:
+def live_ledger(run_dir: Path, rows: list[tuple[str, str, str, str]], run_id: str = "r1") -> None:
     """A ledger with the three tables the exporter reads and the given (principal, action, subject, detail) rows."""
     db = sqlite3.connect(run_dir / "ledger.db")
     db.execute("create table meta(key text, value text)")
     db.execute("create table audit_log(seq integer primary key, at text, principal text, action text, subject text, detail text)")
     db.execute("create table claims(seq integer primary key, claim_id, principal, method, role, value, unit, flag, source_id, locator, statement, derivation, written_at)")
-    db.execute("insert into meta values('job', 'X'), ('run_id', 'r1')")
+    db.execute("insert into meta values('job', 'X'), ('run_id', ?)", (run_id,))
     db.executemany("insert into audit_log(at, principal, action, subject, detail) values('t', ?, ?, ?, ?)", rows)
     db.commit()
     db.close()
@@ -163,7 +163,9 @@ class ExportCase(unittest.TestCase):
                 ("takeoff", "model-call", "NAN#takeoff", "claude-opus-5-5; takeoff@1; run 1"),                 # no price row
                 ("takeoff", "model-call", "NAN#takeoff", "claude-haiku-5-5; takeoff@1; run 2"),                # two usage lines (the folder was run twice)
                 ("spec_reader", "model-call", "SW#1", "claude-haiku-5-5; spec@1; run 1"),                      # the usage line names another model
-                ("codes", "denied", "fetch", "https://example.com/x: not allowlisted"),
+                ("codes", "denied", "fetch", "http://127.0.0.1/x: 127.0.0.1 is the local machine"),             # the broker's address guard
+                ("codes", "fetch", "https://example.com/x", "2026-10-09; not fetched: example.com is not on the allowlist"),
+                ("materials", "fetch", "https://sweets.construction.com/p", "2026-10-09; sha256 ab12"),
                 ("auditor", "audit", "NAN-001", "pass: found on S-1 p.1"),
             ])
             (run_dir / "recordings").mkdir()
@@ -172,15 +174,12 @@ class ExportCase(unittest.TestCase):
                      {**LIVE_CALL, "reader": "takeoff", "unit_id": "NAN#takeoff", "run": 2, "model": "claude-haiku-5-5"},
                      {**LIVE_CALL, "reader": "spec", "unit_id": "SW#1", "run": 1, "model": "claude-sonnet-5-5"}]
             (run_dir / "recordings" / "calls.jsonl").write_text("\n".join(json.dumps(c) for c in lines) + "\n\n")
-            self.assertEqual((export_run.export(run_dir)["draft"], export_run.export(run_dir)["verdict"]), (False, None))
+            self.assertFalse(export_run.export(run_dir)["draft"])
             (run_dir / "proposal.md").write_text("# draft\n")   # a draft left over from an earlier run into this folder
-            (run_dir / "bid.txt").write_text("plan\nPROBLEM no proposal was rendered: x\nbid: NOT OK\n")
+            (run_dir / "bid.txt").write_text("plan\nbid: OK\n")   # and a verdict left over from a whole bid; this run (r1) is not one
             data = export_run.export(run_dir, prices=PRICES)
-            self.assertEqual((data["draft"], data["verdict"]), (True, "NOT OK"))
-            (run_dir / "bid.txt").write_text("plan\nbid: OK")
-            self.assertEqual(export_run.export(run_dir)["verdict"], "OK")
-            (run_dir / "bid.txt").write_text("plan\nsomething else\n")
-            self.assertIsNone(export_run.export(run_dir)["verdict"])
+            self.assertEqual((data["draft"], data["verdict"]), (True, None))
+            self.assertEqual((data["ending"]["ships"], data["ending"]["why"]), (False, "the Scope Writer did not run"))
             calls = [e for e in data["events"] if e["action"] == "model-call"]
             self.assertEqual([(e["model"], e["run"], e["replay"]) for e in calls],
                              [("claude-haiku-5-5", 1, False), ("claude-haiku-5-5", 2, False), ("replay", 3, True),
@@ -192,13 +191,55 @@ class ExportCase(unittest.TestCase):
                              [(None, "no usage line in calls.jsonl"), (None, None), (None, "no price row for claude-opus-5-5"),
                               (None, "2 usage lines for this call"), (None, "the ledger says claude-haiku-5-5, calls.jsonl says claude-sonnet-5-5")])
             self.assertEqual([(e["action"], e["subject"], e["station"]) for e in data["events"]][6:],
-                             [("denied", "fetch", "codes"), ("audit", "NAN-001", "auditor")])
+                             [("denied", "fetch", "codes"), ("fetch", "https://example.com/x", "codes"),
+                              ("fetch", "https://sweets.construction.com/p", "materials"), ("audit", "NAN-001", "auditor")])
             self.assertEqual((data["job"], data["run_id"]), ("X", "r1"))
             # with no price table every live row is unpriced for that reason; the replay row stays silent
             table_less = [e["unpriced"] for e in export_run.export(run_dir)["events"] if e["action"] == "model-call"]
             self.assertEqual(table_less, ["no price table in this export", "no usage line in calls.jsonl", None,
                                           "no price table in this export", "2 usage lines for this call",
                                           "the ledger says claude-haiku-5-5, calls.jsonl says claude-sonnet-5-5"])
+
+    def test_the_verdict_comes_from_bid_txt_on_a_whole_bid_run_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "bid"
+            run_dir.mkdir()
+            live_ledger(run_dir, [("auditor", "audit", "X-001", "pass: p.1")], run_id="bid-X")
+            self.assertEqual(export_run.export(run_dir)["verdict"], "missing")          # the run stopped before writing one
+            (run_dir / "bid.txt").write_text("plan\nPROBLEM no proposal was rendered: x\nbid: NOT OK\n")
+            self.assertEqual(export_run.export(run_dir)["verdict"], "NOT OK")
+            (run_dir / "bid.txt").write_text("plan\nbid: OK")
+            self.assertEqual(export_run.export(run_dir)["verdict"], "OK")
+            (run_dir / "bid.txt").write_text("plan\nsomething else\n")
+            self.assertEqual(export_run.export(run_dir)["verdict"], "missing")
+            # the same folder rebuilt by `pipeline scope`: the ledger is new, the old bid.txt says nothing about it
+            (run_dir / "ledger.db").unlink()
+            live_ledger(run_dir, [("auditor", "audit", "X-001", "pass: p.1")], run_id="fixture-X")
+            self.assertIsNone(export_run.export(run_dir)["verdict"])
+
+    def test_the_ending_is_earned_by_the_log_and_the_run_folder(self):
+        call = lambda detail: {"action": "model-call", "station": "scope_writer", "detail": detail}
+        audit = lambda detail: {"action": "audit", "station": "auditor", "detail": detail}
+        good = [call("replay; scope@1; run 1; valid"), call("replay; scope@1; run 2; valid"), audit("pass: p.1"), audit("unverified: no page")]
+        cases = [
+            ([audit("pass: p.1")], True, None, "the Scope Writer did not run"),
+            ([call("x; run 1; valid"), call("x; run 2; discarded: bad"), audit("pass: p.1")], True, None, "a Scope Writer run was discarded"),
+            (good, False, None, "no draft in the run folder"),
+            (good[:2], True, None, "no audit rows"),
+            (good + [audit("fail: not on the page")], True, None, "1 row failed"),
+            (good + [audit("fail: a"), audit("fail: b")], True, None, "2 rows failed"),
+            (good, True, "NOT OK", "bid.txt says NOT OK"),        # a leftover draft beside a failed bid
+            (good, True, "missing", "the bid run wrote no verdict"),
+            (good, True, "OK", ""),
+            (good, True, None, ""),                                 # not a whole bid: the verdict does not apply
+        ]
+        for evs, draft, verdict, why in cases:
+            with self.subTest(why=why or "ships", verdict=verdict):
+                r = export_run.ending(evs, draft, verdict)
+                self.assertEqual((r["why"], r["ships"]), (why, why == ""))
+        r = export_run.ending(good + [audit("fail: x")], True, "OK")
+        self.assertEqual((r["scope_runs"], r["valid"], r["audits"], r["passed"], r["unverified"], r["failed"], r["verdict"]),
+                         (2, 2, 3, 1, 1, 1, "OK"))
 
     def test_the_exporter_opens_the_ledger_read_only_and_never_creates_one(self):
         with tempfile.TemporaryDirectory() as tmp:

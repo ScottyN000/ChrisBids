@@ -102,7 +102,6 @@ class ItemCase(unittest.TestCase):
             (item(sheet="X-SP-010"), "sheet X-SP-010 is not a fetched row with a quote"),
             (item(quantity="X-SP-010"), "quantity X-SP-010 is a clause scope row, not a takeoff figure, an allowance or a FIELD row"),
             (item(spec_rate="X-SP-010"), "spec_rate X-SP-010 is not a clause row stating a rate"),
-            (item(spec_rate="", sheet="X-WEB-006"), "orders gal but no row states a rate"),
             (item(unit="bags"), "orders bags but the rate X-R-001 is per 'sq ft/gal'"),
             (dict(ANCHORS, spec_rate="X-R-001"), "orders each, so no rate applies"),
         ]
@@ -116,6 +115,12 @@ class ItemCase(unittest.TestCase):
         c = materials.order_claim("X-MT-05", item(quantity="X-A-004"), 2, 2, by_id)
         self.assertEqual((c.value, c.value_num, c.flag, c.method, c.role), ("", None, "unverified", "fetched", "material"))
         self.assertIn("X-A-004 (FIELD)", c.statement)
+        # no row states a rate (the plank job's mortar, 2026-10-09): written with no figure, flagged, saying so
+        no_rate = item(spec_rate="", sheet="X-WEB-006")
+        self.assertEqual(materials.item_errors(no_rate, BY_ID, shown), [])
+        c = materials.order_claim("X-MT-06", no_rate, 2, 2, BY_ID)
+        self.assertEqual((c.value, c.flag, c.url), ("", "unverified", BULLETIN))
+        self.assertIn("no row states a rate", c.statement)
         self.assertEqual(materials.item_errors(item(spec_rate=""), BY_ID, shown), [])   # the sheet's rate will do
         self.assertEqual(materials.item_errors(item(quantity=""), BY_ID, shown), [])    # nothing covered yet
 

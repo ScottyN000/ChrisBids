@@ -167,9 +167,8 @@ def item_errors(item: dict, by_id: dict[str, Claim], shown: str = "") -> list[st
         return [f"spec_rate {spec.claim_id} is not a clause row stating a rate"]
     rate = spec or (sheet if figure(sheet) is not None and sheet.unit else None)
     if item["unit"] != "each":
-        if rate is None:
-            return [f"orders {item['unit']} but no row states a rate"]
-        if rate_unit(rate) != item["unit"]:
+        # no rate at all is not refused: the row is written with no figure, flagged, saying so (order_claim)
+        if rate is not None and rate_unit(rate) != item["unit"]:
             return [f"orders {item['unit']} but the rate {rate.claim_id} is per {rate.unit!r}"]
     elif spec is not None:
         return ["orders each, so no rate applies"]

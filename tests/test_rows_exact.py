@@ -33,6 +33,19 @@ class DrawingCase(unittest.TestCase):
             value="182", value_num=182.0, unit="in", flag="",
             derivation="15'-2\" dimension string = 182 in"))
 
+    def test_every_runs_wording_of_a_dimension_label_is_kept(self):
+        """Takeoff reads the label to learn what the string spans; one run's wording can miss it."""
+        runs = [[item("dimension", "Top wall segment: 11\"", "11\"")],
+                [item("dimension", " First bracket from the wall face ", "11\"")],
+                [item("dimension", "Top wall segment: 11\"", "11\"")]]
+        (v,) = vote("drawing", runs)
+        self.assertEqual((v.seen, v.status, v.labels), (3, "agree", ["Top wall segment: 11\"", "First bracket from the wall face"]))
+        c = one("drawing", FND, v)
+        self.assertEqual((c.statement, c.flag), ("Top wall segment: 11\" / First bracket from the wall face: 11\"", ""))
+        (v,) = vote("drawing", [[item("count", "Brackets", count=6, unit="each")],
+                                [item("count", "Bracket symbols", count=6, unit="each")]])
+        self.assertEqual(one("drawing", FND, v).statement, "Brackets")
+
     def test_dimension_fractional_keeps_its_fraction(self):
         v = Voted(item("dimension", "Gap", "1/2\""), seen=3, runs=3)
         c = one("drawing", FND, v)

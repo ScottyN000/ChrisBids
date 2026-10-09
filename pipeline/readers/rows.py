@@ -150,6 +150,7 @@ def _drawing(claim_id: str, unit: Unit, v: Voted, flag: str, note: str) -> Claim
     it = v.item
     kind, label = it["kind"], it["label"].strip()
     if kind == "dimension":
+        label = v.label or label
         texts = v.readings.get("text")
         if texts:
             return _base(claim_id, unit, statement=f"{label}: {_readings(texts)}", method="dimensioned",

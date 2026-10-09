@@ -401,8 +401,9 @@ class GoldenReplayCase(unittest.TestCase):
         the brackets the run, spacing and end offsets give, never by the 6 symbols drawn."""
         self.assertIn("{PER} * (({RUN} - 2 * {END}) / {SPACING} + 1)", prompt("takeoff"))
         recorded = json.loads((ROOT / "fixtures" / "nantucket" / "recordings" / "takeoff.json").read_text())
-        totals = [it["calc"] for u in recorded["units"] for r in u["runs"] for it in r["items"] if "*" in it["calc"]]
-        self.assertTrue(totals)
+        calcs = [it["calc"] for u in recorded["units"] for r in u["runs"] for it in r["items"]]
+        totals = [c for c in calcs if any(ref.startswith("NAN-DR-S1DET1-") for ref in schema.CALC_REF.findall(c))]
+        self.assertEqual(len(totals), 2 * len(recorded["units"][0]["runs"]))
         for calc in totals:
             refs = set(schema.CALC_REF.findall(calc))
             self.assertTrue({"NAN-DR-S1FND-01", "NAN-DR-S1FND-02", "NAN-DR-S1FND-03"} <= refs, calc)
@@ -418,10 +419,6 @@ class GoldenReplayCase(unittest.TestCase):
             self.assertEqual(validate.errors(a, takeoff.SCHEMA), [])
             for item in a["items"]:
                 self.assertEqual(takeoff.item_errors(item, rows), [], item)
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class SymbolCheckCase(unittest.TestCase):
@@ -456,3 +453,17 @@ class SymbolCheckCase(unittest.TestCase):
         self.assertEqual(takeoff.derived_claim("NAN-TK-Q-03", self.ANCHORS, 2, 2, rows).flag, "")
         self.assertEqual(takeoff.symbol_notes(it("Anchors", f"{{{ANCH}}} * {{{other.claim_id}}}", 21), rows), [])
 
+    def test_only_symbols_of_the_assembly_the_rows_are_per_are_compared(self):
+        piers = reader_row("NAN-DR-FND-05", 2, "each", "New pier symbols drawn", method="counted")
+        rows = dict(BY_ID, **{r.claim_id: r for r in (self.SYMBOLS, piers)})
+        self.assertEqual(takeoff.assembly_names(rows), ["bracket"])
+        self.assertEqual(takeoff.symbol_notes(self.ANCHORS, rows), [
+            "NAN-DR-FND-04 counts 7 symbols where the dimensions give 6"])
+        no_per = {k: v for k, v in rows.items() if k != ANCH}
+        self.assertEqual(takeoff.assembly_names(no_per), [])
+        self.assertEqual(len(takeoff.symbol_notes(it("Brackets", f"{SPACES} + 1", 6), no_per)), 2)
+
+
+
+if __name__ == "__main__":
+    unittest.main()

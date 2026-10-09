@@ -7,6 +7,9 @@ majority. An item that only some runs produced is kept and flagged unverified.
 
 Fields that are allowed to vary between runs (a photo's description wording)
 are excluded from the comparison and taken from the first run that has them.
+A dimension's label is the exception: every run's wording is kept on the row,
+in first-seen order, because Takeoff reads the label to learn what the string
+spans and one run's wording can miss that (live run 37941127022, 2026-10-09).
 
 A drawing figure is identified by the figure itself, not by the label the model
 gives it, since labels are worded differently on every run (live run 1,
@@ -42,6 +45,12 @@ class Voted:
     seen: int                                   # runs that produced this key
     runs: int                                   # runs made
     readings: dict[str, list] = field(default_factory=dict)  # field -> distinct values, if they differ
+    labels: list[str] = field(default_factory=list)  # every run's label wording, first seen first
+
+    @property
+    def label(self) -> str:
+        """The wordings the runs gave this figure, side by side when they differ."""
+        return " / ".join(self.labels or [(self.item.get("label") or "").strip()])
 
     @property
     def status(self) -> str:
@@ -97,5 +106,10 @@ def vote(reader: str, runs: list[list[dict]]) -> list[Voted]:
                     values.append(v)
             if len(values) > 1:
                 readings[f] = values
-        out.append(Voted(item=items[0], seen=len(items), runs=len(runs), readings=readings))
+        labels = []
+        for it in items:
+            label = (it.get("label") or "").strip()
+            if label and label not in labels:
+                labels.append(label)
+        out.append(Voted(item=items[0], seen=len(items), runs=len(runs), readings=readings, labels=labels))
     return out

@@ -16,8 +16,8 @@ not every run produced is written flagged unverified, never dropped or chosen.
 
 A number of assemblies comes from the dimension strings (run, spacing, end
 offsets), never from the symbols drawn; code compares the two. When a counted
-symbol row on the view the dimensions came from disagrees with the number the
-dimensions give, every item resting on that number is flagged unverified with
+symbol row on the view the dimensions came from (one that counts what the
+per-assembly rows are per) disagrees with the number the dimensions give, every item resting on that number is flagged unverified with
 both figures in its derivation (determinism: keep both, never pick).
 """
 from __future__ import annotations
@@ -204,18 +204,30 @@ def assemblies(item: dict, by_id: dict[str, Claim]) -> float | None:
     return schema.arith(expr)
 
 
+def assembly_names(by_id: dict[str, Claim]) -> list[str]:
+    """What the job's per-assembly rows are per: `3 per bracket` names the bracket."""
+    return _join(c.unit[4:].strip().lower() for c in by_id.values() if c.unit.startswith("per "))
+
+
 def symbol_notes(item: dict, by_id: dict[str, Claim]) -> list[str]:
     """One note per counted symbol row, on a view the item's dimensions came from, that disagrees
-    with the number of assemblies those dimensions give. Both figures stay on the ledger."""
+    with the number of assemblies those dimensions give. Both figures stay on the ledger.
+
+    A symbol row counts the assembly when its statement names what the per-assembly
+    rows are per; a view's other symbols (a pier beside the brackets) are not compared.
+    When no row is per anything, every symbol count on the view is compared.
+    """
     n = assemblies(item, by_id)
     if n is None:
         return []
     refs = schema.CALC_REF.findall(item["calc"])
     views = {(by_id[r].source_id, by_id[r].locator) for r in refs if by_id[r].method == "dimensioned"}
+    names = assembly_names(by_id)
     return [
         f"{c.claim_id} counts {c.value} symbols where the dimensions give {_num(n)}"
         for c in by_id.values()
         if c.method == "counted" and c.unit == "each" and (c.source_id, c.locator) in views
+        and (not names or any(name in c.statement.lower() for name in names))
         and abs(c.value_num - n) > 1e-9
     ]
 

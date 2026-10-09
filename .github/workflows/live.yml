@@ -5,7 +5,8 @@ name: live
 # counted and derived rows must reproduce the fixtures exactly
 # (architecture p.10). The Scope Writer then lays out each job's proposal on
 # Haiku from the fixture's own ledger and is gated against the fixture's
-# layout. It spends API credit, so it runs only when someone
+# layout. Codes & Regs and Materials fetch the pages the page table matches to
+# each job and are gated against the fixture's fetched rows. It spends API credit, so it runs only when someone
 # starts it by hand (Actions > live > Run workflow); no push or pull request,
 # and so no fork, can trigger it.
 #
@@ -24,7 +25,7 @@ on:
       part:
         description: "Which gate to run"
         type: choice
-        options: [all, readers, scope]
+        options: [all, readers, scope, web]
         default: all
       repeats:
         description: "Runs per unit"
@@ -42,7 +43,7 @@ concurrency:
 jobs:
   live:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -60,7 +61,7 @@ jobs:
           sudo apt-get install -y -qq poppler-utils
           python -m pip install --quiet -r requirements.txt
       - name: Run the readers live and compare with the fixture
-        if: inputs.part != 'scope'
+        if: inputs.part == 'all' || inputs.part == 'readers'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           JOB: ${{ matrix.job }}
@@ -73,7 +74,7 @@ jobs:
           --effort "$EFFORT"
           --repeats "$REPEATS"
       - name: Lay out the proposal live and gate it against the fixture
-        if: (success() || failure()) && inputs.part != 'readers'
+        if: (success() || failure()) && (inputs.part == 'all' || inputs.part == 'scope')
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           JOB: ${{ matrix.job }}
@@ -85,6 +86,21 @@ jobs:
           --out "runs/$JOB-scope"
           --effort "$EFFORT"
           --repeats "$REPEATS"
+      - name: Read the code and product pages live and gate them against the fixture
+        if: (success() || failure()) && (inputs.part == 'all' || inputs.part == 'web')
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          JOB: ${{ matrix.job }}
+          EFFORT: ${{ inputs.effort }}
+          REPEATS: ${{ inputs.repeats }}
+        run: >
+          python -m pipeline web "fixtures/$JOB"
+          --out "runs/$JOB-web"
+          --effort "$EFFORT"
+          --repeats "$REPEATS"
+      # The repo is public (2026-10-08), so this artifact is too. units/ is
+      # left out; recordings/ still carry each unit's text, which is the
+      # packet (already public under fixtures/packet/) or a public web page.
       - name: Upload the run
         if: always()
         uses: actions/upload-artifact@v6
@@ -94,10 +110,12 @@ jobs:
             runs/${{ matrix.job }}-live/comparison.txt
             runs/${{ matrix.job }}-live/ledger.csv
             runs/${{ matrix.job }}-live/recordings/
-            runs/${{ matrix.job }}-live/units/
             runs/${{ matrix.job }}-scope/gate.txt
             runs/${{ matrix.job }}-scope/proposal.md
             runs/${{ matrix.job }}-scope/xref.csv
             runs/${{ matrix.job }}-scope/recordings/
+            runs/${{ matrix.job }}-web/gate.txt
+            runs/${{ matrix.job }}-web/ledger.csv
+            runs/${{ matrix.job }}-web/recordings/
           if-no-files-found: warn
           retention-days: 30

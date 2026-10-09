@@ -1,0 +1,743 @@
+named_domains:
+- aisc.org
+- aws.org
+- cityofcocoabeach.com
+- codes.iccsafe.org
+- files-ask.hilti.com
+- floridabuilding.org
+- flrules.org
+- hilti.com
+- icc-es.org
+- law.cornell.edu
+- paintdocs.com
+- sherwin-williams.com
+- sweets.construction.com
+- usa.sika.com
+pages:
+- url: https://oceancitymd.gov/oc/departments/planning-community-development/online-permitting/
+  title: Ocean City online permitting
+  agent: codes
+  when:
+  - - ocean city
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: How Ocean City accepts permit submissions, and in what form plans are attached
+    fixture: NAN-C-001
+  - id: a2
+    ask: 'How long permit review takes: # weeks'
+    fixture: NAN-C-002
+- url: https://oceancitymd.gov/oc/wp-content/uploads/Updated-Permit-Application-6-12-2024-1.pdf
+  title: OC permit application
+  agent: codes
+  when:
+  - - ocean city
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: Which license numbers the permit application asks the applicant for
+- url: https://oceancitymd.gov/oc/departments/planning-community-development/building-forms-and-applications/
+  title: OC building forms
+  agent: codes
+  when:
+  - - ocean city
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: 'Which licenses Ocean City requires for repair of residential buildings; choice: whether condominiums are
+      included'
+    fixture: NAN-C-004
+    options:
+    - 'yes'
+    - 'no'
+- url: https://mgaleg.maryland.gov/2026RS/Statute_Web/gbr/8-101.pdf
+  title: MD Bus. Reg. § 8-101
+  ids:
+  - § 8-101
+  - 8-101
+  agent: codes
+  when:
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: 'Whether "home improvement" includes work on the commonly owned areas of condominiums'
+    fixture: NAN-C-005
+    options:
+    - 'yes'
+    - 'no'
+- url: https://labor.maryland.gov/license/oplinks.shtml
+  title: MD Labor licensing
+  agent: codes
+  when:
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: Who issues Maryland construction licenses, and for what work they are required
+    fixture: NAN-C-006
+- url: https://www.courts.state.md.us/clerks/worcester/business
+  title: Worcester Circuit Court clerk
+  agent: codes
+  when:
+  - - ocean city
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: Which licenses the Worcester County Clerk of the Circuit Court issues
+    fixture: NAN-C-007
+- url: https://labor.md.gov/labor/build/comar091251.pdf
+  title: COMAR 09.12.51
+  ids:
+  - COMAR 09.12.51
+  - 09.12.51
+  agent: codes
+  when:
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: 'Which IBC edition the Maryland Building Performance Standards incorporate (the # IBC), and from when:
+      #'
+    fixture: NAN-C-008
+- url: https://labor.maryland.gov/labor/build/buildadmin.shtml
+  title: MD Building Codes Administration
+  agent: codes
+  when:
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: 'Which edition of the codes (#) local jurisdictions must enforce, and by when: #'
+    fixture: NAN-C-009
+- url: https://www.dllr.state.md.us/labor/build/buildnews.shtml
+  title: MD BCA news
+  agent: codes
+  when:
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: 'The status of Maryland''s adoption of the # IBC'
+    fixture: NAN-C-010
+    options:
+    - proposed
+    - adopted
+    - effective
+- url: https://oceancitymd.gov/oc/departments/planning-community-development/building-code/
+  title: Ocean City building code
+  agent: codes
+  when:
+  - - ocean city
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: Which IBC edition (#) Ocean City lists, and its status
+    fixture: NAN-C-011
+    options:
+    - proposed
+    - adopted
+    - effective
+  - id: a2
+    ask: Which IEBC edition (#) Ocean City lists, and its status
+    options:
+    - proposed
+    - adopted
+    - effective
+- url: https://codes.iccsafe.org/content/IBC2021P2/chapter-17-special-inspections-and-tests
+  title: ICC IBC Ch. 17
+  agent: codes
+  when:
+  - - anchor
+  - - ibc
+  asks:
+  - id: a1
+    ask: 'What the IBC requires for special inspection of post-installed anchors'
+- url: https://maa.maryland.gov/wp-content/uploads/2022/02/MAA-Special-Inspections-Matrix.pdf
+  title: MAA special inspections matrix
+  agent: codes
+  when:
+  - - maryland
+    - md
+  asks:
+  - id: a1
+    ask: What the matrix lists for post-installed anchors (in concrete and in masonry), and which permits it applies
+      to
+- url: https://files-ask.hilti.com/original/un/unhmbciryf.pdf
+  title: Hilti HY 70 product letter
+  ids:
+  - HIT-HY 70
+  - HY 70
+  agent: materials
+  when:
+  - - hit-hy
+    - hy 70
+    - hy 270
+    - hilti
+  asks:
+  - id: a1
+    ask: 'The status the letter gives HIT-HY 70, which product it names in its place in masonry (HIT-HY #), and its
+      date: #'
+    fixture: NAN-C-014
+    options:
+    - available
+    - being phased out
+    - discontinued
+- url: https://icc-es.org/wp-content/uploads/report-directory/ESR-4143.pdf
+  title: ICC-ES ESR-4143 (Hilti HIT-HY 270)
+  ids:
+  - ESR-4143
+  - HIT-HY 270
+  - HY 270
+  agent: codes
+  when:
+  - - hit-hy
+    - hy 70
+    - hy 270
+    - hilti
+  asks:
+  - id: a1
+    ask: 'What ESR-4143 covers for HIT-HY 270 (which masonry), and when it was reissued: #'
+    fixture: NAN-C-015
+  - id: a2
+    ask: 'Whether a screen tube is required for HY 270 in ungrouted CMU'
+    fixture: NAN-C-018
+    options:
+    - 'yes'
+    - 'no'
+- url: https://icc-es.org/report-listing/esr-2682/
+  title: ICC-ES ESR-2682
+  ids:
+  - ESR-2682
+  - HY 70
+  agent: codes
+  when:
+  - - hit-hy
+    - hy 70
+    - hy 270
+    - hilti
+  asks:
+  - id: a1
+    ask: 'The report''s product, and when it expires: #'
+- url: https://icc-es.org/report-listing/esr-3342/
+  title: ICC-ES ESR-3342
+  ids:
+  - ESR-3342
+  - HY 70
+  agent: codes
+  when:
+  - - hit-hy
+    - hy 70
+    - hy 270
+    - hilti
+  asks:
+  - id: a1
+    ask: 'The report''s product, and when it expires: #'
+- url: https://hilti.com/content/dam/urgent-folder/w1/pdf/anchors/hit-hy-270/Technical-information-ASSET-DOC-LOC-8942443.pdf
+  title: Hilti HY 270 masonry bulletin
+  ids:
+  - HIT-HY 270
+  - HY 270
+  agent: materials
+  when:
+  - - hit-hy
+    - hy 70
+    - hy 270
+    - hilti
+  asks:
+  - id: a1
+    ask: 'Which HIT-SC screen tube size is listed for a #" rod in a hollow CMU face'
+- url: https://www.hilti.com/c/CLS_FASTENER_7135/CLS_CHEMICAL_ANCHORS_7135/2194247
+  title: Hilti HIT-HY 270 product page
+  ids:
+  - HIT-HY 270
+  - HY 270
+  agent: materials
+  when:
+  - - hit-hy
+    - hy 70
+    - hy 270
+    - hilti
+  asks:
+  - id: a1
+    ask: 'Which cartridge sizes HIT-HY 270 is listed in (fl oz): #'
+    fixture: NAN-C-020
+- url: https://usa.sika.com/en/construction/concrete-repair/mortars/vertical-overhead/sikaquick-voh.html
+  title: SikaQuick VOH product page
+  agent: materials
+  when: &id001
+  - - sikaquick
+  asks:
+  - id: a1
+    ask: 'SikaQuick VOH overhead lift thickness (#" to #") and bag yield (# lb bag, # cu ft)'
+    fixture: NAN-C-021
+- url: https://usa.sika.com/dam/dms/us01/z/sikaquick_voh.pdf
+  title: SikaQuick VOH data sheet
+  agent: materials
+  when: *id001
+  asks:
+  - id: a1
+    ask: What surface preparation SikaQuick VOH requires (CSP-# profile, moisture condition)
+    fixture: NAN-C-022
+- url: https://www.aisc.org/publications/steel-standards/
+  title: AISC standards
+  agent: codes
+  when:
+  - - aisc
+    - structural steel
+  asks:
+  - id: a1
+    ask: 'Which edition of the AISC Specification for Structural Steel Buildings (AISC #) the page lists as current'
+    fixture: NAN-C-023
+- url: https://www.aws.org/about/news/d11-release/
+  title: AWS D1.1 release
+  ids:
+  - D1.1
+  agent: codes
+  when:
+  - - weld
+    - aws
+  asks:
+  - id: a1
+    ask: Which edition of AWS D1.1/D1.1M (:#) the page announces
+    fixture: NAN-C-024
+- url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-M/section-1926.501
+  title: 29 CFR 1926.501
+  ids:
+  - 29 CFR 1926.501
+  - '1926.501'
+  agent: codes
+  when:
+  - - fall
+    - guardrail
+    - edge
+  asks:
+  - id: a1
+    ask: 'At what height above a lower level fall protection is required: # ft'
+    fixture: NAN-C-025
+- url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-Z/section-1926.1153
+  title: 29 CFR 1926.1153 Table 1
+  ids:
+  - 29 CFR 1926.1153
+  - '1926.1153'
+  agent: codes
+  when: &id002
+  - - concrete
+    - stucco
+    - masonry
+    - cmu
+  asks:
+  - id: a1
+    ask: 'What the silica control table requires for chipping concrete (engineering controls)'
+    fixture: NAN-C-026
+  - id: a2
+    ask: 'What the silica control table requires for drilling holes in concrete (engineering controls)'
+    fixture: NAN-C-027
+- url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-X/section-1926.1053
+  title: 29 CFR 1926.1053
+  ids:
+  - 29 CFR 1926.1053
+  - '1926.1053'
+  agent: codes
+  when:
+  - - excavat
+    - ladder
+  asks:
+  - id: a1
+    ask: 'How far ladder side rails must extend above the upper landing: # ft'
+    fixture: NAN-C-028
+- url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-P/section-1926.650
+  title: 29 CFR 1926.650
+  ids:
+  - 29 CFR 1926.650
+  - '1926.650'
+  agent: codes
+  when:
+  - - excavat
+  asks:
+  - id: a1
+    ask: What work the excavation rules apply to
+    fixture: NAN-C-029
+- url: https://www.cityofcocoabeach.com/136/Building
+  title: Cocoa Beach Building Division
+  agent: codes
+  when:
+  - - cocoa beach
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: Whether the permit list includes facia work, fences, external handrails and balcony restoration
+    fixture: OBV-C-001
+    options:
+    - 'yes'
+    - 'no'
+  - id: a2
+    ask: The projects the page lists as needing a permit
+  - id: a3
+    ask: How permit and business tax applications are submitted
+    fixture: OBV-C-003
+- url: https://cityofcocoabeach.com/FAQ.aspx?QID=72
+  title: Cocoa Beach FAQ
+  agent: codes
+  when:
+  - - cocoa beach
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: Whether contractors must pay the city business tax to work in Cocoa Beach, and for what
+    fixture: OBV-C-004
+    options:
+    - 'yes'
+    - 'no'
+- url: https://www.floridabuilding.org/c/default.aspx
+  title: Florida Building Commission
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: 'Which FBC edition (#th Edition, #) is in effect, and from when: #'
+    fixture: OBV-C-005
+- url: https://www.floridabuilding.org/fbc/commission/FBC_0626/Commission/2026_FBC_Workplan_June_2026.pdf
+  title: FBC workplan
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: 'Which FBC edition comes next (#th Edition, #), and when it takes effect: #'
+    fixture: OBV-C-006
+- url: https://codes.iccsafe.org/content/FLEBC2023P1/chapter-4-repairs
+  title: FBC-Existing Building Ch. 4
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: 'What FBC-Existing Building Chapter # "Repairs" says'
+- url: http://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0400-0499/0489/Sections/0489.105.html
+  title: F.S. 489.105
+  ids:
+  - '489.105'
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: What limits the definition puts on a certified general contractor's work
+    fixture: OBV-C-008
+  - id: a2
+    ask: The contractor categories the definitions list
+- url: https://floridadep.gov/rcp/coastal-construction-control-line/content/apply-coastal-construction-control-line-cccl
+  title: FDEP CCCL
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: When a DEP permit is required for construction near the CCCL, and the exemptions
+    fixture: OBV-C-010
+- url: http://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0100-0199/0161/Sections/0161.053.html
+  title: F.S. 161.053
+  ids:
+  - '161.053'
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: Whether the CCCL rules apply to repair of an existing structure within its existing foundation
+    fixture: OBV-C-011
+    options:
+    - 'yes'
+    - 'no'
+- url: https://www.flrules.org/gateway/ruleNo.asp?id=62B-33.004
+  title: Rule 62B-33.004
+  ids:
+  - 62B-33.004
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: 'Rule 62B-33.004 exemptions, and the date the rule was last amended: #'
+- url: https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-62B-33-004
+  title: Rule 62B-33.004 (Cornell LII copy)
+  ids:
+  - 62B-33.004
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: 'Which activities the # version exempts, and where (# ft landward of the frontal dune)'
+- url: https://floridadep.gov/rcp/coastal-construction-control-line/content/locate-coastal-construction-control-line-cccl
+  title: FDEP locate CCCL
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: Where to find a parcel's position relative to the CCCL
+    fixture: OBV-C-014
+- url: http://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0500-0599/0553/Sections/0553.899.html
+  title: F.S. 553.899
+  ids:
+  - '553.899'
+  agent: codes
+  when:
+  - - florida
+    - fl
+  asks:
+  - id: a1
+    ask: 'When a milestone inspection is required for condominium buildings, and how often: # years, every # years'
+    fixture: OBV-C-015
+- url: https://www.floridahealth.gov/community-environmental-public-health/environmental-public-health/water-quality/public-swimming-pools/
+  title: FDOH public pools
+  agent: codes
+  when:
+  - - florida
+    - fl
+  - - pool
+  asks:
+  - id: a1
+    ask: Which F.A.C. chapter (#E-#) governs public pools, and which condos may apply for exempt status (# units
+      or less)
+    fixture: OBV-C-016
+- url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.501
+  title: 29 CFR 1926.501
+  ids:
+  - 29 CFR 1926.501
+  - '1926.501'
+  agent: codes
+  when:
+  - - fall
+    - guardrail
+    - edge
+  asks:
+  - id: a1
+    ask: 'At what height above a lower level fall protection is required at walking and working surfaces: # ft'
+    fixture: OBV-C-017
+- url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.453
+  title: 29 CFR 1926.453
+  ids:
+  - 29 CFR 1926.453
+  - '1926.453'
+  agent: codes
+  when:
+  - - lift
+    - boom
+  asks:
+  - id: a1
+    ask: What fall protection the rule requires in aerial lifts
+    fixture: OBV-C-018
+- url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.451
+  title: 29 CFR 1926.451
+  ids:
+  - 29 CFR 1926.451
+  - '1926.451'
+  agent: codes
+  when:
+  - - swing
+    - scaffold
+  asks:
+  - id: a1
+    ask: What fall protection the rule requires on two-point (swing stage) scaffolds
+    fixture: OBV-C-019
+- url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.1153
+  title: 29 CFR 1926.1153
+  ids:
+  - 29 CFR 1926.1153
+  - '1926.1153'
+  agent: codes
+  when: *id002
+  asks:
+  - id: a1
+    ask: 'The silica permissible exposure limit: # µg/m³ as a #-hr TWA (A.#-A.#)'
+    fixture: OBV-C-020
+- url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.62
+  title: 29 CFR 1926.62
+  ids:
+  - 29 CFR 1926.62
+  - '1926.62'
+  agent: codes
+  when:
+  - - paint
+  asks:
+  - id: a1
+    ask: What work the OSHA lead standard applies to
+    fixture: OBV-C-021
+- url: https://www.epa.gov/lead/lead-renovation-repair-and-painting-program
+  title: EPA RRP
+  agent: codes
+  when:
+  - - paint
+  - - lead
+    - '1978'
+    - rrp
+  asks:
+  - id: a1
+    ask: 'What work requires EPA RRP certification, and for homes built before what year: #'
+    fixture: OBV-C-022
+- url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=A24W08300
+  title: SW A24W8300 data sheet
+  ids:
+  - A24W08300
+  - A24W8300
+  agent: materials
+  when:
+  - - a24
+    - loxon
+  asks:
+  - id: a1
+    ask: Loxon Concrete & Masonry Primer/Sealer A24W8300 spread rate (# sq ft/gal) and the sheet date (#)
+    fixture: OBV-C-023
+- url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX02W0050
+  title: SW LX02 data sheet
+  ids:
+  - LX02W0050
+  - LX02
+  agent: materials
+  when:
+  - - lx02
+    - loxon
+  asks:
+  - id: a1
+    ask: 'Loxon Concrete & Masonry Primer-Sealer LX02 spread rate: # sq ft/gal'
+    fixture: OBV-C-024
+- url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX03W0100
+  title: SW LX03 data sheet
+  ids:
+  - LX03W0100
+  - LX03
+  agent: materials
+  when:
+  - - lx03
+    - conditioner
+  asks:
+  - id: a1
+    ask: 'Loxon Acrylic Conditioner LX03 spread rate: # sq ft/gal'
+    fixture: OBV-C-025
+- url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=A89W03151
+  title: SW A89 data sheet
+  ids:
+  - A89W03151
+  - A89
+  agent: materials
+  when:
+  - - a89
+    - superpaint
+  asks:
+  - id: a1
+    ask: 'SuperPaint Exterior Satin A89 spread rate: # sq ft/gal'
+    fixture: OBV-C-026
+- url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=K62W00651
+  title: SW K62 data sheet
+  ids:
+  - K62W00651
+  - K62
+  agent: materials
+  when:
+  - - k62
+    - latitude
+  asks:
+  - id: a1
+    ask: 'Latitude Exterior Satin K62 spread rate: # sq ft/gal'
+    fixture: OBV-C-027
+- url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B66W00310
+  title: SW B66 data sheet
+  ids:
+  - B66W00310
+  - B66
+  agent: materials
+  when:
+  - - b66
+    - pro-cryl
+  asks:
+  - id: a1
+    ask: Pro-Cryl Universal Primer B66 spread rate (# sq ft/gal) and the sheet date (#)
+    fixture: OBV-C-028
+- url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B53W02151
+  title: SW B53 data sheet
+  ids:
+  - B53W02151
+  - B53
+  agent: materials
+  when:
+  - - b53
+    - alkyd urethane
+  asks:
+  - id: a1
+    ask: 'WB Alkyd Urethane Enamel B53 semi-gloss spread rate: # sq ft/gal'
+    fixture: OBV-C-029
+- url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B50WZ0001
+  title: SW B50 data sheet
+  ids:
+  - B50WZ0001
+  - B50
+  agent: materials
+  when:
+  - - b50
+    - kem kromik
+  asks:
+  - id: a1
+    ask: 'Kem Kromik B50 spread rate: # sq ft/gal'
+    fixture: OBV-C-030
+- url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX21S5043
+  title: SW Loxon S1 data sheet
+  ids:
+  - LX21S5043
+  - Loxon S1
+  agent: materials
+  when:
+  - - lx21
+    - loxon s1
+  asks:
+  - id: a1
+    ask: 'Loxon S1 joint size limits (#" wide, #" deep)'
+    fixture: OBV-C-031
+- url: https://www.sherwin-williams.com/painting-contractors/the-loxon-family/equipment-supplies/patching-repair
+  title: SW patching and repair
+  agent: materials
+  when:
+  - - conseal
+    - patch
+  asks:
+  - id: a1
+    ask: The patching and repair products the page lists
+- url: https://sweets.construction.com/manufacturer/sherwin-williams-company-nst2204/products/sherwin-williams-concrete---masonry-patch-nst747590-p
+  title: Sweets listing (third party)
+  agent: materials
+  when:
+  - - patch
+  asks:
+  - id: a1
+    ask: Which grades SW Concrete & Masonry Patch comes in
+    fixture: OBV-C-033
+- url: https://www.sherwin-williams.com/painting-contractors/products/1050-quick-dry-siliconized-acrylic-latex-caulk
+  title: SW caulk search
+  ids:
+  - '1050'
+  agent: materials
+  when:
+  - - c1100a
+    - caulk
+  asks:
+  - id: a1
+    ask: The caulk product's name and number

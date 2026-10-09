@@ -1,0 +1,5 @@
+# The closed answer each gated web ask should get, read from the fixture's own
+# row (its statement and quote). Only the web reader's gate reads this file.
+OBV-C-001: "yes"    # the permit list includes facia work, fences and external handrails
+OBV-C-004: "yes"    # contractors must pay the city business tax
+OBV-C-011: "no"     # CCCL rules do not apply to repair within the existing foundation

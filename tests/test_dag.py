@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 
-from pipeline import dag, roles, scope_writer, takeoff
+from pipeline import dag, roles, scope_writer, takeoff, webread
 from pipeline.readers import run as reader_run
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -72,7 +72,7 @@ class DagCase(unittest.TestCase):
                 self.assertTrue((ROOT / n.module).exists(), f"{n.id}: {n.module} is missing")
 
     def test_an_agent_marked_replay_only_is_one_a_run_loop_can_drive(self):
-        driven = set(reader_run.PRINCIPAL.values()) | {takeoff.PRINCIPAL, scope_writer.PRINCIPAL}
+        driven = set(reader_run.PRINCIPAL.values()) | {takeoff.PRINCIPAL, scope_writer.PRINCIPAL, *webread.AGENTS}
         for n in dag.NODES:
             if n.status == dag.REPLAY:
                 self.assertIn(n.principal, driven, n.id)

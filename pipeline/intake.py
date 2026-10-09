@@ -233,10 +233,16 @@ def scan(packet: Path, *, images: bool = False, image_root: Path | None = None) 
     return sources
 
 
+# The one register entry for every page Codes & Regs and Materials fetch. A
+# fetched row cites it, and carries its own URL and retrieval date.
+WEB = {"source_id": "WEB", "title": "Fetched web pages (URL and retrieval date on each row)", "file": "",
+       "sha256": "", "pages": "", "kind": "fetched", "status": "present", "notes": "", "duplicate_of": ""}
+
+
 def run(packet: Path, broker: Broker, *, images: bool = False, image_root: Path | None = None) -> list[Source]:
-    """Scan a packet and write the Source Register through the broker."""
+    """Scan a packet and write the Source Register through the broker, with the WEB entry."""
     sources = scan(packet, images=images, image_root=image_root)
-    broker.write_register([s.as_register_row() for s in sources])
+    broker.write_register([s.as_register_row() for s in sources] + [dict(WEB)])
     return sources
 
 

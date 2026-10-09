@@ -12,9 +12,18 @@ on:
 permissions:
   contents: read
 
+# Actions minutes are billed while the repo is private. gitleaks is cheap and runs on every push,
+# so a secret is caught before a PR is opened; bandit and pip-audit run on a
+# branch through its PR only (and on main, and weekly). A newer push cancels the
+# older run, except on main.
+concurrency:
+  group: security-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   bandit:
     name: bandit (Python static analysis)
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -30,6 +39,7 @@ jobs:
 
   pip-audit:
     name: pip-audit (known vulnerabilities in dependencies)
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

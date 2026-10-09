@@ -15,15 +15,16 @@ produces is treated as data: it can fill a schema field, never steer the code.
 | A crafted `calc` runs code or hangs the broker | Parsed as `+ - * /` over numbers only; no `eval`, no `**` | `pipeline/schema.py` `arith` |
 | A crafted file name or register path reads outside the job | Symlinks skipped at intake; every register path is resolved inside the packet | `pipeline/guard.py` `inside` |
 | A crafted link reaches the host's own network | http(s) only, no credentials, no loopback, private or cloud-metadata address, redirects re-checked | `pipeline/guard.py` `public_url` |
+| A fetched web page or PDF steers the Codes & Regs or Materials agent, or reaches a host it should not | Only those two principals may fetch pages (the broker checks and logs each fetch; the Auditor's link check sends a HEAD to each fetched row's URL, see known gaps); only `.gov` hosts, `.us` state portals (`*.state.xx.us`) and the domains the page table names (`named_domains`: manufacturers, code publishers and ICC-ES, a city site on .com, Florida's rules site, a legal mirror and one product aggregator, each listed in review); every redirect hop is checked against the same list and `guard.public_url`; an 8 MB cap and a 30-second socket timeout; the page is shown to the model as data; code keeps an answer only if its quote is on the page and its sentence adds no figure the quote lacks (a range is one figure; only the page's listed identifiers are exempt), and keeps differing readings as unverified rows rather than picking one | `pipeline/web.py`, `pipeline/webread.py`, `pipeline/broker.py` |
 | A malformed PDF exploits poppler | Absolute paths (no option injection), timeouts, page caps, non-root container user | `pipeline/intake.py`, `Dockerfile` |
 | A PR's text or diff steers the advisor | The model is given only Read, Glob and Grep (`--tools`, with the rest also disallowed), so no shell or network; its job holds a read-only token; its reply must match `docs/advisor-schema.json`; code settles severity, and a blocking finding must name a real architecture page, a standing rule or a failing input; a separate job with no model posts the comment | `.github/workflows/advisor.yml`, `tools/advisor.py` |
 | The API key leaks | Read only from the environment, named in `broker.SECRET_ENV`; `.env` is git-ignored; gitleaks scans every push | `pipeline/broker.py`, CI |
 
-## What CI checks on every push
+## What CI checks
 
-- **bandit**: Python static analysis; medium or high severity fails the build.
-- **pip-audit**: known vulnerabilities in `requirements.txt`.
-- **gitleaks**: secrets in the code or its git history.
+- **bandit**: Python static analysis; medium or high severity fails the build. Runs on every PR push, on main and weekly; a branch push with no PR is not scanned until its PR opens.
+- **pip-audit**: known vulnerabilities in `requirements.txt`. Same triggers as bandit.
+- **gitleaks**: secrets in the code or its git history, on every push to any branch.
 - **Dependabot**: weekly update PRs for pip packages, GitHub Actions and the Docker base image.
 
 ## Known gaps
@@ -35,8 +36,28 @@ produces is treated as data: it can fill a schema field, never steer the code.
   bugs and model output, not against code that constructs its own `Broker`.
   The hosting plan (per-role containers, broker as the only process holding the
   ledger and the key) closes this.
-- The per-domain egress allowlist lives in the proxy that hosting adds;
-  `guard.public_url` only refuses what no allowlist should pass.
+- The repository is public (Scott, 2026-10-08). The job documents under
+  `fixtures/packet/` and the fixtures' ledgers (contact names, phone numbers,
+  emails) are readable by anyone, in history too, and so are Actions logs and
+  the live run's artifact (gate results, the model's answers, and in
+  `recordings/` the text of each unit the model read, which for the readers is
+  the packet's own text and for the web agents is public pages; `units/` is no
+  longer uploaded). Neither workflow that
+  holds `ANTHROPIC_API_KEY` runs for a fork: the advisor skips fork PRs and
+  live runs only when started by hand by someone with write access.
+- The Auditor's link check (`auditor.link_live`) follows redirects through `guard.public_url` only, not the domain allowlist; it sends a HEAD request and reads no body.
+- The per-domain allowlist for fetched pages is enforced in code
+  (`pipeline/web.py`), in the same process as everything else; the network
+  proxy that hosting adds would enforce it outside the process. Until then a
+  bug in that process could reach any public host.
+- `guard.public_url` resolves a host's name to check that it is public, and
+  urllib resolves it again to connect, so a DNS answer that changes between the
+  two (DNS rebinding) could reach a private address. Connecting to the checked
+  address, or the hosting proxy, closes this.
+- `pdftotext` (poppler) runs on PDFs fetched from the internet, with a
+  120-second timeout but no page cap, in the pipeline's own process user. The
+  non-root container is the only containment until hosting gives the web agents
+  their own container.
 - An email's sender is what the message says. Until intake reads sender and
   date from the message headers, a forwarded or spoofed message can produce a
   `customer` row; the Auditor and Chris's release are the check.

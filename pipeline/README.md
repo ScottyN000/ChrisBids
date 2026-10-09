@@ -153,8 +153,7 @@ The plan is a lookup by document kind:
 
 A source that is missing, a duplicate, or of a kind no reader opens yet
 (template, past bid, spreadsheet, unknown) is listed with the reason, so the plan
-accounts for every register row. Customer Requirements, Codes and Materials are
-listed as not built.
+accounts for every register row. Customer Requirements is listed as not built.
 
 The architecture puts the Orchestrator on Sonnet (p.13). With only the register to
 go on, the plan has no choices a model would add, so it is code: the same plan
@@ -172,11 +171,116 @@ A bid run does the following, in order:
 2. The plan (`plan.json`).
 3. Each reader on its units, prepared and hash-checked by `readers/live.prepare_units`.
 4. Takeoff.
-5. The Scope Writer (`proposal.md`, `xref.csv`).
-6. The Auditor, with the packet and the proposal.
+5. Codes & Regs and Materials, when the run has network (`--no-web` skips them).
+6. The Scope Writer (`proposal.md`, `xref.csv`).
+7. The Auditor, with the packet and the proposal.
 
 It also writes `ledger.csv` and a summary, `bid.txt`. A test runs a small
 synthetic packet through every step with fake model clients.
 
 A new packet's readers write no header rows (project name, address, client),
 so the Scope Writer may leave those slots empty and the proposal says FIELD there.
+
+## Codes & Regs and Materials (Phase 4)
+
+[`webread.py`](webread.py) reads the code, permit, licensing and product pages a
+job needs, and writes what they say as `fetched` rows. Each row carries the URL,
+the retrieval date and a verbatim quote (architecture p.4, p.6, p.16). The two
+agents share the module, and each page names its agent: Codes & Regs for codes,
+permits and licensing, Materials for manufacturer data sheets.
+
+Which pages a job needs comes from [`web_sources.yaml`](web_sources.yaml). This
+is the per-jurisdiction and per-manufacturer cache the architecture describes
+(p.7-8). A page is read when the job's rows from its own documents name its place,
+product or hazard (never fetched rows or rows citing the web, which would pick the
+pages that research already found).
+A two-letter state code counts only as an address writes it (", MD" or "MD 21842"),
+so "10.1 fl oz" in a spec does not pull in Florida's pages.
+For example, the Ocean City pages are read for a job in Ocean City, Maryland, and
+the Loxon data sheets for a job whose spec names Loxon. The table was seeded from
+the 57 pages the two hand-made test bids cite. Each ask is a neutral question
+about what to find, with a `#` for each figure the model must read from the
+page (`How long permit review takes: # weeks`). It never carries the test bid's
+conclusion, since the table is the cache for every later job (p.7: evidence,
+never conclusions). A jurisdiction the table does not
+know gets no rows yet: the cold-cache search plan (p.13) is not built.
+
+Every bid re-fetches its pages: a cached row is evidence, never a conclusion
+(p.7-8). Code does the fetching ([`web.py`](web.py)) and checks every URL first:
+
+- only `.gov` hosts, `.us` state portals (`*.state.xx.us`) or a domain the table
+  names may be fetched (anyone may register a `.us` name, so other `.us` hosts
+  are refused);
+- the URL must be public (no file:, loopback or private address);
+- every redirect hop is checked the same way;
+- a page is at most 8 MB, and each read has a 30-second socket timeout (a
+  server that trickles bytes can take longer in total).
+
+HTML and PDF pages are turned into text.
+
+A model (Haiku) answers each ask with a quote and one sentence. Code keeps an
+answer only if all three hold:
+
+- the quote is on the page, compared after folding case, spacing, quotes and dashes;
+- the model fills the ask's `#` marks with figures (`figures`), and each is in
+  the quote, a range counting as one figure (so "4" does not match "2-4") and a
+  date with its month as one ("March 2024" does not match "May 2024"), or, in a
+  mark the ask writes inside an identifier ("LX#", "ESR-#"), is part of one of
+  the page's own identifiers, which the table lists whole (`ids`:
+  ESR-4143, A24W8300) and which count only if the page carries them, so a
+  product name the model recalls (HY 70 to HY 270, p.7) gets no pass;
+- the sentence gives each of those figures, and none its quote lacks. The identifiers are taken out
+  whole first, so "24 hours" on the A24W8300 sheet is still a figure;
+- two runs pick the same option for a closed ask and fill the marks with
+  exactly the same figures (identifier digits aside, in identifier marks only),
+  from whichever passage;
+  for an ask with neither, they quote mostly the same passage and their
+  sentences give the same figures.
+
+A product or report code the page table already knows (LX02, ESR-4143) is written
+into the ask, never left as a mark for the model to fill.
+
+An ask whose answer is a word rather than a figure (yes/no, proposed/adopted/effective)
+lists its `options` in the table. Each run picks one (or "other"), code checks it
+is one of them, and the runs must pick the same one, so a status is never read
+from free text. The agreed option is the row's value.
+
+When the runs find differing readings on the page (different passages and
+figures, or one run finds it and one does not), code does not pick one. Each
+reading is written as its own row, flagged unverified, for Chris to settle.
+
+A run that is discarded, or an answer that is refused, gets up to two spare
+runs for that page, so one slip does not cost the ask.
+
+A page that does not open is written as one row flagged unverified, saying why,
+and so is an ask with no agreed answer and no reading kept, so the gap reaches
+the bid.
+The test bids record a dead link the same way. Each fetch is logged with its
+date, its content hash and, after a redirect, the address that served it.
+
+Golden gate, live only: `python -m pipeline web fixtures/<job> --out runs/x`.
+For every ask gated against one of the fixture's own fetched rows, the run's
+quote must carry most of the fixture's quote, or every figure of the fixture's
+statement, and a closed ask's option must be the one the fixture's row gives
+(kept beside the fixture in `web_choices.yaml`, never in the page table). A row
+that does not is a wrong answer and fails the gate. An
+unverified reading does not count as an answer. An ask
+with no row is a miss: safe, since the bid then has no verified row for it, but
+incomplete, so at least 80% of the compared asks must have a row. Two cases are
+reported and left out:
+
+- a page that no longer opens, or no longer carries the fixture's quote (the
+  page changed, not the agent);
+- a page the job's own documents do not lead to: the test bid found it by
+  searching, which is not built (p.13). The offline golden test pins how many
+  asks each job compares (19 and 24), so a table edit that stops a page
+  matching still fails CI.
+
+The gate runs in `live.yml` (`part: web`).
+
+Not built yet: order quantities from spread rates (a `material` row may not be
+`fetched`, p.6), the cold-cache search, the 90-day cache for federal
+regulations, and the edition, effective-date, discontinuation and ESR-expiry
+comparisons between bids (p.8). The page hash is in the fetch log, not on the row.
+An agreed figure (a spread rate, a date) is checked by code but stored only in the
+row's sentence, not in `value`; the spread-rate quantities will need it stored as a field.

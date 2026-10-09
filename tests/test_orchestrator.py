@@ -7,9 +7,10 @@ import unittest
 import zlib
 from pathlib import Path
 
-from pipeline import fixtures, orchestrator as orch, scope_writer
+from pipeline import fixtures, orchestrator as orch, scope_writer, web, webread
 from pipeline.readers import validate
 from tests.pdfgen import write_pdf
+from tests.webfake import OneHTML
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -57,7 +58,7 @@ class PlanCase(unittest.TestCase):
         ])
         self.assertEqual([(s.agent, s.run) for s in p.steps], [
             ("drawing", True), ("spec", True), ("photo", True), ("correspondence", True), ("takeoff", True),
-            ("customer", False), ("codes", False), ("materials", False), ("scope_writer", True), ("auditor", True),
+            ("customer", False), ("codes", True), ("materials", True), ("scope_writer", True), ("auditor", True),
         ])
         self.assertEqual(p.step("spec").units, [
             {"unit_id": "SPEC#p1", "source_id": "SPEC", "locator": "p.1", "tag": "SPEC p.1", "page": 1},
@@ -84,8 +85,8 @@ class PlanCase(unittest.TestCase):
             "  skip correspondence: no correspondence source present",
             "  run  takeoff: no drawing or photo rows; writes nothing",
             "  skip customer: not built yet; it waits on Chris's Oct 6 email to be tested",
-            "  skip codes: Phase 4, not built yet",
-            "  skip materials: Phase 4, not built yet",
+            "  run  codes: fetches the code, permit and licensing pages the page table matches to the job",
+            "  run  materials: fetches the product data sheets the page table matches to the job",
             "  run  scope_writer: lays out the proposal from the ledger",
             "  run  auditor: re-hashes the sources, checks every row and traces every figure in the proposal",
             "sources:",
@@ -97,6 +98,13 @@ class PlanCase(unittest.TestCase):
         self.assertEqual(p.step("takeoff").reason,
                          "derives quantities from the drawing rows and writes FIELD rows")
         self.assertIn("  run  photo, 1 units: 1 units from the register", p.text())
+
+    def test_without_network_the_plan_says_the_web_agents_do_not_run(self):
+        p = orch.plan("J", [src("IMG_1", "photo")])
+        self.assertTrue(p.step("codes").run and p.step("materials").run)
+        p = orch.plan("J", [src("IMG_1", "photo")], web=False)
+        for name in ("codes", "materials"):
+            self.assertEqual((p.step(name).run, p.step(name).reason), (False, orch.NO_WEB))
 
     def test_a_drawing_sheet_is_read_in_grid_tiles(self):
         units = orch.units_for_source("drawing", src("S-1", "drawing", pages="1"))
@@ -162,6 +170,11 @@ class Fake:
             return {"items": []}
         if reader == "takeoff":
             return {"items": []}
+        if reader == "web_reader":
+            first = next(line.strip() for line in unit.text.splitlines() if line.strip())
+            asks = re.findall(r"^(a\d+): ", unit.brief, re.M)
+            return {"answers": [{"ask": a, "found": True, "quote": first, "figures": [], "choice": "", "statement": "The page says so."}
+                                for a in asks]}
         if reader == "scope_writer":
             rows = re.findall(r"^(\S+) \| scope \| (\S+) \|", unit.text, re.M)
             by_div = {}
@@ -203,10 +216,19 @@ class BidCase(unittest.TestCase):
             out.mkdir(parents=True)
             (out / "ledger.db").write_text("junk")                # an old ledger is replaced
             clients = [Bound("r"), Bound("t"), Bound("s")]
+            table = webread.Table(named=frozenset(), pages=[webread.Source(
+                url="https://permits.example.gov/wash", title="Wash permits", agent="codes",
+                when=(("pressure wash",),), asks=(webread.Ask("a1", "Whether washing needs a permit"),))])
+            fetcher = web.Fetcher(set(), opener=OneHTML("<p>Washing needs no permit.</p>"),
+                                  clock=lambda: "2026-10-08", resolve=False)
             res = orch.bid(packet, "J", out, reader_client=clients[0], takeoff_client=clients[1],
-                           scope_client=clients[2])                 # default repeats: 2
+                           scope_client=clients[2], fetcher=fetcher, web_table=table)  # default repeats: 2
             self.assertEqual(res.problems, [])
-            self.assertEqual(sorted(res.results), ["correspondence", "drawing", "photo", "spec", "takeoff"])
+            self.assertEqual(sorted(res.results), ["correspondence", "drawing", "photo", "spec", "takeoff", "web"])
+            web_rows = res.results["web"].rows
+            self.assertEqual([(c.claim_id, c.quote, c.url, c.retrieved) for c in web_rows],
+                             [("J-WEB-001", "Washing needs no permit.", "https://permits.example.gov/wash",
+                               "2026-10-08")])
             self.assertTrue(res.scope.ok, res.scope.report())
             self.assertTrue(res.audit.ok, res.audit.text())
             self.assertTrue(res.ok, res.text())
@@ -222,12 +244,13 @@ class BidCase(unittest.TestCase):
             self.assertTrue((out / "bid.txt").read_text().endswith("bid: OK\n"))
             plan = json.loads((out / "plan.json").read_text())
             self.assertEqual([s["agent"] for s in plan["steps"] if s["run"]],
-                             ["drawing", "spec", "photo", "correspondence", "takeoff", "scope_writer", "auditor"])
-            self.assertEqual(len(clients[0].calls), (6 + 2 + 1 + 1) * 2)
+                             ["drawing", "spec", "photo", "correspondence", "takeoff", "codes", "materials",
+                              "scope_writer", "auditor"])
+            self.assertEqual(len(clients[0].calls), (6 + 2 + 1 + 1 + 1) * 2)
             self.assertEqual([c[2] for c in clients[1].calls], [0, 1])      # Takeoff: the wall run is an input
             self.assertEqual(clients[2].calls, [("scope_writer", "J#scope", 0), ("scope_writer", "J#scope", 1)])
             self.assertEqual(res.results["takeoff"].calls, 2)
-            self.assertEqual(res.audit.verdicts, {"pass": 3, "unverified": 3})
+            self.assertEqual(res.audit.verdicts, {"pass": 3, "unverified": 4})
             from pipeline.ledger import Ledger
             with Ledger(out / "ledger.db") as led:
                 self.assertEqual(led.meta("job"), "J")

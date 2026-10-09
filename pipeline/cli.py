@@ -12,6 +12,7 @@
                                 [--takeoff-model claude-sonnet-5-5] [--takeoff-effort high]   (needs ANTHROPIC_API_KEY)
     python3 -m pipeline scope   fixtures/nantucket --out runs/nan-scope [--repeats 2]
                                 [--live [--model claude-haiku-5-5] [--effort high]]           (--live needs ANTHROPIC_API_KEY)
+    python3 -m pipeline web     fixtures/nantucket --out runs/nan-web [--repeats 2]   (fetches pages; needs ANTHROPIC_API_KEY)
     python3 -m pipeline bid     <packet-dir> --job J --out runs/j [--plan-only] [--repeats 2]
                                 [--model claude-haiku-5-5] [--takeoff-model claude-sonnet-5-5]   (needs ANTHROPIC_API_KEY)
 """
@@ -188,17 +189,42 @@ def cmd_scope(a) -> int:
     return 0 if gate.ok else 1
 
 
+def cmd_web(a) -> int:
+    """Read the pages the page table matches to a fixture, live, and gate the answers against its fetched rows."""
+    from . import web, webread
+    from .readers import live
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    client = live.LiveClient(model=a.model, effort=a.effort or None, record=out / "recordings")
+    table = webread.load()
+    try:
+        broker, result, gate = webread.golden(Path(a.fixture), out / "ledger.db", client, web.Fetcher(table.named),
+                                              repeats=a.repeats, table=table)
+    except live.LiveRunError as e:
+        print(f"NOT RUN: {e}", file=sys.stderr)
+        return 3
+    print(result.text())
+    print(gate.text())
+    if (out / "recordings" / "calls.jsonl").exists():
+        print(live.usage_totals(out / "recordings" / "calls.jsonl"))
+    (out / "gate.txt").write_text(result.text() + "\n" + gate.text() + "\n")
+    (out / "ledger.csv").write_text(broker.ledger.ledger_csv())
+    broker.close()
+    return 0 if gate.ok else 1
+
+
 def cmd_bid(a) -> int:
     """Run a bid end to end on a packet folder: plan, read, take off, lay out, audit."""
-    from . import orchestrator
+    from . import orchestrator, web, webread
     from .readers import live
     out = Path(a.out)
     if a.plan_only:
         sources = intake.scan(Path(a.packet))
-        plan = orchestrator.plan(a.job, [s.as_register_row() for s in sources])
+        plan = orchestrator.plan(a.job, [s.as_register_row() for s in sources], web=not a.no_web)
         print(plan.text())
         return 0
     rec = out / "recordings"
+    table = webread.load()      # one load: the allowlist and the pages read come from the same table
     try:
         result = orchestrator.bid(
             Path(a.packet), a.job, out,
@@ -206,7 +232,7 @@ def cmd_bid(a) -> int:
             takeoff_client=live.LiveClient(model=a.takeoff_model, effort=a.effort or None, record=rec),
             scope_client=live.LiveClient(model=a.model, effort=a.effort or None, record=rec,
                                          max_tokens=orchestrator.scope_writer.MAX_TOKENS),
-            repeats=a.repeats,
+            repeats=a.repeats, fetcher=None if a.no_web else web.Fetcher(table.named), web_table=table,
         )
     except live.LiveRunError as e:
         print(f"NOT RUN: {e}", file=sys.stderr)
@@ -292,7 +318,19 @@ def main(argv=None) -> int:
     p.add_argument("--takeoff-model", default="claude-sonnet-5-5")
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
+    p.add_argument("--no-web", action="store_true", help="skip Codes & Regs and Materials (no page is fetched)")
     p.set_defaults(func=cmd_bid)
+
+    p = sub.add_parser("web", help="read a fixture's code and product pages live and gate them against its "
+                                   "fetched rows (needs network and the API key)")
+    p.add_argument("fixture")
+    p.add_argument("--out", required=True)
+    p.add_argument("--repeats", type=int, default=2)
+    p.add_argument("--model", default="claude-haiku-5-5",
+                   help="fetch a page, extract a quoted clause or rate: Haiku (architecture p.13)")
+    p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
+                   help="empty for the model default")
+    p.set_defaults(func=cmd_web)
 
     a = ap.parse_args(argv)
     try:

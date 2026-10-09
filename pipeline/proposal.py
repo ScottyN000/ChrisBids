@@ -16,11 +16,18 @@ from __future__ import annotations
 import csv
 import io
 
+from . import schema
+
 def fmt_value(v):
     if v is None:
         return "FIELD"
     if isinstance(v, float) and v.is_integer():
         v = int(v)
+    if isinstance(v, str):
+        # a replayed range keeps its exact ends on the ledger; the page shows them to two places
+        ends = schema.value_range(v)
+        if ends and any("." in part for part in v.split("-")):
+            return "-".join(f"{x:,.2f}".rstrip("0").rstrip(".") for x in ends)
     return f"{v:,}" if isinstance(v, int) else str(v)
 
 
@@ -135,7 +142,7 @@ def render(data, by_id, phrases, register):
     mats = [r for r in data["rows"] if r["role"] == "material"]
     if mats:
         emit("## Materials (no pricing)\n")
-        emit("Order quantities are printed only where the ledger has a dimensioned or counted value; spares and stock-length rounding are Contractor Co. purchasing decisions and are not in the sources.\n")
+        emit("Order quantities are printed only where the ledger has a dimensioned or counted value, or a takeoff figure and a stated rate (the spec's own rate over the data sheet's, replayed at both ends of a range); spares, pack sizes and stock-length rounding are Contractor Co. purchasing decisions and are not in the sources.\n")
         emit("| Claim | Material | Qty | Unit | Source | Method |\n|---|---|---|---|---|---|")
         for r in mats:
             emit(f"| {r['id']} | {r['statement']}{marks(r)} | {fmt_value(r.get('value'))} | {r.get('unit', '')} | {tag(r)} | {r['method']} |",

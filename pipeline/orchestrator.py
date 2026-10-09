@@ -24,7 +24,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from . import auditor, fixtures, intake, scope_writer, takeoff, web, webread
+from . import auditor, fixtures, intake, materials, scope_writer, takeoff, web, webread
 from .broker import Broker
 from .readers import live, run as reader_run
 from .readers import tiles
@@ -211,6 +211,7 @@ def bid(packet: Path, job: str, out: Path, *, reader_client: ModelClient, takeof
         if fetcher is not None:
             result.results["web"] = webread.run(broker, job, reader_client, fetcher, table=web_table,
                                                     repeats=repeats)
+            result.results["materials"] = materials.run(broker, job, reader_client, repeats=repeats)
         result.scope = scope_writer.run(broker, job, scope_client, phrase_library, repeats=repeats)
         scope_writer.write(result.scope, out)
         result.audit = auditor.run(

@@ -1,0 +1,319 @@
+"""Materials order rows: the model names the rows an order rests on, code works
+the quantity out and writes it as a fetched row citing the sheet (architecture
+p.4, p.11, p.17)."""
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from pipeline import intake, materials, schema
+from pipeline.broker import Broker
+from pipeline.readers import validate
+from pipeline.readers.clients import prompt, prompt_version
+from pipeline.schema import Claim, LedgerError
+
+ROOT = Path(__file__).resolve().parent.parent
+SHEET = "https://www.example.com/x100.pdf"
+BULLETIN = "https://www.example.com/a7.pdf"
+
+
+def row(claim_id, statement, *, method="clause", role="scope", value="", unit="", source="SW", locator="p.4",
+        tag="SW p.4", flag="", url="", retrieved="", quote="", calc="", division="09", confidence="exact"):
+    v, n = schema.format_value(value)
+    return Claim(claim_id=claim_id, statement=statement, source_id=source, method=method, role=role,
+                 confidence=confidence, value=v, value_num=n, unit=unit, locator=locator, tag=tag, flag=flag,
+                 url=url, retrieved=retrieved, quote=quote, calc=calc, division=division)
+
+
+SYSTEM = row("X-SP-010", "Finish coat: Example Satin X100, 2 coats")
+SPEC_RATE = row("X-R-001", "Example Satin X100 coverage per coat", role="quantity", value="300-350",
+                unit="sq ft/gal", locator="p.5", tag="SW p.5")
+AREA = row("X-TK-Q-01", "Wall area, north and south elevations", method="dimensioned", role="quantity", value="1200",
+           unit="sq ft", source="S-1", locator="Sheet A-2", tag="S-1 A-2", division="")
+FIELD = row("X-F-002", "Wall SF by elevation", method="FIELD", role="quantity", source="none", locator="", tag="FIELD",
+            division="", confidence="missing")
+X100 = row("X-WEB-003", "Example Satin X100: 320-400 sq ft/gal", method="fetched", role="code", value="320-400",
+           unit="sq ft/gal", source="WEB", locator="ask a1", tag="X100 data sheet", url=SHEET, retrieved="2026-10-09",
+           quote="320-400 sq. ft. per gallon", division="")
+COUNT = row("X-TK-Q-02", "Adhesive anchors, 3 per bracket x 6 brackets", method="counted", role="quantity", value="18",
+            unit="each", source="S-1", locator="Det 1", tag="S-1 Det 1", calc="{X-DR-003} * {X-TK-Q-00}", division="")
+A7 = row("X-WEB-006", "Example Anchor A7: ESR-0000 covers hollow masonry", method="fetched", role="code", source="WEB",
+         locator="ask a1", tag="A7 evaluation report", url=BULLETIN, retrieved="2026-10-09",
+         quote="ESR-0000 covers hollow masonry", division="")
+ANCHOR = row("X-DR-005", '1/2" adhesive anchors, Example Anchor A7, 3 per bracket', source="S-1", locator="Det 1",
+             tag="S-1 Det 1", division="05")
+SCALED = row("X-DR-009", "Angle leg, scaled", method="scaled", role="quantity", value="40", unit="in", source="S-1",
+             confidence="scaled", division="")
+ROWS = [SYSTEM, SPEC_RATE, AREA, FIELD, X100, COUNT, A7, ANCHOR]
+BY_ID = {c.claim_id: c for c in ROWS}
+
+
+def item(product="Example Satin X100", unit="gal", quantity="X-TK-Q-01", coats=2, spec_rate="X-R-001",
+         sheet="X-WEB-003", basis=("X-SP-010",)):
+    return {"product": product, "unit": unit, "quantity": quantity, "coats": coats, "spec_rate": spec_rate,
+            "sheet": sheet, "basis": list(basis)}
+
+
+ANCHORS = item("Example Anchor A7 adhesive anchors", "each", "X-TK-Q-02", 0, "", "X-WEB-006", ("X-DR-005",))
+
+
+class Fake:
+    def __init__(self, answers, model_id="fake-model"):
+        self.answers, self.model_id, self.calls = answers, model_id, []
+
+    def complete(self, reader, unit, system, schema_, run):
+        self.calls.append((reader, unit, system, schema_, run))
+        return self.answers[run]
+
+
+class ItemCase(unittest.TestCase):
+    def test_the_prompt_and_schema(self):
+        text = prompt("materials")
+        self.assertIn("## Rules", text)
+        self.assertEqual(validate.errors({"items": [item(), ANCHORS]}, materials.SCHEMA), [])
+        self.assertTrue(validate.errors({"items": [dict(item(), unit="LF")]}, materials.SCHEMA))
+        self.assertEqual(validate.errors({"items": [dict(item(), coats=7)]}, materials.SCHEMA), ["$.items[0].coats: above 6"])
+        self.assertEqual(validate.errors({"items": [dict(item(), coats=6)]}, materials.SCHEMA), [])
+        self.assertEqual(validate.errors({"items": [dict(item(), coats=-1)]}, materials.SCHEMA), ["$.items[0].coats: below 0"])
+        self.assertTrue(validate.errors({"items": [dict(item(), sheet="x y")]}, materials.SCHEMA))
+        # every example in the prompt matches the schema and names no test bid's rows (p.7)
+        examples = [json.loads(b.split("```")[0]) for b in text.split("```json")[1:]]
+        self.assertEqual(len(examples), 3)
+        for ex in examples:
+            self.assertEqual(validate.errors(ex, materials.SCHEMA), [])
+        self.assertNotRegex(text, r"NAN-|OBV-|Nantucket|Ocean|Sherwin|Loxon|Hilti")
+
+    def test_rate_unit(self):
+        for unit, want in (("sq ft/gal", "gal"), ("sq. ft. per gallon", "gal"), ("cu ft per bag", "bags"),
+                           ("LF/tube", "tubes"), ("LF per cartridge", "cartridges"), ("weeks", ""), ("", "")):
+            self.assertEqual(materials.rate_unit(row("R", "r", value="200-300", unit=unit)), want, unit)
+        self.assertEqual(materials.rate_unit(row("R", "r", value="", unit="sq ft/gal")), "")   # no figure, no rate
+        self.assertEqual(materials.rate_unit(None), "")
+
+    def test_what_code_refuses(self):
+        shown = materials.unit_for("X", ROWS).text
+        cases = [
+            (item(product="Example Satin X900"), "product 'Example Satin X900' carries 900, which is in none of the rows"),
+            (item(sheet="X-WEB-999"), "names X-WEB-999, which is not a row it was shown"),
+            (item(sheet=""), "names no data-sheet row; a product with none gets no order row"),
+            (item(basis=("X-SP-010", "X-NO")), "names X-NO, which is not a row it was shown"),
+            (item(sheet="X-SP-010"), "sheet X-SP-010 is not a fetched row with a quote"),
+            (item(quantity="X-SP-010"), "quantity X-SP-010 is a clause scope row, not a takeoff figure or a FIELD row"),
+            (item(spec_rate="X-SP-010"), "spec_rate X-SP-010 is not a clause row stating a rate"),
+            (item(spec_rate="", sheet="X-WEB-006"), "orders gal but no row states a rate"),
+            (item(unit="bags"), "orders bags but the rate X-R-001 is per 'sq ft/gal'"),
+            (dict(ANCHORS, spec_rate="X-R-001"), "orders each, so no rate applies"),
+        ]
+        for it, want in cases:
+            self.assertEqual(materials.item_errors(it, BY_ID, shown), [want], it)
+        self.assertEqual(materials.item_errors(item(), BY_ID, shown), [])
+        self.assertEqual(materials.item_errors(ANCHORS, BY_ID, shown), [])
+        self.assertEqual(materials.item_errors(item(spec_rate=""), BY_ID, shown), [])   # the sheet's rate will do
+        self.assertEqual(materials.item_errors(item(quantity=""), BY_ID, shown), [])    # nothing covered yet
+
+    def test_vote_keeps_every_distinct_order(self):
+        a, b = item(), item(coats=1)
+        self.assertEqual(materials.vote([[a, a, ANCHORS], [b, ANCHORS]]), [(a, 1), (ANCHORS, 2), (b, 1)])
+        self.assertEqual(materials.vote([]), [])
+
+    def test_inputs_leave_out_scaled_observed_and_material_rows(self):
+        mine = row("X-MT-01", "ours", method="fetched", role="material", url=SHEET, retrieved="2026", quote="q")
+        obs = row("X-PH-01", "peeling", method="observed", role="scope", source="IMG_1", confidence="inferred")
+        self.assertEqual(materials.inputs(ROWS + [SCALED, obs, mine]), ROWS)
+        self.assertEqual(materials.sheets(ROWS), [X100, A7])
+        unit = materials.unit_for("X", ROWS[:2])
+        self.assertEqual(unit.unit_id, "X#materials")
+        self.assertEqual(unit.text.splitlines()[1], "X-R-001 | clause | 300-350 sq ft/gal | Example Satin X100 coverage "
+                                                    "per coat | SW p.5")
+
+
+class ClaimCase(unittest.TestCase):
+    def test_a_figure_from_the_spec_s_rate_over_the_sheet_s(self):
+        c = materials.order_claim("X-MT-01", item(), 2, 2, BY_ID)
+        self.assertEqual(c, Claim(
+            claim_id="X-MT-01",
+            statement="Example Satin X100: 1200 sq ft x 2 / 300-350 sq ft/gal = 6.857142857142857-8 gal; "
+                      "the spec's rate (X-R-001) governs over the sheet's 320-400 sq ft/gal (p.17)",
+            source_id="S-1 + SW + WEB", method="fetched", role="material", confidence="exact",
+            value="6.857142857142857-8", value_num=None, unit="gal", locator="p.4 and p.5",
+            tag="SW p.4 + X100 data sheet", calc="{X-TK-Q-01} * 2 / {X-R-001}",
+            derivation="1200 sq ft x 2 / 300-350 sq ft/gal = 6.857142857142857-8 gal; "
+                       "the spec's rate (X-R-001) governs over the sheet's 320-400 sq ft/gal (p.17)",
+            division="09", flag="unverified", url=SHEET, retrieved="2026-10-09", quote="320-400 sq. ft. per gallon",
+        ))
+        # the sheet's rate when the spec gives none; one coat
+        c = materials.order_claim("X-MT-01", item(spec_rate="", coats=1), 2, 2, BY_ID)
+        self.assertEqual((c.value, c.calc, c.flag, c.derivation, c.source_id, c.locator),
+                         ("3-3.75", "{X-TK-Q-01} * 1 / {X-WEB-003}", "", "1200 sq ft x 1 / 320-400 sq ft/gal = 3-3.75 gal",
+                          "S-1 + SW + WEB", "p.4"))
+        self.assertEqual(schema.replay_calc(c, BY_ID), [])
+
+    def test_a_count_cites_the_count_row(self):
+        c = materials.order_claim("X-MT-02", ANCHORS, 2, 2, BY_ID)
+        self.assertEqual((c.value, c.value_num, c.unit, c.calc, c.flag, c.statement, c.division, c.url),
+                         ("18", 18.0, "each", "{X-TK-Q-02}", "", "Example Anchor A7 adhesive anchors: 18 each (X-TK-Q-02)",
+                          "05", BULLETIN))
+
+    def test_what_is_missing_is_named_and_the_row_carries_no_figure(self):
+        cases = [
+            (item(quantity="X-F-002"), "X-F-002 x 2 coats / X-R-001; the quantity waits on X-F-002 (FIELD)"),
+            (item(quantity=""), "FIELD x 2 coats / X-R-001; no quantity row names what it covers"),
+            (item(coats=0), "X-TK-Q-01 x ? coats / X-R-001; the spec does not say how many coats"),
+            (item(coats=0, quantity="X-F-002"),
+             "X-F-002 x ? coats / X-R-001; the quantity waits on X-F-002 (FIELD); the spec does not say how many coats"),
+            (dict(ANCHORS, quantity=""), "no count row; no count row names how many"),
+            (dict(ANCHORS, quantity="X-F-002"), "X-F-002; the count waits on X-F-002 (FIELD)"),
+        ]
+        for it, how in cases:
+            c = materials.order_claim("X-MT-01", it, 2, 2, BY_ID)
+            spec_note = "; the spec's rate (X-R-001) governs over the sheet's 320-400 sq ft/gal (p.17)" if it["spec_rate"] else ""
+            self.assertEqual((c.value, c.value_num, c.calc, c.flag, c.confidence, c.derivation),
+                             ("", None, "", "unverified", "missing", how + spec_note), it)
+        # a coating with a sheet that states no rate, and no spec rate: no figure, said so
+        c = materials.order_claim("X-MT-01", item(spec_rate="", sheet="X-WEB-006"), 2, 2, BY_ID)
+        self.assertEqual((c.value, c.derivation), ("", "no rate; no row states a rate"))
+
+    def test_fewer_runs_and_flagged_inputs_are_noted(self):
+        c = materials.order_claim("X-MT-01", item(spec_rate=""), 1, 2, BY_ID)
+        self.assertEqual((c.flag, c.derivation), ("unverified", "1200 sq ft x 2 / 320-400 sq ft/gal = 6-7.5 gal; "
+                                                                "seen in 1 of 2 runs"))
+        by_id = dict(BY_ID, **{"X-TK-Q-01": row("X-TK-Q-01", "Wall area", method="dimensioned", role="quantity",
+                                                  value="1200", unit="sq ft", source="S-1", flag="unverified")})
+        c = materials.order_claim("X-MT-01", item(spec_rate=""), 2, 2, by_id)
+        self.assertEqual(c.derivation, "1200 sq ft x 2 / 320-400 sq ft/gal = 6-7.5 gal; uses flagged X-TK-Q-01")
+
+
+class RunCase(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.broker = Broker.open_job(Path(self.tmp.name) / "l.db", "intake", job="X", run_id="X-RUN", create=True,
+                                      clock=lambda: "2026-10-09T00:00:00Z")
+        self.addCleanup(self.broker.close)
+        self.broker.write_register([
+            {"source_id": "S-1", "kind": "drawing", "status": "present", "sha256": "a"},
+            {"source_id": "SW", "kind": "spec", "status": "present", "sha256": "b"},
+            dict(intake.WEB),
+        ])
+        self.write("spec_reader", SYSTEM, SPEC_RATE)
+        self.write("drawing_reader", AREA, ANCHOR, row("X-DR-003", "3 per bracket", method="counted", role="quantity",
+                                                       value="3", unit="per bracket", source="S-1", division=""))
+        self.write("takeoff", FIELD, row("X-TK-Q-00", "brackets", method="counted", role="quantity", value="6",
+                                        unit="each", source="S-1", division=""), COUNT)
+        self.write("materials", X100, A7)
+
+    def write(self, principal, *claims):
+        w = self.broker.as_principal(principal)
+        for c in claims:
+            w.append(c)
+
+    def test_agreed_items_become_order_rows(self):
+        client = Fake([{"items": [item(), ANCHORS]}, json.dumps({"items": [ANCHORS, item()]})])
+        res = materials.run(self.broker, "X", client)
+        self.assertEqual((res.units, res.calls, res.discarded, res.unread, res.refused, res.notes), (1, 2, [], [], [], []))
+        self.assertEqual([(c.claim_id, c.value, c.unit, c.agent, c.flag) for c in res.rows],
+                         [("X-MT-01", "6.857142857142857-8", "gal", "materials", "unverified"),
+                          ("X-MT-02", "18", "each", "materials", "")])
+        back = self.broker.ledger.by_id()
+        self.assertEqual((back["X-MT-01"].calc, back["X-MT-02"].calc), ("{X-TK-Q-01} * 2 / {X-R-001}", "{X-TK-Q-02}"))
+        reader, unit, system, schema_, r = client.calls[0]
+        self.assertEqual((reader, system, schema_, r), ("materials", prompt("materials"), materials.SCHEMA, 0))
+        self.assertIn("X-WEB-003 | fetched | 320-400 sq ft/gal |", unit.text)
+        self.assertNotIn("X-MT-", unit.text)
+        log = [(e["principal"], e["action"], e["subject"], e["detail"]) for e in self.broker.ledger.log()
+               if e["action"] == "model-call"]
+        self.assertEqual(log, [("materials", "model-call", "X#materials",
+                                f"fake-model; {prompt_version('materials')}; run {n}; valid") for n in (1, 2)])
+        self.assertEqual(res.text().splitlines()[0],
+                         "materials: 1 units, 2 calls, 2 order rows (2 with a figure), 0 items discarded, 0 units unread")
+
+    def test_a_bad_run_and_bad_items_are_discarded(self):
+        client = Fake(["not json", {"items": [item(sheet="X-NO"), ANCHORS]}])
+        res = materials.run(self.broker, "X", client)
+        self.assertEqual(res.discarded, ["X#materials run 1: not JSON: Expecting value: line 1 column 1 (char 0)",
+                                         "X#materials run 2: items[0] names X-NO, which is not a row it was shown"])
+        self.assertEqual([(c.claim_id, c.flag, c.derivation) for c in res.rows],
+                         [("X-MT-01", "unverified", "18 each (X-TK-Q-02); seen in 1 of 2 runs")])
+        self.assertIn("  discarded " + res.discarded[0], res.text())
+        res = materials.run(self.broker, "X", Fake(["no", "no"]))
+        self.assertEqual((res.unread, res.rows), (["X#materials"], []))
+
+    def test_a_ledger_with_no_sheet_gets_no_call(self):
+        broker = Broker.open_job(Path(self.tmp.name) / "m.db", "intake", job="Y", run_id="Y-RUN", create=True)
+        self.addCleanup(broker.close)
+        broker.write_register([{"source_id": "SW", "kind": "spec", "status": "present", "sha256": "b"}])
+        broker.as_principal("spec_reader").append(SYSTEM)
+        client = Fake([{"items": []}])
+        res = materials.run(broker, "Y", client)
+        self.assertEqual((res.calls, res.rows, res.notes, client.calls),
+                         (0, [], ["no data sheet rows in the ledger: no order rows (Materials writes fetched rows only)"], []))
+        res = materials.run(self.broker, "X", None)
+        self.assertEqual((res.calls, res.notes), (0, ["no model client: no order rows"]))
+
+    def test_the_broker_holds_the_order_to_the_rules(self):
+        # a scaled row is never shown, so the model cannot name it; an order over one is refused all the same
+        by_id = dict(BY_ID, **{SCALED.claim_id: SCALED})
+        c = materials.order_claim("X-MT-09", item(spec_rate="", quantity="X-DR-009"), 2, 2, by_id)
+        self.assertEqual(materials.item_errors(item(quantity="X-DR-009"), by_id, materials.unit_for("X", list(by_id.values())).text),
+                         ["quantity X-DR-009 is a scaled quantity row, not a takeoff figure or a FIELD row"])
+        self.write("takeoff", SCALED)
+        with self.assertRaises(LedgerError) as e:
+            self.broker.as_principal("materials").append(c)
+        self.assertIn("cannot feed an order quantity", str(e.exception))
+
+
+FIX_C = {"id": "OBV-C-026", "role": "code", "method": "fetched", "url": SHEET, "quote": "350-400"}
+FIX_M = {"id": "OBV-M-002", "role": "material", "method": "FIELD", "unit": "gal", "tag": "SW p.16 + OBV-C-026",
+         "statement": "SuperPaint A89, coats not stated"}
+
+
+def order_row(value="", unit="gal", url=SHEET):
+    return row("OBV-MT-01", "x", method="fetched", role="material", value=value, unit=unit, url=url, retrieved="2026",
+               quote="q", source="WEB")
+
+
+class GateCase(unittest.TestCase):
+    def gate(self, rows, fixture=(FIX_C, FIX_M)):
+        res = materials.OrderResult(rows=list(rows))
+        return materials.gate(res, list(fixture))
+
+    def test_a_matching_order_passes_and_a_missing_one_is_a_miss(self):
+        g = self.gate([order_row()])
+        self.assertEqual((g.ok, g.compared, g.failures, g.misses, g.notes), (True, 1, [], [], []))
+        self.assertEqual(g.text().splitlines()[0], "materials gate: PASS (1 fixture orders compared, 1 matched; 80% "
+                                                   "needed, and no wrong figure or unit)")
+        g = self.gate([])
+        self.assertEqual((g.ok, g.misses), (False, [f"OBV-M-002: no order row cites {SHEET}"]))
+        self.assertIn("  miss " + g.misses[0], g.text())
+
+    def test_a_wrong_unit_or_figure_fails(self):
+        g = self.gate([order_row(unit="each")])
+        self.assertEqual(g.failures, ["OBV-M-002: ordered in each, the fixture in gal"])
+        g = self.gate([order_row(value="6-7")])
+        self.assertEqual(g.failures, ["OBV-M-002: gives 6-7 gal where the fixture waits on a FIELD measure"])
+        counted = dict(FIX_M, method="counted", value=18, unit="each")
+        g = self.gate([order_row(value="20", unit="each")], (FIX_C, counted))
+        self.assertEqual(g.failures, ["OBV-M-002: gives 20 each, the fixture 18"])
+        g = self.gate([order_row(value="18", unit="each"), order_row(value="", unit="each")], (FIX_C, counted))
+        self.assertEqual((g.ok, g.failures), (True, []))
+        self.assertIn("  FAIL " + self.gate([order_row(unit="each")]).failures[0], self.gate([order_row(unit="each")]).text())
+
+    def test_an_order_citing_no_page_is_noted_not_compared(self):
+        no_page = dict(FIX_M, id="OBV-M-004", tag="S-1 Det 1", statement="angle per NAN-F-002")
+        g = self.gate([order_row()], (FIX_C, FIX_M, no_page))
+        self.assertEqual((g.ok, g.compared, g.notes), (True, 1, ["OBV-M-004: cites no fetched page; not compared"]))
+        g = self.gate([], (no_page,))
+        self.assertEqual((g.ok, g.compared), (False, 0))
+
+    def test_most_orders_must_match(self):
+        fix = [FIX_C] + [dict(FIX_M, id=f"OBV-M-00{n}") for n in range(1, 6)]
+        g = self.gate([order_row()], fix)                                   # every fixture order cites the one page
+        self.assertEqual((g.ok, g.compared, len(g.misses)), (True, 5, 0))
+        other = dict(FIX_C, id="OBV-C-030", url=BULLETIN)
+        fix = [FIX_C, other] + [dict(FIX_M, id=f"OBV-M-00{n}", tag="OBV-C-030") for n in range(1, 5)] + [FIX_M]
+        g = self.gate([order_row()], fix)                                   # 1 of 5 matched
+        self.assertEqual((g.ok, g.compared, len(g.misses)), (False, 5, 4))
+
+
+if __name__ == "__main__":
+    unittest.main()

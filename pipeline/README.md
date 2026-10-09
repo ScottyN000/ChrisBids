@@ -292,9 +292,38 @@ reported and left out:
 
 The gate runs in `live.yml` (`part: web`).
 
-Not built yet: the Materials order rows (the quantity a data sheet's rate and a
-takeoff area give, p.4; the ledger can carry them now, the step that writes
-them is next), the cold-cache search, the 90-day cache for federal regulations,
+### Order rows
+
+[`materials.py`](materials.py) is the Materials agent's second job: "product
+data sheet figures (spread rate, yield, pack size), order quantities" (p.4). It
+reads ledger rows, never documents or pages. After the pages are read, the model
+(Haiku) is shown the job's current rows (what the documents say, the figures,
+the FIELD rows for what will be measured, the fetched data sheets; never a scaled
+or observed row, p.6) and says, for each product the rows name, which rows its
+order rests on: the data-sheet row, the quantity row it covers (a takeoff area or
+count, or the FIELD row for one), the coats the spec gives (0 when it does not
+say) and the spec's own coverage row when there is one, since the spec's stated
+rate takes precedence over the data sheet's (p.17). Code works the quantity out,
+`{AREA} * coats / {RATE}`, at both ends of a rate stated as a range, and writes
+it as a `fetched` material row citing the sheet (URL, date, quote), the only
+method the access matrix lets Materials write (p.11). A count (anchors, bolts)
+cites its count row. A product with no data-sheet row in the ledger gets no row,
+and the run says so; an order that waits on a FIELD row, a coat count the spec
+does not give or a rate nobody stated is written with no figure, flagged
+unverified, naming what is missing. Items are compared across the two runs by
+the rows they rest on; one seen in one run only is written flagged unverified,
+never dropped or chosen. A rate, a yield, a waste factor or a spare count is
+never a number in a formula: it is a row or it is nothing, and the schema and
+[`schema.py`](schema.py) (`MATERIAL_OK`) hold the model and the broker to it.
+
+Golden gate, live only, in `python -m pipeline web` after the pages: for every
+material row of the fixture that cites a fetched page, the run must have an order
+row citing the same page, in the fixture's unit, with a figure exactly when the
+fixture has one and equal to it; 80% of the compared orders must have a row. A
+fixture order that cites no page (the hand-made bid's angle footage, its bolts)
+is noted and left out: Materials writes fetched rows only.
+
+Not built yet: the cold-cache search, the 90-day cache for federal regulations,
 and the edition, effective-date, discontinuation and ESR-expiry comparisons
 between bids (p.8). The page hash is in the fetch log, not on the row. An agreed
 figure with no unit in the table (a date) is checked by code but stored only in

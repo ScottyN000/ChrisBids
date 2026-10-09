@@ -2,6 +2,10 @@
 
 The names are stored only as hash prefixes, so this file does not republish them. Stand-ins
 ("Contractor Co.", "the estimator", "SW Rep", 555 numbers) are used everywhere instead.
+
+Limits: a word matches only on a prefix of 6 to 12 letters, so a name of 5 letters or fewer is
+not guarded. Photos are not read: their EXIF carries no artist, copyright or description text
+(checked 2026-10-09), and the guard would need an image library to keep that true.
 """
 import hashlib
 import re

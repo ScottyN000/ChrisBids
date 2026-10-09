@@ -1,6 +1,7 @@
 Bid Pipeline — Agent Team Architecture (owner, 2026-10-07), text layer only.
 Extracted with `pdftotext -layout` from bid-pipeline-architecture_2026-10-07.pdf, sha256 0f92692dfae80b5ad11d56ad7a735c4685b991beb7136390a40202d3d1dd23a2.
 Page numbers are the "Page N of 17" footers. Read by the advisor (docs/advisor.md); the PDF is the source of record.
+Names, contacts and the business name were replaced with stand-ins on 2026-10-09 (owner); the text otherwise matches the PDF.
 
 Bid Pipeline — Agent Team Architecture
 
@@ -801,7 +802,7 @@ Bid Pipeline — Agent Team Architecture
         Contractor Co.'s rate book and labor factors, when pricing is added.
         Three to five past bids with their packets, to use as regression tests.
         A ruling on scaled dimensions: never order from them, or order with a stated tolerance.
-        License numbers and the jurisdictions he actually bids in, for the Codes agent's lookup
+        License numbers and the jurisdictions they actually bid in, for the Codes agent's lookup
         table.
 
 

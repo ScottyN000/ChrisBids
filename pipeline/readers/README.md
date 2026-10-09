@@ -109,4 +109,4 @@ on 2026-10-08 (Actions run 37780360959: readers on Haiku at high effort, two rea
 
 ## The ruling still open
 
-Architecture p.17 asks the estimator for a ruling on scaled dimensions: never order from them, or order with a stated tolerance. Until he gives it, scaled rows are written with confidence `scaled`, carry no numeric value, and the broker refuses them in any allowance or order quantity.
+Architecture p.17 asks the estimator for a ruling on scaled dimensions: never order from them, or order with a stated tolerance. Until that ruling is given, scaled rows are written with confidence `scaled`, carry no numeric value, and the broker refuses them in any allowance or order quantity.

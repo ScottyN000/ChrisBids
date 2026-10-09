@@ -22,7 +22,7 @@ rows:
   - {id: OBV-H-002, role: header, method: clause, confidence: exact, source: SW, locator: p.1, tag: SW p.1,
      statement: '2515 Hwy A1A, Cocoa Beach, Florida 32931'}
   - {id: OBV-H-003, role: header, method: clause, confidence: exact, source: SW, locator: p.1 and p.18, tag: SW p.1,
-     statement: 'Specification: Sherwin-Williams Paint Specifications by SW Rep, Professional Coatings Representative, 555-555-0101, rep@example.com, dated 9/25/2026'}
+     statement: 'Specification: Sherwin-Williams Paint Specifications by SW Rep, Professional Coatings Representative, 555-555-0101, rep@example.com (the stand-ins this copy of the spec prints in place of the rep''s name and contacts), dated 9/25/2026'}
   - {id: OBV-F-001, role: header, method: FIELD, confidence: missing, source: SW, locator: p.1 logo, tag: SW p.1,
      statement: 'Client: the spec cover carries a Property Advantage logo but names no owner or association. Confirm who the proposal is addressed to'}
 

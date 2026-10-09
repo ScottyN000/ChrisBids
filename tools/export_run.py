@@ -105,6 +105,8 @@ def refused_host(action: str, detail: str) -> str:
     refused, which on a redirect is that hop's host and not the requested page's (the fetcher
     checks every hop), or the host of the URL the broker refused; the refusal's own words when
     it names no host (a non-http scheme, credentials, no host). Empty for a read or a failed one."""
+    if fetch_kind(action, detail) not in ("off-list", "unsafe"):
+        return ""
     if action == "denied":
         url, _, why = detail.partition(": ")
         return urlsplit(url).hostname or why or detail
@@ -218,7 +220,7 @@ def events(db: sqlite3.Connection, usage: dict | None = None, prices: dict | Non
                     e.update({"usage": c.get("usage"), "cost": c["cost"], "priced_as": c["priced_as"], "unpriced": c["unpriced"]})
         elif action == "fetch" or (action == "denied" and subject == "fetch"):
             e["fetch"] = fetch_kind(action, e["detail"])
-            e["fetch_host"] = refused_host(action, e["detail"]) if e["fetch"] in ("off-list", "unsafe") else ""
+            e["fetch_host"] = refused_host(action, e["detail"])
         out.append(e)
     return out
 

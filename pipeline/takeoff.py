@@ -228,6 +228,26 @@ def is_symbol_count(c: Claim) -> bool:
     return c.method == "counted" and c.unit == "each" and not c.calc
 
 
+def _terms(calc: str) -> list[str]:
+    """The top-level terms of a formula, what its sum adds up: split on `+` and `-`
+    outside parentheses and outside a `{ROW-ID}` (whose hyphens are not signs)."""
+    terms, depth, in_ref, start = [], 0, False, 0
+    for i, ch in enumerate(calc):
+        if ch == "{":
+            in_ref = True
+        elif ch == "}":
+            in_ref = False
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif ch in "+-" and depth == 0 and not in_ref:
+            terms.append(calc[start:i])
+            start = i + 1
+    terms.append(calc[start:])
+    return [t for t in terms if t.strip()]
+
+
 def assembly_names(rows) -> list[str]:
     """What per-assembly rows are per: `3 per bracket` names the bracket (first word only,
     so `per bracket assembly` names it too)."""
@@ -286,14 +306,15 @@ def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     those naming what the item's own per-assembly rows are per (`Bracket spacing:
     2'-8"` for a per-bracket row), else what the job's are per, as `symbol_rows`
     matches them, on any view; window tags beside a room width are the prompt's own
-    route and are not flagged. A symbol count is held to the job's assembly names its
-    own wording carries when one of them is what the item is per (`New pier symbols
-    drawn` summed into a bracket total with a per-pier row is held to pier strings, not
-    the bracket's), to those and the item's names together when none is (anchors per
-    bracket times the pier symbols, or `Bracket symbols drawn` under a per-pier row, are
-    held to the bracket strings and the pier strings alike, the wrong symbol row being
-    the error this check is for), and to all the item's names when it carries none, so
-    a reader's wording cannot switch the check off. A job with no per-assembly row at all
+    route and are not flagged. A symbol count whose wording names one of the job's
+    assemblies is held to that name and to what the per-assembly rows in its own terms
+    of the formula are per (`_terms`): bolts per pier times the pier symbols, summed
+    into a bracket total, is held to the pier strings only, while anchors per bracket
+    times the pier symbols, alone, in a sum or inside one product with the per-pier
+    row, is held to the bracket strings and the pier strings alike, the wrong symbol
+    row being the error this check is for. One whose wording names none is held to all
+    the item's names, so a reader's wording cannot switch the check off. A job with no
+    per-assembly row at all
     is held to every dimension string on the symbols' own view. The rows that count go
     on the note with their view. `claims` is every current row, as for `symbol_rows`.
     """
@@ -302,12 +323,14 @@ def route_notes(item: dict, by_id: dict[str, Claim], claims=None) -> list[str]:
     job = assembly_names(claims)
     names = assembly_names(used) or job
     dims = [d for d in claims if d.method == "dimensioned"]
+    terms = [set(schema.CALC_REF.findall(t)) for t in _terms(item["calc"])]
     notes = []
     for c in used:
         if not is_symbol_count(c):
             continue
         wording = [n for n in job if n in c.statement.lower()]
-        own = wording if set(wording) & set(names) else _join(wording + names)
+        with_it = [r for r in used if any({c.claim_id, r.claim_id} <= t for t in terms)]
+        own = _join(wording + assembly_names(with_it)) if wording else names
         if own:
             named = [d for d in dims if any(n in d.statement.lower() for n in own)]
         else:

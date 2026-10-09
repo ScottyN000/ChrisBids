@@ -180,12 +180,12 @@ The fixes went in one per live run, in this order (all 2026-10-09, branch claude
   a sum by). The dimension strings that count are those naming what the item's per-assembly rows are per,
   else what the job's are per, as `symbol_rows` matches them, on any view (the brackets drawn again on the
   framing plan are the brackets the foundation plan dimensions, arch p.6), so window tags beside a room
-  width (the prompt's own route when no run and spacing are listed) are not flagged; a symbol count is
-  held to the job's assembly names its own wording carries when one of them is what the item is per (piers
-  summed into a bracket total with a per-pier row are held to pier strings), to those and the item's names
-  together when none is (bracket symbols under a per-pier row, or anchors per bracket times the pier
-  symbols, are held to the bracket strings and the pier strings alike), and to all the item's names when it
-  carries none; a job with no per-assembly row at all is held to every dimension string on the symbols'
+  width (the prompt's own route when no run and spacing are listed) are not flagged; a symbol count whose
+  wording names one of the job's assemblies is held to that name and to what the per-assembly rows in its
+  own terms of the formula are per (bolts per pier times the pier symbols, summed into a bracket total, to
+  the pier strings only; anchors per bracket times the pier symbols, alone or in a sum or product with the
+  per-pier row, to the bracket strings and the pier strings alike), and one whose wording names none to all
+  the item's names; a job with no per-assembly row at all is held to every dimension string on the symbols'
   own view. (e) The
   per-PR mutation score goes in the PR description with the run it came from (now in the Every PR bar of
   `docs/advisor.md`).

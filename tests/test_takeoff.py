@@ -588,6 +588,16 @@ class SymbolCheckCase(unittest.TestCase):
         no_bracket_strings = {k: v for k, v in with_piers.items() if k not in (SPAN, SPACING, END)}
         self.assertEqual(takeoff.route_notes(pier_bolts, {**no_bracket_strings, six.claim_id: six, pier_run.claim_id: pier_run}), [
             f"rests on the symbol count {six.claim_id} where Partial Foundation Plan carries pier dimension strings ({pier_run.claim_id})"])
+        # A symbol count is held to what the per-assembly rows in its own terms are per, so a second, correct
+        # per-pier product does not switch the check off for the wrong one, in a sum or inside one product.
+        for calc in [f"({{{ANCH}}} + {{{per_pier.claim_id}}}) * {{{piers.claim_id}}}",
+                     f"{{{ANCH}}} * {{{piers.claim_id}}} + {{{per_pier.claim_id}}} * {{{piers.claim_id}}}"]:
+            with self.subTest(calc=calc):
+                self.assertEqual(takeoff.route_notes(it("Fasteners", calc, 14), with_piers), [
+                    f"rests on the symbol count {piers.claim_id} where Partial Foundation Plan carries bracket dimension strings ({SPAN}, {SPACING})"])
+                self.assertEqual(takeoff.derived_claim("NAN-TK-Q-08", it("Fasteners", calc, 14), 2, 2, with_piers).flag, "unverified")
+        self.assertEqual([t.strip() for t in takeoff._terms(f"{{{ANCH}}} * ({SPACES} + 1) - 2 + {{{piers.claim_id}}}")],
+                         [f"{{{ANCH}}} * ({SPACES} + 1)", "2", f"{{{piers.claim_id}}}"])
         # A view with no dimension string anywhere in the job naming the assembly is the prompt's own route.
         self.assertEqual(takeoff.route_notes(it("Anchors", f"{{{ANCH}}} * {{{elsewhere.claim_id}}}", 18),
                                              {ANCH: BY_ID[ANCH], elsewhere.claim_id: elsewhere, END: BY_ID[END]}), [])

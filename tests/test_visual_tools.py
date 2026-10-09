@@ -1,4 +1,6 @@
 """The run exporter, the price fetcher's parser and the page builder behind the Bid Shop Floor."""
+import contextlib
+import io
 import json
 import re
 import sqlite3
@@ -56,6 +58,13 @@ class PricesCase(unittest.TestCase):
                          {"input": 0.1, "cache_write_5m": 0.125, "cache_write_1h": 0.2, "cache_read": 0.01, "output": 0.5})
         self.assertEqual(models["Claude Sonnet 5.5"]["cache_read"], 0.1)
         self.assertEqual(fetch_prices.parse("no table here"), {})
+        # a name in two five-price rows is kept from neither
+        twice = PRICING_SAMPLE + "| Claude Sonnet 5.5 | $1 / MTok | $1 / MTok | $1 / MTok | $1 / MTok | $1 / MTok |\n"
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            models = fetch_prices.parse(twice)
+        self.assertNotIn("Claude Sonnet 5.5", models)
+        self.assertIn("Claude Opus 4", models)
+        self.assertIn("two price rows named Claude Sonnet 5.5", err.getvalue())
 
     def test_the_fetch_follows_a_redirect_only_on_the_pricing_host(self):
         handler = fetch_prices.OnHost()
@@ -78,7 +87,7 @@ class PriceRowCase(unittest.TestCase):
         self.assertEqual(one("claude-haiku-5-5-20260301", 100001), ["Claude Haiku 5.5 (for prompts over 100,000 tokens)"])
         self.assertEqual(one("claude-haiku-5-5", 100000), ["Claude Haiku 5.5 (for prompts up to 100,000 tokens)"])
         self.assertEqual(one("Claude-Sonnet-5-5", 1), ["Claude Sonnet 5.5"])
-        # the longest matching row wins: Sonnet 4.5 is not Sonnet 4, and a dated id still matches its family
+        # a row matches its exact id or that id plus a snapshot date: Sonnet 4.5 is not Sonnet 4
         both = {"Claude Sonnet 4": {}, "Claude Sonnet 4.5": {}}
         self.assertEqual(one("claude-sonnet-4-5", 1, both), ["Claude Sonnet 4.5"])
         self.assertEqual(one("claude-sonnet-4-20250514", 1, both), ["Claude Sonnet 4"])
@@ -110,6 +119,8 @@ class PriceRowCase(unittest.TestCase):
             ({k: v for k, v in LIVE_CALL.items() if k != "model"}, PRICES, "the call names no model"),
             ({**LIVE_CALL, "usage": None}, PRICES, "the usage line has no token counts"),
             ({**LIVE_CALL, "usage": {}}, PRICES, "the usage line has no token counts"),
+            ({**LIVE_CALL, "usage": {k: None for k in USAGE}}, PRICES, "the usage line has no token counts"),
+            ({**LIVE_CALL, "usage": {**USAGE, "output_tokens": None}}, PRICES, "the usage line has no token counts"),
             ({k: v for k, v in LIVE_CALL.items() if k != "usage"}, PRICES, "the usage line has no token counts"),
         ]:
             with self.subTest(why):
@@ -128,7 +139,7 @@ class ExportCase(unittest.TestCase):
             db = sqlite3.connect(run_dir / "ledger.db")
             self.assertEqual(len(data["events"]), db.execute("select count(*) from audit_log").fetchone()[0])
             self.assertEqual(len(data["claims"]), db.execute("select count(*) from claims").fetchone()[0])
-            self.assertEqual((data["job"], data["prices"]["source_url"], data["draft"]), ("NAN", "u", False))
+            self.assertEqual((data["job"], data["prices"]["source_url"], data["draft"], data["verdict"]), ("NAN", "u", False, None))
             self.assertNotIn("calls", data)
             calls = [e for e in data["events"] if e["action"] == "model-call"]
             self.assertEqual((calls[0]["station"], calls[0]["run"], calls[0]["model"]), ("drawing", 1, "replay (recorded expected output)"))
@@ -161,10 +172,15 @@ class ExportCase(unittest.TestCase):
                      {**LIVE_CALL, "reader": "takeoff", "unit_id": "NAN#takeoff", "run": 2, "model": "claude-haiku-5-5"},
                      {**LIVE_CALL, "reader": "spec", "unit_id": "SW#1", "run": 1, "model": "claude-sonnet-5-5"}]
             (run_dir / "recordings" / "calls.jsonl").write_text("\n".join(json.dumps(c) for c in lines) + "\n\n")
-            self.assertFalse(export_run.export(run_dir)["draft"])
-            (run_dir / "proposal.md").write_text("# draft\n")
+            self.assertEqual((export_run.export(run_dir)["draft"], export_run.export(run_dir)["verdict"]), (False, None))
+            (run_dir / "proposal.md").write_text("# draft\n")   # a draft left over from an earlier run into this folder
+            (run_dir / "bid.txt").write_text("plan\nPROBLEM no proposal was rendered: x\nbid: NOT OK\n")
             data = export_run.export(run_dir, prices=PRICES)
-            self.assertTrue(data["draft"])
+            self.assertEqual((data["draft"], data["verdict"]), (True, "NOT OK"))
+            (run_dir / "bid.txt").write_text("plan\nbid: OK")
+            self.assertEqual(export_run.export(run_dir)["verdict"], "OK")
+            (run_dir / "bid.txt").write_text("plan\nsomething else\n")
+            self.assertIsNone(export_run.export(run_dir)["verdict"])
             calls = [e for e in data["events"] if e["action"] == "model-call"]
             self.assertEqual([(e["model"], e["run"], e["replay"]) for e in calls],
                              [("claude-haiku-5-5", 1, False), ("claude-haiku-5-5", 2, False), ("replay", 3, True),

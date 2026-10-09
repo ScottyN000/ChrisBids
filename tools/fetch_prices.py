@@ -38,8 +38,11 @@ class OnHost(urllib.request.HTTPRedirectHandler):
 
 
 def parse(markdown: str) -> dict[str, dict[str, float]]:
-    """Rows of the model table: name -> prices in dollars per million tokens."""
-    models = {}
+    """Rows of the model table: name -> prices in dollars per million tokens. A name that
+    appears in two five-price rows (two tables laid out alike) is kept from neither, so a
+    call on that model goes unpriced with a reason rather than taking whichever came last."""
+    models: dict[str, dict[str, float]] = {}
+    twice: set[str] = set()
     for line in markdown.splitlines():
         if not line.startswith("| Claude "):
             continue
@@ -47,7 +50,12 @@ def parse(markdown: str) -> dict[str, dict[str, float]]:
         name = re.sub(r"\s*\(\[.*?\]\(.*?\)\)", "", cells[0]).strip()   # drop "(retired ...)" links
         figures = [PRICE.search(c) for c in cells[1:]]
         if len(figures) == 5 and all(figures):
+            if name in models:
+                twice.add(name)
             models[name] = {k: float(m.group(1)) for k, m in zip(COLUMNS, figures)}
+    for name in twice:
+        del models[name]
+        print(f"two price rows named {name}; neither kept (the page's layout may have changed)", file=sys.stderr)
     return models
 
 

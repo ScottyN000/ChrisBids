@@ -7,10 +7,13 @@ audit verdict, each with its principal), the `claims` table, and
 its token usage). Nothing is invented: a replay row bills nothing and says so;
 a live row is matched to its usage line by unit and run number and priced
 here, where it is tested, from the price row named like the call's model id.
-A live row with no usage line, with more than one, with no model, with no
+A live row with no usage line, with more than one, with a line naming
+another model, with a line that has no token counts, with no model, with no
 price table, or with no single row for its model is exported unpriced with
 the reason, and the visual shows that instead of a figure (a figure standing
-in for an unknown is what traceability forbids).
+in for an unknown is what traceability forbids). The export also says
+whether the run folder holds the Scope Writer's draft and, when the run was
+a whole bid, the verdict on the last line of its bid.txt.
 
     python3 tools/export_run.py runs/nan-live --out timeline.json [--prices prices.json]
 
@@ -103,7 +106,7 @@ def priced(call: dict, prices: dict | None) -> dict:
         return {**call, "cost": None, "priced_as": None, "unpriced": "no price table in this export"}
     if not model:
         return {**call, "cost": None, "priced_as": None, "unpriced": "the call names no model"}
-    if not isinstance(u, dict) or not u:
+    if not isinstance(u, dict) or not all(isinstance(u.get(k), int) for k in ("input_tokens", "output_tokens")):
         return {**call, "cost": None, "priced_as": None, "unpriced": "the usage line has no token counts"}
     prompt = sum(u.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
     rows = price_rows(prices["models"], model, prompt)
@@ -165,6 +168,16 @@ def claims(db: sqlite3.Connection) -> list[dict]:
     return [dict(zip(cols, row)) for row in rows]
 
 
+def bid_verdict(run_dir: Path) -> str | None:
+    """`OK` or `NOT OK` from the last line of bid.txt, which a whole-bid run writes with the
+    auditor's orphan-figure and source-hash checks folded in; None when the folder has none."""
+    path = run_dir / "bid.txt"
+    if not path.exists():
+        return None
+    last = path.read_text().rstrip().rsplit("\n", 1)[-1]
+    return last[len("bid: "):] if last.startswith("bid: ") else None
+
+
 def export(run_dir: Path, prices: dict | None = None) -> dict:
     # read-only: the exporter never writes a ledger, and a folder without one is an error, not a new file
     uri = (run_dir / "ledger.db").resolve().as_uri() + "?mode=ro"
@@ -177,7 +190,8 @@ def export(run_dir: Path, prices: dict | None = None) -> dict:
             "job": meta.get("job", ""), "run_id": meta.get("run_id", ""), "created_at": meta.get("created_at", ""),
             "stations": stations, "edges": edges, "events": events(db, usage_lines(run_dir), prices),
             "claims": claims(db), "prices": prices,
-            "draft": (run_dir / "proposal.md").exists(),   # the Scope Writer's draft, when the run rendered one
+            "draft": (run_dir / "proposal.md").exists(),   # a draft in the folder (a run never removes an older one)
+            "verdict": bid_verdict(run_dir),               # bid.txt's `bid: OK` / `bid: NOT OK`, when the run was a whole bid
         }
 
 

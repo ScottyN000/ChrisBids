@@ -208,8 +208,11 @@ footer a { color: var(--ink); }
     const audits = events.filter(e => e.action === 'audit');
     const count = word => audits.filter(e => e.detail.split(':')[0].trim() === word).length;
     const r = { scopeRuns: sw.length, valid: sw.filter(e => /;\s*valid$/.test(e.detail)).length, draft: !!run.draft, audits: audits.length,
-                passed: count('pass'), unverified: count('unverified'), failed: count('fail') };
-    r.ships = r.scopeRuns > 0 && r.valid === r.scopeRuns && r.draft && r.audits > 0 && r.failed === 0;
+                passed: count('pass'), unverified: count('unverified'), failed: count('fail'), verdict: run.verdict || null };
+    r.why = !r.scopeRuns ? 'no draft' : r.valid < r.scopeRuns ? 'a Scope Writer run was discarded' : !r.draft ? 'no draft in the run folder'
+          : !r.audits ? 'no audit' : r.failed ? `${r.failed} row${r.failed === 1 ? '' : 's'} failed` : r.verdict && r.verdict !== 'OK' ? `bid.txt says ${r.verdict}` : '';
+    r.ships = !r.why;
+    r.lastScope = sw.length ? events.indexOf(sw[sw.length - 1]) : -1;   // the draft tray fills once this row lands
     return r;
   }
 
@@ -228,8 +231,12 @@ footer a { color: var(--ink); }
     },
     read2: ["Again? Fine. AGAIN.", "The boss said read it twice.", "Second pass. Same page. Still ugly.", "Redundancy, not judgment, they said."],
     read3: ["THREE times. Three.", "I could draw this from memory now.", "Third read. The page hasn't changed. I have.", "Three reads and we still don't pick. We vote."],
+    readMore: ["Again? Still the same page.", "A spare read. Nobody asked me.", "Read it as often as you like. It won't change."],
     write: ["Filed. Nobody can edit it now. Nobody.", "Into the cabinet it goes.", "Signed, dated, no take-backs.", "One row, one page, one locator. Next."],
-    flagged: ["Two readings, zero decisions. Flag it.", "Not my call. Flag it for a human.", "Sticky note. Someone with a pulse decides."],
+    flagged: {   // by the flag on the row
+      conflict: ["Two readings, zero decisions. Flag it.", "They disagree. Not my call. Flag it.", "Both readings go in. A human picks."],
+      unverified: ["Can't verify it from here. Flag it.", "Sticky note. Someone with a pulse checks.", "Unverified. Says so on the slip."],
+    },
     register: {   // by the row's kind (its detail)
       drawing: ["Another sheet. Hash it, stamp it, next.", "A drawing. Filed under its own hash."],
       photo: ["Another photo of the same wall. Filed.", "A photo. Hashed. Next."],
@@ -239,7 +246,7 @@ footer a { color: var(--ink); }
     },
     denied: ["Not your lane, pal.", "The access matrix says no.", "Nice try. Role check failed."],
     deniedAudit: ["Only the Auditor touches that column.", "The audit field? Not yours."],
-    rejected: ["No page, no entry.", "Fill the slip in properly.", "That's not a locator, that's a guess.", "Back. Try again."],
+    rejected: ["Doesn't pass the method rules. Back.", "Fill the slip in properly.", "The rules say no. Read them.", "Back. Try again."],
     fetchDenied: ["That site's not on the list.", "Allowlisted domains only.", "Nope. Not that one."],
     fetch: ["Allowlisted. Go ahead.", "Reading it off the site, not from memory.", "Quote it word for word or not at all."],
     audit: ["Opening the source. Every time.", "Show me the page.", "Cited? Let's see it."],
@@ -261,9 +268,15 @@ footer a { color: var(--ink); }
     est: {   // the estimator, the one person who releases a bid: takes it from the bouncer and walks it out by hand
       take: ["Mine now. By hand, like the sign says.", "Thanks for the bag. I'll take the bid."],
       leave: ["Off to the customer.", "Back by lunch."],
-      none: ["Nothing to release yet.", "No draft, no audit, no bid."],
+      none: {   // by why there is no bid (run._end.why)
+        noDraft: ["Nothing to release yet.", "No draft, no bid."],
+        other: ["Not this one. Not yet.", "Nothing leaves until it's right."],
+      },
     },
-    broker: { paid: ["Counted. On the pile.", "Another one for the pile.", "Bag goes here. Bid goes with the estimator."] },
+    broker: {   // by whether the bag was counted and whether a bid goes out
+      paid: { counted: ["Counted. On the pile.", "Another one for the pile."], uncounted: ["Bag's here. Can't count what isn't priced.", "On the pile, uncounted."] },
+      ship: ["Bid goes with the estimator.", "Sign it out. By hand."],
+    },
     bid: { waiting: ["Waiting to be released.", "By hand. The sign says so."], taken: ["Finally.", "Mind the bow tie."], leaving: ["Bye, everyone.", "Don't wait up."] },
   };
   const pick = (lines, seq) => lines[seq % lines.length];
@@ -292,7 +305,7 @@ footer a { color: var(--ink); }
     } else if (e.action === 'model-call') {
       if (stacks[e.station]) { stacks[e.station].delete(e.subject); }
       w.busy = clock + dur; w.bubble = `${e.replay ? 'replays' : 'reads'} ${e.subject}, run ${e.run || '?'}`;
-      w.quip = e.run >= 3 ? pick(LINES.read3, e.seq) : e.run === 2 ? pick(LINES.read2, e.seq) : pick(LINES.read1[e.station] || LINES.read1.default, e.seq);
+      w.quip = e.run > 3 ? pick(LINES.readMore, e.seq) : e.run === 3 ? pick(LINES.read3, e.seq) : e.run === 2 ? pick(LINES.read2, e.seq) : pick(LINES.read1[e.station] || LINES.read1.default, e.seq);
       const m = (e.model || '').toLowerCase();
       owner.say = pick(e.replay ? LINES.owner.replay : e.cost == null ? LINES.owner.unpriced : m.includes('haiku') ? LINES.owner.haiku
         : m.includes('sonnet') ? (e.station === 'takeoff' ? LINES.owner.sonnetTakeoff : LINES.owner.sonnet) : LINES.owner.other, e.seq); owner.until = clock + dur;
@@ -313,7 +326,7 @@ footer a { color: var(--ink); }
       w.flash = 0;
       w.busy = Math.max(w.busy || 0, clock + dur * 0.5); w.bubble = `writes ${e.subject}`;
       const claim = run._claimIndex[e.subject]; slips[slips.length - 1].flag = !!(claim && claim.flag);
-      w.quip = claim && claim.flag ? pick(LINES.flagged, e.seq) : pick(LINES.write, e.seq);
+      w.quip = claim && claim.flag ? pick(LINES.flagged[claim.flag] || LINES.flagged.unverified, e.seq) : pick(LINES.write, e.seq);
       broker.nod = clock + dur;
       log(`${e.principal} writes ${e.subject} (${e.detail})`, e.action);
     } else if (e.action === 'denied' && e.subject === 'fetch') {
@@ -358,7 +371,8 @@ footer a { color: var(--ink); }
     } else if (finale && clock < finale.t0 + FINALE.total) {
       clock += dt;   // the floor clock runs on through the finale, then stops with the door shut
       if (!finale.dropped && clock - finale.t0 >= FINALE.walk) {   // the bag lands at the bouncer's feet, once
-        finale.dropped = true; bagDropped(); broker.nod = clock + 900; broker.say = pick(LINES.broker.paid, events.length); broker.until = clock + FINALE.pay * 0.45;
+        finale.dropped = true; bagDropped(); broker.nod = clock + 900; broker.until = clock + FINALE.pay * 0.45;
+        broker.say = pick(unpricedCalls ? LINES.broker.paid.uncounted : LINES.broker.paid.counted, events.length);
       }
       if (clock >= finale.t0 + FINALE.total) $('caption').textContent += ` The owner dropped the bag at the bouncer${run._end.ships ? ' and the estimator walked the bid out by hand' : ''} (staged: no row records this). ${bags} run${bags === 1 ? '' : 's'} finished here today.`;
     }
@@ -379,7 +393,7 @@ footer a { color: var(--ink); }
       const k = ease(ft / FINALE.walk); f.owner.walking = true; f.owner.x = o.x + (payAt.x - o.x) * k; f.owner.y = o.y + (payAt.y - o.y) * k;
       if (k < 0.5) f.owner.say = pick(LINES.owner.finale.walk, n);                   // one voice at a time
       if (f.bid) { f.est.walking = true; f.est.x = e0.x + (takeAt.x - e0.x) * k; f.est.y = e0.y + (takeAt.y - e0.y) * k; [f.bid.say, f.bid.sub] = LINES.bid.waiting; }
-      else if (k >= 0.5) f.est.say = pick(LINES.est.none, n);
+      else if (k >= 0.5) f.est.say = pick(run._end.why === 'no draft' ? LINES.est.none.noDraft : LINES.est.none.other, n);
     } else if (ft < FINALE.walk + FINALE.pay) {
       // the bag goes down at the bouncer's feet and the bouncer counts it; then the owner says what the bag held and the estimator takes the bid
       f.owner.bag = false; f.owner.dropped = true;
@@ -388,6 +402,7 @@ footer a { color: var(--ink); }
         f.owner.say = pick(LINES.owner.finale.pay, n); f.owner.sub = bagLine();
         if (f.bid) { f.bid.say = ''; f.bid.sub = ''; f.est.say = pick(LINES.est.take, n); }
       }
+      if (f.bid && ft >= FINALE.walk + FINALE.pay * 0.45 && broker.until <= clock) { broker.say = pick(LINES.broker.ship, n); broker.until = clock + 1; }
     } else if (ft < FINALE.walk + FINALE.pay + FINALE.exit) {
       const k = (ft - FINALE.walk - FINALE.pay) / FINALE.exit, far = d.x + 30 * s;
       f.owner.bag = false; f.owner.dropped = true; f.owner.walking = true;            // the owner goes back to his post
@@ -414,9 +429,8 @@ footer a { color: var(--ink); }
     const flagged = (run.claims || []).filter(c => c.flag).length, r = run._end;
     const parts = [flagged ? `${flagged} flagged for a second look.` : 'Nothing flagged.'];
     parts.push(r.scopeRuns ? `Scope Writer ran: ${r.valid} of ${r.scopeRuns} run${r.scopeRuns === 1 ? '' : 's'} valid; draft in the run folder: ${r.draft ? 'yes' : 'no'}.` : 'The Scope Writer did not run.');
-    parts.push(r.audits ? `Ledger rows audited: ${r.passed} pass, ${r.unverified} unverified, ${r.failed} fail (the draft's orphan check is not in the log).` : 'No audit rows.');
-    const why = !r.scopeRuns ? 'no draft' : r.valid < r.scopeRuns ? 'a Scope Writer run was discarded' : !r.draft ? 'no draft in the run folder' : !r.audits ? 'no audit' : `${r.failed} row${r.failed === 1 ? '' : 's'} failed`;
-    parts.push(r.ships ? 'The estimator takes the bid out by hand.' : `No bid on the floor: ${why}.`);
+    parts.push(r.audits ? `Ledger rows audited: ${r.passed} pass, ${r.unverified} unverified, ${r.failed} fail (the auditor's orphan-figure and source-hash checks are not in the log${r.verdict ? `; bid.txt says ${r.verdict}` : ''}).` : 'No audit rows.');
+    parts.push(r.ships ? 'The estimator takes the bid out by hand.' : `No bid on the floor: ${r.why}.`);
     return parts.join(' ');
   }
 
@@ -872,7 +886,7 @@ footer a { color: var(--ink); }
   function drawTray(st, x, y, s) {
     shadow(x + 6 * s, y + 2 * s, 34 * s, 7 * s, 0.16);
     box3d(x, y, 64 * s, 22 * s, 8 * s, C.steel, shade(C.steel, -0.4));
-    const n = st === 'register' ? countRegistered() : 5;
+    const n = st === 'register' ? countRegistered() : st === 'draft' ? (run._end.draft && run._end.lastScope >= 0 && cursor > run._end.lastScope ? 3 : 0) : 5;
     for (let i = 0; i < Math.min(n, 9); i++) box3d(x + i * 1.5 * s, y - 8 * s - i * 2.5 * s, 50 * s, 16 * s, 2.5 * s, i % 2 ? C.paper : shade(C.paper, -0.08), shade(C.paper, -0.3));
     if (st === 'register' && n) { ctx.fillStyle = C.fg; ctx.font = `700 ${Math.max(10, 12 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`${n} filed`, x, y - 52 * s); }
     if (st === 'packet') { ctx.fillStyle = C.accent; ctx.font = `700 ${Math.max(9, 11 * s)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'center'; ctx.fillText('IN', x - 22 * s, y - 34 * s); }

@@ -313,26 +313,31 @@ or K62, 1 coat" gives K62 one coat and leaves A89 open; "B53 over one coat of
 primer" cuts at "over", so the primer's coat is not B53's); a count whose
 stretch names no code, or two, is tied to nothing, and the clause then settles
 no product's count; so is a count written after its code in a stretch opened by
-"then", "and", "over", "followed by", "after", "before" or "prior to" when the
-text before it names a product ("B53 over B66 primer, 2 coats" may give the
-system two coats: two readings, neither picked, though "Walls and ceilings:
-B53, 2 coats" continues no product). A stretch that names both a primer and a finish ("Primer
-B66 as needed, followed by two finish coats") holds two products' wording, so
-its count is tied to nothing. A clause naming no code settles a count only
+a sequence word ("then", "over", "followed by", "after", "before", "prior to")
+that continues anything, or by "and" after a product ("B53 over B66 primer, 2
+coats" and "Base coat as needed, then B53, 2 coats" may give the system two
+coats: two readings, neither picked, though "Walls and ceilings: B53, 2 coats"
+continues no product). A stretch that names both a primer and a finish ("B53
+finish with primer, 2 coats") holds two products' wording, so its count is
+tied to nothing. A clause naming no code settles a count only
 when no stretch names a product (a primer or finish word) the count could be
 for ("primer; finish coats: two coats" gives the primer nothing) and the
 stretches that state counts agree. A data-sheet row naming no product code is
 read as the clause's one code when every stretch names it or names no product;
 when a stretch names a product without a code, or the clause names several
-codes, it settles nothing for that sheet, and a codeless clause that speaks of
-a primer is no finish sheet's count (or the reverse). A second count said
+codes, it settles nothing for that sheet; a sheet row that names a second
+code (a recommended primer, a system) is read for neither; and a codeless
+clause that speaks of a primer only is read for a sheet that names a primer,
+one that speaks of a finish only is no primer sheet's. A second count said
 without the word "coat", or an added coat ("one coat; two at patched areas",
 "1 coat; 2 at patched areas", "a second coat at repairs", "plus 1 coat at
-repairs"), is a second reading, so the clause settles nothing. A customer row sets no count (it never overrides a spec clause). A
+repairs", "double coat at repairs", "recoat patched areas"), is a second
+reading, so the clause settles nothing; a hyphenated count ("2-coat system")
+is a count. A customer row sets no count (it never overrides a spec clause). A
 recoat time ("between coats: 24 hours") or a coverage line ("finish coat: 400
 sq ft/gal") is no count: the "coats:" form counts only when "coats" is the label
-itself (the label starts a stretch, after punctuation or "and", "or", "then" or
-"over", and may be led by "number of" or one role word; "mils per coat: 4" and
+itself (the label starts a stretch, after punctuation or a cut word, and may
+be led by "number of" or one role word; "mils per coat: 4" and
 "between finish coats: 24" state none), and the number after the colon must
 end the clause or be followed by punctuation, "and" or "coat(s)"; "2/3 coats"
 is a range. A clause that

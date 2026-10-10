@@ -58,11 +58,15 @@ UNIT_WORDS = {
 }
 # How a clause states a coat count: "2 coats", "two finish coats", "coats: 1" (not "coats: 4 hours",
 # a recoat time, nor the first end of "coats: 2-3", a range).
-N = r"(\d+|one|two|three|four|five|six)"
-COATS = re.compile(rf"\b{N}\s+(?:\w+\s+)?coats?\b|\bcoats?\s*[:=]\s*(\d+)\b(?!\s*(?:-|\u2013|to|or)\b)"
-                   r"(?!\s*(?:hours?|hrs?|h|minutes?|mins?|min|days?|mils?|%)\b)", re.I)
-# A range or a choice of counts ("1-2 coats", "one or two coats", "coats: 2-3"): two readings, neither picked
-COAT_RANGE = re.compile(rf"\b{N}\s*(?:-|\u2013|to|or)\s*{N}\s+(?:\w+\s+)?coats?\b|\bcoats?\s*[:=]\s*\d+\s*(?:-|\u2013|to|or)\b", re.I)
+# A count: a whole number ("2", "two", "two (2)"), not a decimal's tail ("1.5 hours") nor a
+# thickness ("a 15 mil coat": the word before "coat" may only say which coat it is).
+N = r"(?<![.\d])(\d+|one|two|three|four|five|six)"
+ROLE = r"(?:(?:finish|final|top|prime|primer|base|first|second|third|full|intermediate|stripe)\s+)?"
+TO = r"(?:-|\u2013|to\b|or\b)"
+UNITS_NOT_COATS = r"(?:hours?|hrs?|h|minutes?|mins?|min|days?|mils?|microns?|%)"
+COATS = re.compile(rf"\b{N}(?:\s*\((\d+)\))?\s+{ROLE}coats?\b|\bcoats?\s*[:=]\s*(\d+)(?![.,]\d)(?!\s*{TO})(?!\s*{UNITS_NOT_COATS}\b)", re.I)
+# A range or a choice of counts ("1-2 coats", "one or two coats", "coats: 2 - 3"): two readings, neither picked
+COAT_RANGE = re.compile(rf"\b{N}\s*{TO}\s*{N}\s+{ROLE}coats?\b|\bcoats?\s*[:=]\s*\d+\s*{TO}", re.I)
 COAT_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 # How a clause leaves the count open: "(coats not stated)", "coats are not stated". "sheen not
 # stated" is not about coats.
@@ -71,10 +75,11 @@ NOT_STATED = re.compile(r"\bcoats?\s+(?:is\s+|are\s+|were\s+)?not stated\b|\bnot
 # never part of a row ID ("X-SP-011") or a unit ("ft2").
 PRODUCT_CODE = re.compile(r"(?<![A-Za-z0-9-])[A-Z]{1,4}-?\d{2,5}[A-Z]?(?![A-Za-z0-9-])")
 # Where one product's wording ends and the next begins in a clause that names several
-# ("A89 (coats not stated), or K62, 1 coat"; "Primer B66 as needed, then 1 coat B53"):
-# a semicolon, "or", "then" or "and" outside parentheses. Commas and parentheses stay
+# ("A89 (coats not stated), or K62, 1 coat"; "Primer B66 as needed, then 1 coat B53";
+# "B53 over one coat of primer"): a semicolon, "or", "then", "and" or "over" outside
+# parentheses, but not the "or" of "or approved equal". Commas and parentheses stay
 # inside their stretch, so "Finish coat (1 coat): Enamel, B53 series" is one stretch.
-STRETCH = re.compile(r";|\b(?:or|then|and)\b", re.I)
+STRETCH = re.compile(r";|\bor\b(?!\s+(?:an\s+|approved\s+)?(?:equal|equivalent)\b)|\b(?:then|and|over)\b", re.I)
 # One spare run, made only when a run was discarded or the runs name different
 # orders (the page reader does the same): an order one run saw is written flagged,
 # and the spare says whether a second run sees it too.
@@ -222,23 +227,32 @@ def coat_mentions(text: str) -> list[tuple[int, int | str | None]]:
     for m in COATS.finditer(text):
         if any(a <= m.start() < b for a, b in ranges):
             continue
-        word = (m.group(1) or m.group(2)).lower()
-        found.append((m.start(), COAT_WORDS.get(word) or int(word)))
+        for word in (w for w in (m.group(1), m.group(2), m.group(3)) if w):
+            found.append((m.start(), COAT_WORDS.get(word.lower()) or int(word)))   # "two (2)" twice, the same count
     return sorted(found, key=lambda f: f[0])
 
 
-def stretches(text: str) -> list[tuple[int, int]]:
-    """The spans of a clause's stretches, cut at STRETCH marks outside parentheses."""
-    cuts, depth = [0], 0
-    for m in re.finditer(r"[()]|" + STRETCH.pattern, text, re.I):
-        if m.group() == "(":
-            depth += 1
-        elif m.group() == ")":
-            depth = max(0, depth - 1)
-        elif depth == 0:
-            cuts.append(m.end())
-    cuts.append(len(text))
-    return [(a, b) for a, b in zip(cuts, cuts[1:]) if text[a:b].strip()]
+def stretches(*parts: str) -> list[tuple[int, int]]:
+    """The spans of a clause's stretches in the parts joined by SEP, each part cut
+    at STRETCH marks outside its own parentheses (an unclosed one in the statement
+    does not swallow the quote); a part is never joined to the next."""
+    spans, at = [], 0
+    for part in parts:
+        cuts, depth = [0], 0
+        for m in re.finditer(r"[()]|" + STRETCH.pattern, part, re.I):
+            if m.group() == "(":
+                depth += 1
+            elif m.group() == ")":
+                depth = max(0, depth - 1)
+            elif depth == 0:
+                cuts.append(m.end())
+        cuts.append(len(part))
+        spans += [(at + a, at + b) for a, b in zip(cuts, cuts[1:]) if part[a:b].strip()]
+        at += len(part) + len(SEP)
+    return spans
+
+
+SEP = "; "
 
 
 def _settle(c: Claim, mentions: list[tuple[int, int | str | None]], whom: str = "") -> tuple[int | None, str]:
@@ -263,17 +277,19 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     says the count is not stated, or speaks of other products. A clause naming a
     product code is read by the code the product's own row carries: a count
     belongs to the one code its own stretch of the clause names ("A89 (coats not
-    stated), or K62, 1 coat" gives K62 one coat and leaves A89 open), and a count
-    whose stretch names no code, or two, is tied to nothing: no product gets it."""
-    text = f"{c.statement}; {c.quote}" if c.quote else c.statement
+    stated), or K62, 1 coat" gives K62 one coat and leaves A89 open; "B53 over one
+    coat of primer" gives B53 nothing), and a count whose stretch names no code, or
+    two, is tied to nothing: the clause then settles no product's count. A sheet
+    row naming no code is read as the product the model tied it to, as a clause
+    naming no code is."""
+    parts = [c.statement, c.quote] if c.quote else [c.statement]
+    text = SEP.join(parts)
     codes = product_codes(text)
     mentions = coat_mentions(text)
     if not codes:
         return _settle(c, mentions)
-    mine = [k for k in product_codes(f"{product.statement} {product.quote} {product.tag}") if k in codes] if product else []
-    spans = stretches(text)
-    if len(codes) == 1 and len(spans) == 1 and (mine or product is None or not product_codes(f"{product.statement} {product.quote} {product.tag}")):
-        return _settle(c, mentions)     # one product, one stretch: the clause is about it
+    own = product_codes(f"{product.statement} {product.quote} {product.tag}") if product else []
+    mine = [k for k in own if k in codes] if own else (codes if len(codes) == 1 else [])
     if len(mine) > 1:
         return None, f"{c.claim_id} names {', '.join(mine)}, which this product's row both carries; which count is its is not settled"
     if not mine:
@@ -283,7 +299,7 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     whom = f" for {mine[0]}"
     owned = []
     for pos, n in mentions:
-        here = next((text[a:b] for a, b in spans if a <= pos < b), "")
+        here = next((text[a:b] for a, b in stretches(*parts) if a <= pos < b), "")
         named = product_codes(here)
         if len(named) != 1:
             return None, f"{c.claim_id} does not tie a coat count to one product; which is this product's is not settled"
@@ -326,7 +342,8 @@ def item_errors(item: dict, by_id: dict[str, Claim]) -> list[str]:
     if coats is not None:
         if item["unit"] != "gal":
             return [f"coats apply to a coating ordered by the gallon, not to {item['unit']}"]
-        if coats.method not in ("clause", "customer"):
+        if coats.method != "clause":
+            # a customer row never overrides a spec clause, so it does not set a count either
             return [f"coats {coats.claim_id} is a {coats.method} row, not a clause"]
         # what the clause states (one count, none, several, or that it is not stated) is read in
         # order_claim: a clause that does not settle the count leaves the order waiting on it, flagged

@@ -58,7 +58,8 @@ ALLOW = row("X-A-004", "exterior wall surfaces", method="FIELD", role="allowance
 NOPAGE = row("X-WEB-007", "No product named Example Patch P20 was found on the page", method="fetched", role="code",
              source="WEB", locator="ask a1", tag="P20 page", url="https://www.example.com/p20", retrieved="2026-10-09",
              flag="unverified", division="")
-ROWS = [SYSTEM, ONE_COAT, NO_COAT, TWO_PRODUCTS, SPEC_RATE, AREA, FIELD, X100, COUNT, A7, ANCHOR, SEAL_SPEC, JOINTS, S9]
+EMAIL = row("X-CU-01", "The owner asks for two coats on the finish", method="customer", source="EM-1", locator="", tag="email")
+ROWS = [SYSTEM, ONE_COAT, NO_COAT, TWO_PRODUCTS, SPEC_RATE, AREA, FIELD, X100, COUNT, A7, ANCHOR, SEAL_SPEC, JOINTS, S9, EMAIL]
 BY_ID = {c.claim_id: c for c in ROWS}
 
 
@@ -117,7 +118,7 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.coat_count(ONE_COAT), (1, ""))
         self.assertEqual(materials.coat_count(row("C", "Coats: 3")), (3, ""))
         self.assertEqual(materials.coat_count(row("C", "two finish coats over one prime coat"))[0], None)   # two counts
-        self.assertEqual(materials.coat_count(NO_COAT), (None, "X-SP-012 states no coat count"))
+        self.assertEqual(materials.coat_count(NO_COAT), (None, "X-SP-012 states no coat count for X50"))
         self.assertEqual(materials.coat_count(row("C", "2 coats of primer and 2 coats of finish")), (2, ""))   # one count
         self.assertEqual(materials.coat_count(row("C", "Finish: two coats, sheen not stated")), (2, ""))   # not about coats
         self.assertEqual(materials.coat_count(row("C", "two coats; primer coats not stated")),
@@ -147,16 +148,34 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.coat_count(enamel, b53), (1, ""))
         two = row("X-SP-052", "Example Primer B66 primer; two coats, Example Flat B53 finish")
         self.assertEqual((materials.coat_count(two, b66), materials.coat_count(two, b53)), ((None, "X-SP-052 states no coat count for B66"), (2, "")))
-        # a count whose stretch names no code, or two, is tied to nothing: no product gets it
+        # "over" sets a finish on its primer: two stretches, so the finish's count is its own
         both = row("X-SP-053", "Two coats Example Flat B53 over Example Primer B66 primer")
-        untied = (None, "X-SP-053 does not tie a coat count to one product; which is this product's is not settled")
-        self.assertEqual((materials.coat_count(both, b66), materials.coat_count(both, b53)), (untied, untied))
-        loose = row("X-SP-054", "Example Primer B66 as needed for rust, then 1 coat Example Enamel")
-        self.assertEqual(materials.coat_count(loose, b66),
-                         (None, "X-SP-054 does not tie a coat count to one product; which is this product's is not settled"))
+        self.assertEqual((materials.coat_count(both, b53), materials.coat_count(both, b66)), ((2, ""), (None, "X-SP-053 states no coat count for B66")))
+        # a count whose stretch names no code, or two, is tied to nothing, and the clause then settles no product's count
+        for text in ("Example Primer B66 as needed for rust, then 1 coat Example Enamel", "Finish: Example Flat B53 over one coat of primer",
+                     "Example Flat B53 finish over 1 primer coat", "Example Flat B53, 2 coats; touch up 1 coat as needed",
+                     "Two coats Example Flat B53 on Example Primer B66"):
+            for who in (b53, b66):
+                if who.statement.split()[-3] in text:
+                    self.assertEqual(materials.coat_count(row("X-SP-054", text), who),
+                                     (None, "X-SP-054 does not tie a coat count to one product; which is this product's is not settled"), (text, who.claim_id))
+        # "or approved equal" is not a choice between products
+        self.assertEqual(materials.coat_count(row("X-SP-056", "Example Flat B53 or approved equal, 2 coats"), b53), (2, ""))
+        self.assertEqual(materials.coat_count(row("X-SP-056", "Example Flat B53 or an equivalent, 2 coats"), b53), (2, ""))
         # the statement and the quote are two stretches, so a count in one is not tied to a code in the other
         quoted = row("X-SP-055", "Topcoat: Example Flat B53, 2 coats", quote="Example Primer B66 primer as needed")
         self.assertEqual((materials.coat_count(quoted, b53), materials.coat_count(quoted, b66)), ((2, ""), (None, "X-SP-055 states no coat count for B66")))
+        # an unclosed parenthesis in the statement does not swallow the quote: they are always two stretches
+        clipped = row("X-SP-057", "Finish (K62 series", quote="A89 primer, 1 coat")
+        a89 = row("X-WEB-013", "A89 data sheet", method="fetched", role="code", source="WEB", tag="A89 primer")
+        k62 = row("X-WEB-014", "K62 data sheet", method="fetched", role="code", source="WEB", tag="K62 finish")
+        self.assertEqual((materials.coat_count(clipped, a89), materials.coat_count(clipped, k62)), ((1, ""), (None, "X-SP-057 states no coat count for K62")))
+        # a sheet naming no code is read as the product the model tied it to, with or without a quote
+        plain = row("X-WEB-015", "the finish data sheet", method="fetched", role="code", source="WEB", tag="finish sheet")
+        self.assertEqual(materials.coat_count(row("C", "Topcoat K62: 2 coats"), plain), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Topcoat K62: 2 coats", quote="Topcoat K62: 2 coats"), plain), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Topcoat K62: 2 coats", quote="A89 primer as needed"), plain),
+                         (None, "C names K62, A89; which is this product's is not settled"))
         # a sheet carrying two of the clause's codes settles nothing
         system = row("X-WEB-012", "Example Flat B53 over Example Primer B66 system", method="fetched", role="code", source="WEB", tag="B53 system")
         self.assertEqual(materials.coat_count(two, system),
@@ -166,7 +185,14 @@ class ItemCase(unittest.TestCase):
         # two readings, neither picked (Determinism); a dry time is not a count
         for text in ("Apply 1-2 coats", "one or two coats", "Coats: 2-3", "coats: 2 to 3", "Apply 2\u20133 coats"):
             self.assertEqual(materials.coat_count(row("C", text)), (None, "C states a range of coats; it does not settle this product's"), text)
-        self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 4 hours")), (None, "C states no coat count"))
+        for text in ("Dry time between coats: 4 hours", "Dry time between coats: 1.5 hours", "Apply a 15 mil coat of Example Elastomeric A100",
+                     "Coats: 2 - 3", "Coats: 2 \u2013 3", "Coats: 2 to 3"):
+            self.assertEqual(materials.coat_count(row("C", text))[0], None, text)
+        self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 1.5 hours")), (None, "C states no coat count"))
+        self.assertEqual(materials.coat_count(row("C", "Coats: 2 - 3")), (None, "C states a range of coats; it does not settle this product's"))
+        # "two (2) coats" is one count said twice; "two (3)" is two
+        self.assertEqual(materials.coat_count(row("C", "Two (2) coats of Example Flat B53")), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Two (3) coats")), (None, "C states 2 coat counts; it does not settle this product's"))
         self.assertEqual(materials.coat_count(row("C", "Coats: 2; recoat: 4 hours")), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 1-2 coats; Example Primer B66, 1 coat"),
                                               row("W", "Example Flat B53 sheet", method="fetched", role="code", source="WEB")),
@@ -193,6 +219,8 @@ class ItemCase(unittest.TestCase):
             (item(quantity="X-R-001"), "quantity X-R-001 is a clause quantity row, not a takeoff figure, an allowance or a FIELD row"),
             # the coat count is read from a clause row; what it states is the order row's business (order_claim)
             (item(coats="X-TK-Q-01"), "coats X-TK-Q-01 is a dimensioned row, not a clause"),
+            # a customer row never overrides a spec clause (owner's rule), so it sets no count either
+            (item(coats="X-CU-01"), "coats X-CU-01 is a customer row, not a clause"),
             (dict(SEALANT, coats="X-SP-010"), "coats apply to a coating ordered by the gallon, not to tubes"),
         ]
         for it, want in cases:

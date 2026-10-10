@@ -307,10 +307,13 @@ coverage row when there is one, since the spec's stated rate takes precedence
 over the data sheet's (p.16). The model writes no number: code reads the coat
 count from the clause it names, and when the clause names a product code it
 reads the count for the code the data-sheet row carries: the clause is cut into
-stretches at semicolons, "or", "then" and "and" (outside parentheses), and a
+stretches at semicolons, "or" (not "or approved equal"), "then", "and" and "over" (outside parentheses), and a
 count belongs to the one code its own stretch names ("A89 (coats not stated),
-or K62, 1 coat" gives K62 one coat and leaves A89 open); a count whose stretch
-names no code, or two, is tied to nothing, so no product gets it. A clause that
+or K62, 1 coat" gives K62 one coat and leaves A89 open; "B53 over one coat of
+primer" cuts at "over", so the primer's coat is not B53's); a count whose
+stretch names no code, or two, is tied to nothing, and the clause then settles
+no product's count. A customer row sets no count (it never overrides a spec
+clause). A clause that
 states none, states several, states a range ("1-2 coats"), says the count is
 not stated or speaks of another product settles nothing, and the order is
 written without a figure saying so. Every row the figure rests on is named

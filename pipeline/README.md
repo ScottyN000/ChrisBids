@@ -319,8 +319,10 @@ never a number in a formula: it is a row or it is nothing, and the schema and
 
 Golden gate, live only, in `python -m pipeline web` after the pages: for every
 material row of the fixture that cites a fetched page, the run must have an order
-row citing the same page, in the fixture's unit, with a figure exactly when the
-fixture has one and equal to it; 80% of the compared orders must have a row. A
+row in the fixture's unit citing a page the fixture holds for the job (that page
+first; a product has several pages and the hand bid cited one of them, so a row
+citing another is noted), with a figure exactly when the fixture has one and
+equal to it; 80% of the compared orders must have a row. A
 fixture order that cites no page (the hand-made bid's angle footage, its bolts)
 is noted and left out: Materials writes fetched rows only.
 

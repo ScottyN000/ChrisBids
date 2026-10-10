@@ -330,6 +330,16 @@ class GateCase(unittest.TestCase):
         self.assertEqual((g.ok, g.failures), (True, []))
         self.assertIn("  FAIL " + self.gate([order_row(value="6-7")]).failures[0], self.gate([order_row(value="6-7")]).text())
 
+    def test_a_row_citing_another_of_the_products_pages_matches_with_a_note(self):
+        other = dict(FIX_C, id="OBV-C-027", url=BULLETIN)
+        g = self.gate([order_row(url=BULLETIN)], (FIX_C, other, FIX_M))
+        self.assertEqual((g.ok, g.failures, g.misses), (True, [], []))
+        self.assertEqual(g.notes, [f"OBV-M-002: matched through {BULLETIN}; the hand bid cited {SHEET}"])
+        g = self.gate([order_row(url=BULLETIN, unit="each")], (FIX_C, other, FIX_M))   # another unit: still a miss
+        self.assertEqual((g.ok, g.misses), (False, [f"OBV-M-002: no order row cites {SHEET}"]))
+        g = self.gate([order_row(url="https://www.example.com/elsewhere")], (FIX_C, other, FIX_M))   # not the job's page
+        self.assertEqual(g.misses, [f"OBV-M-002: no order row cites {SHEET}"])
+
     def test_an_order_citing_no_page_is_noted_not_compared(self):
         no_page = dict(FIX_M, id="OBV-M-004", tag="S-1 Det 1", statement="angle per NAN-F-002")
         g = self.gate([order_row()], (FIX_C, FIX_M, no_page))

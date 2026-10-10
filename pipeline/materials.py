@@ -182,8 +182,9 @@ def item_errors(item: dict, by_id: dict[str, Claim], shown: str = "") -> list[st
 
 
 def item_key(item: dict) -> tuple:
-    return (item["product"].strip().lower(), item["unit"], item["quantity"], item["coats"], item["spec_rate"],
-            item["sheet"])
+    """What makes two items one order: the rows it rests on and its unit, never
+    the product's wording (the plank job's runs named one sleeve two ways)."""
+    return (item["unit"], item["quantity"], item["coats"], item["spec_rate"], item["sheet"])
 
 
 def vote(runs: list[list[dict]]) -> list[tuple[dict, int]]:
@@ -356,14 +357,32 @@ CITED = re.compile(r"\b([A-Z]+-C-\d+)\b")
 def gate(result: OrderResult, fixture_rows: list[dict]) -> Gate:
     """For every material row of the fixture that cites a fetched page (a C-row
     named in its tag or statement, with a URL), the run must have an order row
-    citing the same page, in the fixture's unit, and with a figure exactly when
-    the fixture has one, equal to it. A row that does not is a wrong order and
-    fails the gate. A fixture order with no run row is a miss: safe, since the
+    in the fixture's unit citing a page the fixture holds for the job, that page
+    first, and with a figure exactly when the fixture has one, equal to it. A
+    product has several pages (its evaluation report, its data sheet, the maker's
+    letter), and the hand bid cited one of them; a run row citing another is
+    noted, not missed. A row with the wrong figure is a wrong order and fails
+    the gate. A fixture order with no run row is a miss: safe, since the
     bid then has no figure for it, but incomplete, so at least ANSWERED of the
     compared orders must have one. A fixture order that cites no page is noted
     and left out: Materials writes fetched rows only (p.11)."""
     by_id = {r["id"]: r for r in fixture_rows}
-    failures, notes, misses, compared = [], [], [], 0
+    pages = {r.get("url") for r in fixture_rows if r.get("method") == "fetched" and r.get("url")}
+    failures, notes, misses = [], [], []
+
+    def same(c: Claim, unit: str) -> bool:
+        return SAME_UNIT.get(c.unit, c.unit) == SAME_UNIT.get(unit, unit)
+
+    def check(f: dict, rows: list[Claim]) -> None:
+        unit, want = f.get("unit", "") or "", schema.format_value(f.get("value"))[0]
+        if not want and all(c.value for c in rows):
+            failures.append(f"{f['id']}: gives {rows[0].value} {unit} where the fixture waits on a FIELD measure")
+        elif want and not any(c.value == want for c in rows):
+            failures.append(f"{f['id']}: gives {', '.join(_join(c.value or '(blank)' for c in rows))} {unit}, "
+                            f"the fixture {want}")
+
+    # First pass: each fixture order against the rows citing its own page, in its unit.
+    pending, used = [], set()
     for f in fixture_rows:
         if f.get("role") != "material":
             continue
@@ -372,24 +391,30 @@ def gate(result: OrderResult, fixture_rows: list[dict]) -> Gate:
         if not urls:
             notes.append(f"{f['id']}: cites no fetched page; not compared")
             continue
-        compared += 1
-        got = [c for c in result.rows if c.url in urls]
-        if not got:
-            misses.append(f"{f['id']}: no order row cites {urls[0]}")
-            continue
         unit = f.get("unit", "") or ""
-        same_unit = [c for c in got if SAME_UNIT.get(c.unit, c.unit) == SAME_UNIT.get(unit, unit)]
-        if not same_unit:
-            # the same page can cover another product (the adhesive's cartridges beside the anchors it sets):
-            # a row in another unit is not this order, and not a wrong one either
-            misses.append(f"{f['id']}: no order row cites {urls[0]} in {unit} (the run orders "
-                          f"{', '.join(_join(c.unit for c in got))} from it)")
+        got = [c for c in result.rows if c.url in urls]
+        # the same page can cover another product (the adhesive's cartridges beside the anchors it sets):
+        # a row in another unit is not this order, and not a wrong one either
+        same_unit = [c for c in got if same(c, unit)]
+        if same_unit:
+            used.update(c.claim_id for c in same_unit)
+            check(f, same_unit)
+        else:
+            pending.append((f, urls, got))
+    # Second pass: an order the hand bid tied to one of the product's pages may rest
+    # on another of the job's pages in the run; each such row answers one order.
+    for f, urls, got in pending:
+        unit = f.get("unit", "") or ""
+        other = next((c for c in result.rows if c.url in pages and c.url not in urls and same(c, unit)
+                      and c.claim_id not in used), None)
+        if other is None:
+            how = f" in {unit} (the run orders {', '.join(_join(c.unit for c in got))} from it)" if got else ""
+            misses.append(f"{f['id']}: no order row cites {urls[0]}{how}")
             continue
-        want = schema.format_value(f.get("value"))[0]
-        if not want and all(c.value for c in same_unit):
-            failures.append(f"{f['id']}: gives {same_unit[0].value} {unit} where the fixture waits on a FIELD measure")
-        elif want and not any(c.value == want for c in same_unit):
-            failures.append(f"{f['id']}: gives {', '.join(_join(c.value or '(blank)' for c in same_unit))} {unit}, "
-                            f"the fixture {want}")
+        used.add(other.claim_id)
+        notes.append(f"{f['id']}: matched through {other.url}; the hand bid cited {urls[0]}")
+        check(f, [other])
+    compared = sum(1 for f in fixture_rows if f.get("role") == "material"
+                   and any(c in by_id and by_id[c].get("url") for c in CITED.findall(f"{f.get('tag', '')} {f.get('statement', '')}")))
     ok = not failures and compared > 0 and compared - len(misses) >= ANSWERED * compared
     return Gate(ok=ok, compared=compared, failures=failures, notes=notes, misses=misses)

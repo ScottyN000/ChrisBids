@@ -317,9 +317,15 @@ a sequence word ("then", "over", "followed by", "after", "before", "prior to")
 that continues anything, or by "and" after a product ("B53 over B66 primer, 2
 coats" and "Base coat as needed, then B53, 2 coats" may give the system two
 coats: two readings, neither picked, though "Walls and ceilings: B53, 2 coats"
-continues no product). A stretch that names both a primer and a finish ("B53
+continues no product). A stretch that names both a primer and a finish before a count ("B53
 finish with primer, 2 coats") holds two products' wording, so its count is
-tied to nothing. A clause naming no code settles a count only
+tied to nothing; a primer word before the count ("B53 with primer, 2 coats")
+makes the count the primer's as well, so it is read only for a sheet that
+names a primer, and a finish word before it is no primer-only sheet's; what
+follows the count ("one coat of X100 where the primer shows") does not take
+it. Primer words are prime(r), sealer, conditioner, base coat, undercoat(er),
+filler and surfacer; finish words are finish, final, top(coat), intermediate,
+stripe, enamel, satin, semi-gloss, gloss, eggshell, flat, paint and coating. A clause naming no code settles a count only
 when no stretch names a product (a primer or finish word) the count could be
 for ("primer; finish coats: two coats" gives the primer nothing) and the
 stretches that state counts agree. A data-sheet row naming no product code is

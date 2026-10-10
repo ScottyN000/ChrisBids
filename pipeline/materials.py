@@ -59,6 +59,15 @@ UNIT_WORDS = {
 # How a clause states a coat count: "2 coats", "two finish coats", "coats: 1".
 COATS = re.compile(r"\b(\d+|one|two|three|four|five|six)\s+(?:\w+\s+)?coats?\b|\bcoats?\s*[:=]\s*(\d+)", re.I)
 COAT_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+# How a clause leaves the count open: "(coats not stated)", "coats are not stated". "sheen not
+# stated" is not about coats.
+NOT_STATED = re.compile(r"\bcoats?\s+(?:is\s+|are\s+|were\s+)?not stated\b|\bnot stated\s+coats?\b", re.I)
+# A product code as a spec or a data sheet writes it: letters then digits ("A89", "X100", "B-66"),
+# never part of a row ID ("X-SP-011") or a unit ("ft2").
+PRODUCT_CODE = re.compile(r"(?<![A-Za-z0-9-])[A-Z]{1,4}-?\d{2,5}[A-Z]?(?![A-Za-z0-9-])")
+# Where one product's wording ends and the next begins in a clause that names several
+# ("A89 (coats not stated), or K62, 1 coat"; "Primer B66 as needed, then 1 coat B53").
+SEGMENT = re.compile(r"[,;()]|\b(?:or|then|and)\b", re.I)
 # One spare run, made only when a run was discarded or the runs name different
 # orders (the page reader does the same): an order one run saw is written flagged,
 # and the spare says whether a second run sees it too.
@@ -191,24 +200,65 @@ def rate_of(spec: Claim | None, sheet: Claim) -> Claim | None:
     return sheet if rate_unit(sheet) else None
 
 
-def coat_count(c: Claim) -> tuple[int | None, str]:
-    """The coat count a clause row states, read by code: (count, "") when it states
-    exactly one; (None, why) when it states none, several (a row covering two
-    products), or says the count is not stated (which the order row then says)."""
-    text = f"{c.statement} {c.quote}"
-    if re.search(r"coats?\s+(?:is |are )?not stated|not stated", text, re.I):
-        return None, f"{c.claim_id} says the coat count is not stated"
-    found = []
+def product_codes(*texts: str) -> list[str]:
+    """The product codes the texts name, each once, in order of appearance."""
+    return list(dict.fromkeys(k for t in texts for k in PRODUCT_CODE.findall(t)))
+
+
+def coat_mentions(text: str) -> list[tuple[int, int | None]]:
+    """Where the text speaks of coats: (position, count) for each count it states,
+    (position, None) where it says the count is not stated."""
+    found = [(m.start(), None) for m in NOT_STATED.finditer(text)]
     for m in COATS.finditer(text):
         word = (m.group(1) or m.group(2)).lower()
-        n = COAT_WORDS.get(word) or int(word)
-        if n not in found:
-            found.append(n)
-    if not found:
-        return None, f"{c.claim_id} states no coat count"
-    if len(found) > 1:
-        return None, f"{c.claim_id} states {len(found)} coat counts; it does not settle this product's"
-    return found[0], ""
+        found.append((m.start(), COAT_WORDS.get(word) or int(word)))
+    return sorted(found)
+
+
+def code_near(text: str, pos: int, codes: list[str]) -> list[str]:
+    """The product codes a mention at `pos` belongs to: those in its own segment of
+    the clause, else the nearest segment before it that names one, else after."""
+    bounds = [0, *(m.end() for m in SEGMENT.finditer(text)), len(text)]
+    segments = [(a, b, [k for k in codes if re.search(rf"(?<![A-Za-z0-9-]){re.escape(k)}(?![A-Za-z0-9-])", text[a:b])])
+                for a, b in zip(bounds, bounds[1:])]
+    here = next(i for i, (a, b, _) in enumerate(segments) if a <= pos < b or b == len(text))
+    for i in [here, *range(here - 1, -1, -1), *range(here + 1, len(segments))]:
+        if segments[i][2]:
+            return segments[i][2]
+    return []
+
+
+def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]:
+    """The coat count a clause row states for a product, read by code: (count, "")
+    when it states exactly one; (None, why) when it states none, several, says the
+    count is not stated, or speaks of other products. A clause naming several
+    product codes is read by the code the product's own row carries: each count
+    belongs to the code in its own stretch of the clause ("A89 (coats not
+    stated), or K62, 1 coat" gives K62 one coat and leaves A89 open)."""
+    text = f"{c.statement} {c.quote}"
+    codes = product_codes(text)
+    mentions = coat_mentions(text)
+    whom = ""
+    if codes:
+        mine = [k for k in product_codes(f"{product.statement} {product.quote} {product.tag}") if k in codes] if product else []
+        if len(codes) > 1 and not mine:
+            return None, f"{c.claim_id} names {', '.join(codes)}; which is this product's is not settled"
+        if len(codes) == 1 and not mine and product is not None and product_codes(f"{product.statement} {product.quote} {product.tag}"):
+            return None, f"{c.claim_id} names {codes[0]}, not this product"
+        if len(codes) > 1:
+            mentions = [m for m in mentions if set(code_near(text, m[0], codes)) & set(mine)]
+            whom = f" for {'/'.join(mine)}"
+    counts = sorted({n for _, n in mentions if n is not None})
+    left_open = any(n is None for _, n in mentions)
+    if not mentions:
+        return None, f"{c.claim_id} states no coat count{whom}"
+    if left_open and not counts:
+        return None, f"{c.claim_id} says the coat count{whom} is not stated"
+    if left_open:
+        return None, f"{c.claim_id} states a coat count{whom} and says one is not stated; it does not settle this product's"
+    if len(counts) > 1:
+        return None, f"{c.claim_id} states {len(counts)} coat counts{whom}; it does not settle this product's"
+    return counts[0], ""
 
 
 def cited_text(item: dict, by_id: dict[str, Claim]) -> str:
@@ -217,7 +267,7 @@ def cited_text(item: dict, by_id: dict[str, Claim]) -> str:
     return " ".join(f"{c.statement} {c.quote} {c.tag}" for c in rows)
 
 
-def item_errors(item: dict, by_id: dict[str, Claim], shown: str = "") -> list[str]:
+def item_errors(item: dict, by_id: dict[str, Claim]) -> list[str]:
     """Why code will not write this item. Empty means the rows it names bear it out."""
     if not item["sheet"]:
         return ["names no data-sheet row; a product with none gets no order row"]
@@ -247,11 +297,8 @@ def item_errors(item: dict, by_id: dict[str, Claim], shown: str = "") -> list[st
             return [f"coats apply to a coating ordered by the gallon, not to {item['unit']}"]
         if coats.method not in ("clause", "customer"):
             return [f"coats {coats.claim_id} is a {coats.method} row, not a clause"]
-        n, why = coat_count(coats)
-        if n is None and not why.endswith("not stated"):
-            # a clause that says the count is not stated is evidence (the order waits on it);
-            # one that states none, or two counts for two products, does not settle this product's
-            return [f"coats {why}"]
+        # what the clause states (one count, none, several, or that it is not stated) is read in
+        # order_claim: a clause that does not settle the count leaves the order waiting on it, flagged
     if item["unit"] == "each":
         if spec is not None:
             return ["orders each, so no rate applies"]
@@ -265,8 +312,9 @@ def item_errors(item: dict, by_id: dict[str, Claim], shown: str = "") -> list[st
         covers, per = rate_parts(rate)
         if per != item["unit"]:
             return [f"orders {item['unit']} but the rate {rate.claim_id} is per {rate.unit!r}"]
-        if q is not None and q.unit and norm_unit(q.unit) != covers:
-            return [f"quantity {q.claim_id} is in {q.unit}, but the rate {rate.claim_id} covers {covers}"]
+        if q is not None and q.method != "FIELD" and norm_unit(q.unit) != covers:
+            # only a FIELD row may lack a unit: a figure with none cannot be checked against the rate
+            return [f"quantity {q.claim_id} is in {q.unit or 'no unit'}, but the rate {rate.claim_id} covers {covers}"]
     return []
 
 
@@ -308,7 +356,7 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
     q = by_id.get(item["quantity"]) if item["quantity"] else None
     spec = by_id.get(item["spec_rate"]) if item["spec_rate"] else None
     coat_row = by_id.get(item["coats"]) if item["coats"] else None
-    coats, coats_why = coat_count(coat_row) if coat_row is not None else (None, "")
+    coats, coats_why = coat_count(coat_row, sheet) if coat_row is not None else (None, "")
     rate = rate_of(spec, sheet)
     basis = [by_id[r] for r in dict.fromkeys(item["basis"]) if r in by_id]
     cited = [c for c in [q, spec, coat_row, sheet, *basis] if c is not None]
@@ -335,7 +383,9 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
             calc, how = f"{{{q.claim_id}}}", f"count from {q.claim_id} ({q.method})"
     else:
         per_coat = item["unit"] == "gal"
-        how = (f"{q.claim_id if q is not None else 'FIELD'}" + (f" x {coats or '?'} coat{'s' if coats != 1 else ''}" if per_coat else "")
+        # the clause the count was read from is named with it, so the replay can see where the literal came from
+        times = f" x {coats or '?'} coat{'s' if coats != 1 else ''}" + (f" ({coat_row.claim_id})" if coat_row is not None else "")
+        how = (f"{q.claim_id if q is not None else 'FIELD'}" + (times if per_coat else "")
                + f" / {rate.claim_id}" if rate is not None else "no rate")
         if q is None:
             notes.append("no quantity row names what it covers")
@@ -357,10 +407,7 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
         if item["unit"] == "each":
             how = f"{_fig(q)} ({q.claim_id}, {q.method})"
         else:
-            shown = calc
-            for c in (q, rate):
-                shown = shown.replace("{" + c.claim_id + "}", _fig(c))
-            how = f"{shown.replace('*', 'x')} = {value} {item['unit']}"
+            how = f"{_fig(q)}{times if per_coat else ''} / {_fig(rate)} = {value} {item['unit']}"
     if spec is not None and rate_unit(sheet):
         # the precedence rule settles the choice (p.16); it is part of the derivation, not a doubt that flags the row
         how += f"; the spec's rate ({spec.claim_id}, {spec.tag or spec.locator}) governs over the sheet's {_fig(sheet)}"
@@ -369,8 +416,8 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
     name = sheet.tag or sheet.statement[:80]
     return Claim(
         claim_id=claim_id, statement=f"{name}: {derivation}",
-        source_id=" + ".join(sources + ["WEB"]), locator=" and ".join(_join(c.locator for c in [*basis, spec] if c)),
-        tag=" + ".join(_join([*(c.tag for c in basis), sheet.tag])), method="fetched", role="material",
+        source_id=" + ".join(sources + ["WEB"]), locator=" and ".join(_join(c.locator for c in [*basis, spec, coat_row] if c)),
+        tag=" + ".join(_join([*(c.tag for c in [*basis, coat_row] if c), sheet.tag])), method="fetched", role="material",
         confidence=confidence, value=value, value_num=value_num, unit=item["unit"],
         calc=calc, derivation=derivation, division=next((c.division for c in [*basis, q] if c and c.division), ""),
         flag="unverified" if notes else "", question=questions[0] if questions else "",
@@ -412,7 +459,7 @@ def run(broker: Broker, job: str, client: ModelClient | None, *, repeats: int = 
             continue
         kept = []
         for i, item in enumerate(data["items"]):
-            why = item_errors(item, by_id, unit.text)
+            why = item_errors(item, by_id)
             if why:
                 result.discarded.append(f"{unit.unit_id} run {r + 1}: items[{i}] {why[0]}")
             else:

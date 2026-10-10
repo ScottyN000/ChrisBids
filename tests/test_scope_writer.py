@@ -836,6 +836,8 @@ class RendererCase(unittest.TestCase):
         self.assertEqual(proposal.fmt_value(1200), "1,200")
         self.assertEqual(proposal.fmt_value(1200.0), "1,200")
         self.assertEqual(proposal.fmt_value("3/4"), "3/4")
+        # a range is printed as the ledger holds it; a shorter figure would be one the ledger does not hold (p.5)
+        self.assertEqual(proposal.fmt_value("6.857142857142857-8"), "6.857142857142857-8")
 
     def test_tag_falls_back_to_source_and_locator(self):
         self.assertEqual(proposal.tag({"tag": "T", "source": "S"}), "T")

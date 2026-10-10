@@ -305,7 +305,14 @@ length, volume or count, the allowance it goes into, or the FIELD row for one),
 the clause row that states the coat count (a coating only) and the spec's own
 coverage row when there is one, since the spec's stated rate takes precedence
 over the data sheet's (p.16). The model writes no number: code reads the coat
-count from the clause it names (one count, or the item is refused), checks that
+count from the clause it names, and when the clause names several product codes
+("A89 (coats not stated), or K62, 1 coat") it reads the count that sits with the
+code the data-sheet row carries, so each product gets its own; a clause that
+states none, states several, says the count is not stated or speaks of another
+product settles nothing, and the order is written without a figure saying so.
+The clause the count came from is named with it in the derivation (`1200 sq ft
+x 2 coats (OBV-SP-010) / 300-350 sq ft/gal = ...`) and cited in the row's
+locator and tag, so the Auditor can see where the literal came from. Code checks that
 the quantity row's unit is what the rate covers (an area for a rate per gallon
 over square feet, a length for a rate per tube over linear feet) and that a part
 in `each` rests on a counted row in each, works the quantity out, `{AREA} *
@@ -318,8 +325,8 @@ writes must appear in the rows it cites. A count (anchors, bolts) cites its
 count row and says so (`count from NAN-Q-003 (counted)`); an open question or a
 flag on any row the order cites is carried onto the order. A product with no
 data-sheet row in the ledger gets no row, and the run says so; an order that
-waits on a FIELD row, a coat count no clause states (or one the spec says is
-not stated) or a rate nobody stated is
+waits on a FIELD row, a coat count no clause settles (none named, or one that
+leaves it open, see above) or a rate nobody stated is
 written with no figure, flagged unverified, naming what is missing; so is one
 whose page did not show the product (a fetched row with no quote). Items are
 compared across the valid runs by the rows they rest on and their unit, not the

@@ -26,7 +26,7 @@ def row(claim_id, statement, *, method="clause", role="scope", value="", unit=""
 
 
 SYSTEM = row("X-SP-010", "Finish coat: Example Satin X100, 2 coats")
-ONE_COAT = row("X-SP-011", "Touch-up: one coat of Example Satin X100 where the primer shows", locator="p.4")
+ONE_COAT = row("X-SP-011", "Touch-up: one coat of Example Satin X100 where the primer shows", locator="p.7", tag="SW p.7")
 NO_COAT = row("X-SP-012", "Prime coat: Example Primer X50", locator="p.4")
 TWO_PRODUCTS = row("X-SP-013", "Finish: Example Satin X100 (coats not stated), or Example Flat X200, 1 coat", locator="p.4")
 SEAL_SPEC = row("X-SP-020", "Joint sealant: Example Seal S9 at all control joints", locator="p.6", tag="SW p.6", division="07")
@@ -118,11 +118,32 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.coat_count(row("C", "Coats: 3")), (3, ""))
         self.assertEqual(materials.coat_count(row("C", "two finish coats over one prime coat"))[0], None)   # two counts
         self.assertEqual(materials.coat_count(NO_COAT), (None, "X-SP-012 states no coat count"))
-        self.assertEqual(materials.coat_count(TWO_PRODUCTS), (None, "X-SP-013 says the coat count is not stated"))
         self.assertEqual(materials.coat_count(row("C", "2 coats of primer and 2 coats of finish")), (2, ""))   # one count
+        self.assertEqual(materials.coat_count(row("C", "Finish: two coats, sheen not stated")), (2, ""))   # not about coats
+        self.assertEqual(materials.coat_count(row("C", "two coats; primer coats not stated")),
+                         (None, "C states a coat count and says one is not stated; it does not settle this product's"))
+
+    def test_a_clause_naming_several_products_is_read_by_this_product_s_code(self):
+        # each count belongs to the product code in its own stretch of the clause (the repaint's finish clause)
+        self.assertEqual(materials.coat_count(TWO_PRODUCTS, X100), (None, "X-SP-013 says the coat count for X100 is not stated"))
+        x200 = row("X-WEB-009", "Example Flat X200 data sheet", method="fetched", role="code", source="WEB", tag="X200 data sheet")
+        self.assertEqual(materials.coat_count(TWO_PRODUCTS, x200), (1, ""))
+        # a count before its code binds to it, and a product the clause gives no count is left open
+        primer = row("X-SP-050", "Primer: Example Primer B66 as needed, then 1 coat Example Flat B53")
+        b66 = row("X-WEB-010", "Example Primer B66 data sheet", method="fetched", role="code", source="WEB", tag="B66 data sheet")
+        b53 = row("X-WEB-011", "Example Flat B53 data sheet", method="fetched", role="code", source="WEB", tag="B53 data sheet")
+        self.assertEqual(materials.coat_count(primer, b66), (None, "X-SP-050 states no coat count for B66"))
+        self.assertEqual(materials.coat_count(primer, b53), (1, ""))
+        # a clause about other products, or several with no product to tie them to, settles nothing
+        self.assertEqual(materials.coat_count(TWO_PRODUCTS, S9), (None, "X-SP-013 names X100, X200; which is this product's is not settled"))
+        self.assertEqual(materials.coat_count(TWO_PRODUCTS), (None, "X-SP-013 names X100, X200; which is this product's is not settled"))
+        self.assertEqual(materials.coat_count(NO_COAT, X100), (None, "X-SP-012 names X50, not this product"))
+        self.assertEqual(materials.coat_count(SYSTEM, X100), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Example Satin X100 and Example Flat X200, 2 coats each"), X100),
+                         (None, "C states no coat count for X100"))
+        self.assertEqual(materials.product_codes("see X-SP-011, ft2 and S-1; A89 or K62, then A89"), ["A89", "K62"])
 
     def test_what_code_refuses(self):
-        shown = materials.unit_for("X", ROWS).text
         cases = [
             (item(product="Example Satin X900"), "product 'Example Satin X900' carries 900, which is in none of the rows it cites"),
             # a code that is in the ledger but not in the rows the item cites (p.7: HY 70 against HY 270)
@@ -140,31 +161,34 @@ class ItemCase(unittest.TestCase):
             (dict(SEALANT, quantity="X-TK-Q-01"), "quantity X-TK-Q-01 is in sq ft, but the rate X-WEB-008 covers lf"),
             (dict(ANCHORS, quantity="X-TK-Q-01"), "orders each, but X-TK-Q-01 is a dimensioned row in sq ft, not a count"),
             (item(quantity="X-R-001"), "quantity X-R-001 is a clause quantity row, not a takeoff figure, an allowance or a FIELD row"),
-            # the coat count is read from the clause the model names, which must state exactly one
-            (item(coats="X-SP-012"), "coats X-SP-012 states no coat count"),
+            # the coat count is read from a clause row; what it states is the order row's business (order_claim)
             (item(coats="X-TK-Q-01"), "coats X-TK-Q-01 is a dimensioned row, not a clause"),
             (dict(SEALANT, coats="X-SP-010"), "coats apply to a coating ordered by the gallon, not to tubes"),
         ]
         for it, want in cases:
-            self.assertEqual(materials.item_errors(it, BY_ID, shown), [want], it)
-        self.assertEqual(materials.item_errors(item(), BY_ID, shown), [])
-        self.assertEqual(materials.item_errors(ANCHORS, BY_ID, shown), [])
-        self.assertEqual(materials.item_errors(SEALANT, BY_ID, shown), [])
-        # a clause that says the count is not stated is evidence, not a refusal: the order waits on it
-        self.assertEqual(materials.item_errors(item(coats="X-SP-013"), BY_ID, shown), [])
-        # a quantity row with no figure is refused unless it is a FIELD row
-        blank = dict(BY_ID, **{"X-TK-Q-04": row("X-TK-Q-04", "area", method="dimensioned", role="quantity", unit="sq ft", source="S-1")})
-        self.assertEqual(materials.item_errors(item(quantity="X-TK-Q-04"), blank, shown), ["quantity X-TK-Q-04 carries no figure"])
-        self.assertEqual(materials.item_errors(item(quantity="X-F-002"), BY_ID, shown), [])
+            self.assertEqual(materials.item_errors(it, BY_ID), [want], it)
+        self.assertEqual(materials.item_errors(item(), BY_ID), [])
+        self.assertEqual(materials.item_errors(ANCHORS, BY_ID), [])
+        self.assertEqual(materials.item_errors(SEALANT, BY_ID), [])
+        # a clause that says the count is not stated, or states none, is evidence, not a refusal: the order waits on it
+        self.assertEqual(materials.item_errors(item(coats="X-SP-013"), BY_ID), [])
+        self.assertEqual(materials.item_errors(item(coats="X-SP-012"), BY_ID), [])
+        # a quantity row with no figure is refused unless it is a FIELD row, and so is a figure with no unit
+        blank = dict(BY_ID, **{"X-TK-Q-04": row("X-TK-Q-04", "area", method="dimensioned", role="quantity", unit="sq ft", source="S-1"),
+                               "X-TK-Q-05": row("X-TK-Q-05", "walls", method="dimensioned", role="quantity", value="6", source="S-1")})
+        self.assertEqual(materials.item_errors(item(quantity="X-TK-Q-04"), blank), ["quantity X-TK-Q-04 carries no figure"])
+        self.assertEqual(materials.item_errors(item(quantity="X-TK-Q-05"), blank),
+                         ["quantity X-TK-Q-05 is in no unit, but the rate X-R-001 covers sq ft"])
+        self.assertEqual(materials.item_errors(item(quantity="X-F-002"), BY_ID), [])
         # a FIELD allowance row is the area the coating covers, to be measured: accepted, and the order waits on it
         by_id = dict(BY_ID, **{ALLOW.claim_id: ALLOW})
-        self.assertEqual(materials.item_errors(item(quantity="X-A-004"), by_id, materials.unit_for("X", ROWS + [ALLOW]).text), [])
+        self.assertEqual(materials.item_errors(item(quantity="X-A-004"), by_id), [])
         c = materials.order_claim("X-MT-05", item(quantity="X-A-004"), 2, 2, by_id)
         self.assertEqual((c.value, c.value_num, c.flag, c.method, c.role), ("", None, "unverified", "fetched", "material"))
         self.assertIn("X-A-004 (FIELD)", c.statement)
         # no row states a rate (the plank job's mortar, 2026-10-09): written with no figure, flagged, saying so
         no_rate = item(spec_rate="", sheet="X-WEB-006")
-        self.assertEqual(materials.item_errors(no_rate, BY_ID, shown), [])
+        self.assertEqual(materials.item_errors(no_rate, BY_ID), [])
         c = materials.order_claim("X-MT-06", no_rate, 2, 2, BY_ID)
         self.assertEqual((c.value, c.flag, c.url), ("", "unverified", BULLETIN))
         self.assertIn("no row states a rate", c.statement)
@@ -172,13 +196,13 @@ class ItemCase(unittest.TestCase):
         by_id = dict(BY_ID, **{NOPAGE.claim_id: NOPAGE})
         patch = item("Example Patch P20", "gal", "X-A-004", "", "", "X-WEB-007", ("X-SP-010",))
         by_id[ALLOW.claim_id] = ALLOW
-        self.assertEqual(materials.item_errors(patch, by_id, materials.unit_for("X", list(by_id.values())).text), [])
+        self.assertEqual(materials.item_errors(patch, by_id), [])
         c = materials.order_claim("X-MT-07", patch, 2, 2, by_id)
         self.assertEqual((c.value, c.flag, c.url, c.quote), ("", "unverified", "https://www.example.com/p20", ""))
         self.assertIn("uses flagged X-WEB-007", c.statement)
         self.assertIn("the page X-WEB-007 cites quotes nothing for the product", c.statement)
-        self.assertEqual(materials.item_errors(item(spec_rate=""), BY_ID, shown), [])   # the sheet's rate will do
-        self.assertEqual(materials.item_errors(item(quantity=""), BY_ID, shown), [])    # nothing covered yet
+        self.assertEqual(materials.item_errors(item(spec_rate=""), BY_ID), [])   # the sheet's rate will do
+        self.assertEqual(materials.item_errors(item(quantity=""), BY_ID), [])    # nothing covered yet
 
     def test_vote_keeps_every_distinct_order(self):
         a, b = item(), item(coats="X-SP-011")
@@ -205,18 +229,19 @@ class ClaimCase(unittest.TestCase):
         self.assertEqual(c, Claim(
             claim_id="X-MT-01",
             # named after the sheet's page, not in the model's words; the precedence rule settles the rate, so no flag
-            statement="X100 data sheet: 1200 sq ft x 2 / 300-350 sq ft/gal = 6.857142857142857-8 gal" + GOVERNS,
+            statement="X100 data sheet: 1200 sq ft x 2 coats (X-SP-010) / 300-350 sq ft/gal = 6.857142857142857-8 gal" + GOVERNS,
             source_id="S-1 + SW + WEB", method="fetched", role="material", confidence="exact",
             value="6.857142857142857-8", value_num=None, unit="gal", locator="p.4 and p.5",
             tag="SW p.4 + X100 data sheet", calc="{X-TK-Q-01} * 2 / {X-R-001}",
-            derivation="1200 sq ft x 2 / 300-350 sq ft/gal = 6.857142857142857-8 gal" + GOVERNS,
+            derivation="1200 sq ft x 2 coats (X-SP-010) / 300-350 sq ft/gal = 6.857142857142857-8 gal" + GOVERNS,
             division="09", flag="", url=SHEET, retrieved="2026-10-09", quote="320-400 sq. ft. per gallon",
         ))
-        # the sheet's rate when the spec gives none; one coat, read from the clause the item names
+        # the sheet's rate when the spec gives none; one coat, read from the clause the item names, which the
+        # row cites (derivation, locator and tag), so the replay can see where the literal came from
         c = materials.order_claim("X-MT-01", item(spec_rate="", coats="X-SP-011"), 2, 2, BY_ID)
-        self.assertEqual((c.value, c.calc, c.flag, c.derivation, c.source_id, c.locator),
-                         ("3-3.75", "{X-TK-Q-01} * 1 / {X-WEB-003}", "", "1200 sq ft x 1 / 320-400 sq ft/gal = 3-3.75 gal",
-                          "S-1 + SW + WEB", "p.4"))
+        self.assertEqual((c.value, c.calc, c.flag, c.derivation, c.source_id, c.locator, c.tag),
+                         ("3-3.75", "{X-TK-Q-01} * 1 / {X-WEB-003}", "", "1200 sq ft x 1 coat (X-SP-011) / 320-400 sq ft/gal = 3-3.75 gal",
+                          "S-1 + SW + WEB", "p.4 and p.7", "SW p.4 + SW p.7 + X100 data sheet"))
         self.assertEqual(schema.replay_calc(c, BY_ID), [])
 
     def test_a_sealant_is_a_length_over_a_rate_per_tube_with_no_coats(self):
@@ -250,10 +275,12 @@ class ClaimCase(unittest.TestCase):
 
     def test_what_is_missing_is_named_and_the_row_carries_no_figure(self):
         cases = [
-            (item(quantity="X-F-002"), "X-F-002 x 2 coats / X-R-001; the quantity waits on X-F-002 (FIELD)"),
-            (item(quantity=""), "FIELD x 2 coats / X-R-001; no quantity row names what it covers"),
+            (item(quantity="X-F-002"), "X-F-002 x 2 coats (X-SP-010) / X-R-001; the quantity waits on X-F-002 (FIELD)"),
+            (item(quantity=""), "FIELD x 2 coats (X-SP-010) / X-R-001; no quantity row names what it covers"),
             (item(coats=""), "X-TK-Q-01 x ? coats / X-R-001; no clause states how many coats"),
-            (item(coats="X-SP-013"), "X-TK-Q-01 x ? coats / X-R-001; X-SP-013 says the coat count is not stated"),
+            # a clause that leaves this product's count open, states none, or is about another product: no figure, said so
+            (item(coats="X-SP-013"), "X-TK-Q-01 x ? coats (X-SP-013) / X-R-001; X-SP-013 says the coat count for X100 is not stated"),
+            (item(coats="X-SP-012"), "X-TK-Q-01 x ? coats (X-SP-012) / X-R-001; X-SP-012 names X50, not this product"),
             (item(coats="", quantity="X-F-002"),
              "X-F-002 x ? coats / X-R-001; the quantity waits on X-F-002 (FIELD); no clause states how many coats"),
             (dict(ANCHORS, quantity=""), "no count row; no count row names how many"),
@@ -267,17 +294,20 @@ class ClaimCase(unittest.TestCase):
             self.assertEqual((c.value, c.value_num, c.calc, c.flag, c.confidence, c.derivation),
                              ("", None, "", "unverified", "missing", want), it)
         # a coating with a sheet that states no rate, and no spec rate: no figure, said so
+        c = materials.order_claim("X-MT-01", item(spec_rate="", sheet="X-WEB-006", coats=""), 2, 2, BY_ID)
+        self.assertEqual((c.value, c.derivation), ("", "no rate; no clause states how many coats; no row states a rate"))
+        # a coat clause about another product than the sheet's is said so, not read
         c = materials.order_claim("X-MT-01", item(spec_rate="", sheet="X-WEB-006"), 2, 2, BY_ID)
-        self.assertEqual((c.value, c.derivation), ("", "no rate; no row states a rate"))
+        self.assertEqual(c.derivation, "no rate; X-SP-010 names X100, not this product; no row states a rate")
 
     def test_fewer_runs_and_flagged_inputs_are_noted(self):
         c = materials.order_claim("X-MT-01", item(spec_rate=""), 1, 2, BY_ID)
-        self.assertEqual((c.flag, c.derivation), ("unverified", "1200 sq ft x 2 / 320-400 sq ft/gal = 6-7.5 gal; "
+        self.assertEqual((c.flag, c.derivation), ("unverified", "1200 sq ft x 2 coats (X-SP-010) / 320-400 sq ft/gal = 6-7.5 gal; "
                                                                 "seen in 1 of 2 runs"))
         by_id = dict(BY_ID, **{"X-TK-Q-01": row("X-TK-Q-01", "Wall area", method="dimensioned", role="quantity",
                                                   value="1200", unit="sq ft", source="S-1", flag="unverified")})
         c = materials.order_claim("X-MT-01", item(spec_rate=""), 2, 2, by_id)
-        self.assertEqual(c.derivation, "1200 sq ft x 2 / 320-400 sq ft/gal = 6-7.5 gal; uses flagged X-TK-Q-01")
+        self.assertEqual(c.derivation, "1200 sq ft x 2 coats (X-SP-010) / 320-400 sq ft/gal = 6-7.5 gal; uses flagged X-TK-Q-01")
         # the precedence rule flags nothing: a spec rate over a sheet rate, both firm, is a firm order
         c = materials.order_claim("X-MT-01", item(), 2, 2, BY_ID)
         self.assertEqual((c.flag, c.confidence), ("", "exact"))
@@ -406,7 +436,7 @@ class RunCase(unittest.TestCase):
         # a scaled row is never shown, so the model cannot name it; an order over one is refused all the same
         by_id = dict(BY_ID, **{SCALED.claim_id: SCALED})
         c = materials.order_claim("X-MT-09", item(spec_rate="", quantity="X-DR-009"), 2, 2, by_id)
-        self.assertEqual(materials.item_errors(item(quantity="X-DR-009"), by_id, materials.unit_for("X", list(by_id.values())).text),
+        self.assertEqual(materials.item_errors(item(quantity="X-DR-009"), by_id),
                          ["quantity X-DR-009 is a scaled quantity row, not a takeoff figure, an allowance or a FIELD row"])
         self.write("takeoff", SCALED)
         with self.assertRaises(LedgerError) as e:

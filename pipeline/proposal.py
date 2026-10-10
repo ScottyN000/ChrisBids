@@ -16,18 +16,13 @@ from __future__ import annotations
 import csv
 import io
 
-from . import schema
 
 def fmt_value(v):
     if v is None:
         return "FIELD"
     if isinstance(v, float) and v.is_integer():
         v = int(v)
-    if isinstance(v, str):
-        # a replayed range keeps its exact ends on the ledger; the page shows them to two places
-        ends = schema.value_range(v)
-        if ends and any("." in part for part in v.split("-")):
-            return "-".join(f"{x:,.2f}".rstrip("0").rstrip(".") for x in ends)
+    # a range is printed as the ledger holds it: a figure shortened here would be one the ledger does not hold (p.5)
     return f"{v:,}" if isinstance(v, int) else str(v)
 
 

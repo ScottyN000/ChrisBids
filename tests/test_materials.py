@@ -260,6 +260,8 @@ class RunCase(unittest.TestCase):
         self.assertEqual([(c.claim_id, c.flag, c.derivation) for c in res.rows],
                          [("X-MT-01", "unverified", "18 each (X-TK-Q-02); seen in 1 of 2 runs")])
         self.assertIn("  discarded " + res.discarded[0], res.text())
+        self.assertTrue(any(line.startswith(f"  row {res.rows[0].claim_id} | ") and res.rows[0].url in line
+                            for line in res.text().splitlines()), res.text())
         res = materials.run(self.broker, "X", Fake(["no", "no"]))
         self.assertEqual((res.unread, res.rows), (["X#materials"], []))
 
@@ -313,7 +315,8 @@ class GateCase(unittest.TestCase):
 
     def test_a_wrong_unit_or_figure_fails(self):
         g = self.gate([order_row(unit="each")])
-        self.assertEqual(g.failures, ["OBV-M-002: ordered in each, the fixture in gal"])
+        self.assertEqual(g.failures, [])
+        self.assertEqual(g.misses, [f"OBV-M-002: no order row cites {SHEET} in gal (the run orders each from it)"])
         g = self.gate([order_row(value="6-7")])
         self.assertEqual(g.failures, ["OBV-M-002: gives 6-7 gal where the fixture waits on a FIELD measure"])
         counted = dict(FIX_M, method="counted", value=18, unit="each")
@@ -321,7 +324,7 @@ class GateCase(unittest.TestCase):
         self.assertEqual(g.failures, ["OBV-M-002: gives 20 each, the fixture 18"])
         g = self.gate([order_row(value="18", unit="each"), order_row(value="", unit="each")], (FIX_C, counted))
         self.assertEqual((g.ok, g.failures), (True, []))
-        self.assertIn("  FAIL " + self.gate([order_row(unit="each")]).failures[0], self.gate([order_row(unit="each")]).text())
+        self.assertIn("  FAIL " + self.gate([order_row(value="6-7")]).failures[0], self.gate([order_row(value="6-7")]).text())
 
     def test_an_order_citing_no_page_is_noted_not_compared(self):
         no_page = dict(FIX_M, id="OBV-M-004", tag="S-1 Det 1", statement="angle per NAN-F-002")

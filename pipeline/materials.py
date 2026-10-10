@@ -92,6 +92,9 @@ class OrderResult:
         lines = [f"{self.reader}: {self.units} units, {self.calls} calls, {len(self.rows)} order rows "
                  f"({figured} with a figure), {len(self.discarded)} items discarded, {len(self.unread)} units unread"]
         lines += [f"  note {n}" for n in self.notes]
+        # every row written, so a run log alone shows what was ordered from which page
+        lines += [f"  row {c.claim_id} | {c.value} {c.unit} | {c.statement[:140]} | {c.url}" + (f" | {c.flag}" if c.flag else "")
+                  for c in self.rows]
         lines += [f"  discarded {d}" for d in self.discarded]
         lines += [f"  unread {u}" for u in self.unread]
         lines += [f"  refused {r}" for r in self.refused]
@@ -374,7 +377,10 @@ def gate(result: OrderResult, fixture_rows: list[dict]) -> Gate:
         unit = f.get("unit", "") or ""
         same_unit = [c for c in got if c.unit == unit]
         if not same_unit:
-            failures.append(f"{f['id']}: ordered in {', '.join(_join(c.unit for c in got))}, the fixture in {unit}")
+            # the same page can cover another product (the adhesive's cartridges beside the anchors it sets):
+            # a row in another unit is not this order, and not a wrong one either
+            misses.append(f"{f['id']}: no order row cites {urls[0]} in {unit} (the run orders "
+                          f"{', '.join(_join(c.unit for c in got))} from it)")
             continue
         want = schema.format_value(f.get("value"))[0]
         if not want and all(c.value for c in same_unit):

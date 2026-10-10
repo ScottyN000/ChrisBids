@@ -307,15 +307,16 @@ coverage row when there is one, since the spec's stated rate takes precedence
 over the data sheet's (p.16). The model writes no number: code reads the coat
 count from the clause it names, and when the clause names a product code it
 reads the count for the code the data-sheet row carries: the clause is cut into
-stretches at semicolons, sentence ends, "or" (not "or approved equal"), "then", "and" and "over" (outside parentheses), and a
+stretches at semicolons, sentence ends, "or" (not "or approved equal"), "then", "and", "over", "followed by", "after", "before" and "prior to" (outside parentheses), and a
 count belongs to the one code its own stretch names ("A89 (coats not stated),
 or K62, 1 coat" gives K62 one coat and leaves A89 open; "B53 over one coat of
 primer" cuts at "over", so the primer's coat is not B53's); a count whose
 stretch names no code, or two, is tied to nothing, and the clause then settles
 no product's count; so is a count written after its code in a stretch opened by
-"then", "and" or "over" ("B53 over B66 primer, 2 coats" may give the system two
-coats: two readings, neither picked, though "Walls and ceilings: B53, 2 coats"
-continues no product). A stretch that names both a primer and a finish ("Primer
+"then", "and", "over", "followed by", "after", "before" or "prior to" when the
+text before it names a product ("B53 over B66 primer, 2 coats" may give the
+system two coats: two readings, neither picked, though "Walls and ceilings:
+B53, 2 coats" continues no product). A stretch that names both a primer and a finish ("Primer
 B66 as needed, followed by two finish coats") holds two products' wording, so
 its count is tied to nothing. A clause naming no code settles a count only
 when no stretch names a product (a primer or finish word) the count could be
@@ -323,8 +324,10 @@ for ("primer; finish coats: two coats" gives the primer nothing) and the
 stretches that state counts agree. A data-sheet row naming no product code is
 read as the clause's one code when every stretch names it or names no product;
 when a stretch names a product without a code, or the clause names several
-codes, it settles nothing for that sheet. A second count said without the word
-"coat", or an added coat ("one coat; two at patched areas", "a second coat at
+codes, it settles nothing for that sheet, and a codeless clause that speaks of
+a primer is no finish sheet's count (or the reverse). A second count said
+without the word "coat", or an added coat ("one coat; two at patched areas",
+"1 coat; 2 at patched areas", "a second coat at repairs", "plus 1 coat at
 repairs"), is a second reading, so the clause settles nothing. A customer row sets no count (it never overrides a spec clause). A
 recoat time ("between coats: 24 hours") or a coverage line ("finish coat: 400
 sq ft/gal") is no count: the "coats:" form counts only when "coats" is the label

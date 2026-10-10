@@ -58,15 +58,17 @@ UNIT_WORDS = {
 }
 # How a clause states a coat count: "2 coats", "two finish coats", "coats: 1" (not "coats: 4 hours",
 # a recoat time, nor the first end of "coats: 2-3", a range).
-# A count: a whole number ("2", "two", "two (2)"), not a decimal's tail ("1.5 hours") nor a
-# thickness ("a 15 mil coat": the word before "coat" may only say which coat it is).
-N = r"(?<![.\d])(\d+|one|two|three|four|five|six)"
+# A count: a whole number of one or more ("2", "two", "two (2)"), not a decimal's tail ("1.5
+# hours") nor a thickness ("a 15 mil coat": the word before "coat" may only say which coat it
+# is). After "coats:" the number must end the clause or be followed by punctuation or "coat(s)",
+# so "between coats: 24 hours" and "finish coat: 400 sq ft/gal" are no count.
+N = r"(?<![.\d])([1-9]\d*|one|two|three|four|five|six)"
 ROLE = r"(?:(?:finish|final|top|prime|primer|base|first|second|third|full|intermediate|stripe)\s+)?"
-TO = r"(?:-|\u2013|to\b|or\b)"
-UNITS_NOT_COATS = r"(?:hours?|hrs?|h|minutes?|mins?|min|days?|mils?|microns?|%)"
-COATS = re.compile(rf"\b{N}(?:\s*\((\d+)\))?\s+{ROLE}coats?\b|\bcoats?\s*[:=]\s*(\d+)(?![.,]\d)(?!\s*{TO})(?!\s*{UNITS_NOT_COATS}\b)", re.I)
-# A range or a choice of counts ("1-2 coats", "one or two coats", "coats: 2 - 3"): two readings, neither picked
-COAT_RANGE = re.compile(rf"\b{N}\s*{TO}\s*{N}\s+{ROLE}coats?\b|\bcoats?\s*[:=]\s*\d+\s*{TO}", re.I)
+TO = r"(?:-|\u2013|to\b|or\b|and\b)"
+COATS = re.compile(rf"\b{N}(?:\s*\(([1-9]\d*)\))?\s+{ROLE}coats?\b|\bcoats?\s*[:=]\s*([1-9]\d*)(?!\d|[.,]\d)(?=\s*(?:$|[;,.)]|coats?\b))", re.I)
+# A range or a choice of counts ("1-2 coats", "one or two coats", "between two and three coats",
+# "coats: 2 - 3"): two readings, neither picked
+COAT_RANGE = re.compile(rf"\b{N}\s*{TO}\s*{N}\s+{ROLE}coats?\b|\bcoats?\s*[:=]\s*\d+(?!\d)\s*{TO}", re.I)
 COAT_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 # How a clause leaves the count open: "(coats not stated)", "coats are not stated". "sheen not
 # stated" is not about coats.
@@ -79,7 +81,7 @@ PRODUCT_CODE = re.compile(r"(?<![A-Za-z0-9-])[A-Z]{1,4}-?\d{2,5}[A-Z]?(?![A-Za-z
 # "B53 over one coat of primer"): a semicolon, "or", "then", "and" or "over" outside
 # parentheses, but not the "or" of "or approved equal". Commas and parentheses stay
 # inside their stretch, so "Finish coat (1 coat): Enamel, B53 series" is one stretch.
-STRETCH = re.compile(r";|\bor\b(?!\s+(?:an\s+|approved\s+)?(?:equal|equivalent)\b)|\b(?:then|and|over)\b", re.I)
+STRETCH = re.compile(r";|\bor\b(?!\s+(?:an\s+)?(?:approved\s+)?(?:equal|equivalent)\b)|\b(?:then|and|over)\b", re.I)
 # One spare run, made only when a run was discarded or the runs name different
 # orders (the page reader does the same): an order one run saw is written flagged,
 # and the spare says whether a second run sees it too.
@@ -280,8 +282,8 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     stated), or K62, 1 coat" gives K62 one coat and leaves A89 open; "B53 over one
     coat of primer" gives B53 nothing), and a count whose stretch names no code, or
     two, is tied to nothing: the clause then settles no product's count. A sheet
-    row naming no code is read as the product the model tied it to, as a clause
-    naming no code is."""
+    row naming no code is read as the clause's one code; when the clause names
+    several, it settles nothing for that sheet."""
     parts = [c.statement, c.quote] if c.quote else [c.statement]
     text = SEP.join(parts)
     codes = product_codes(text)

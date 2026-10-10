@@ -162,6 +162,7 @@ class ItemCase(unittest.TestCase):
         # "or approved equal" is not a choice between products
         self.assertEqual(materials.coat_count(row("X-SP-056", "Example Flat B53 or approved equal, 2 coats"), b53), (2, ""))
         self.assertEqual(materials.coat_count(row("X-SP-056", "Example Flat B53 or an equivalent, 2 coats"), b53), (2, ""))
+        self.assertEqual(materials.coat_count(row("X-SP-056", "Example Flat B53 or an approved equal, 2 coats"), b53), (2, ""))
         # the statement and the quote are two stretches, so a count in one is not tied to a code in the other
         quoted = row("X-SP-055", "Topcoat: Example Flat B53, 2 coats", quote="Example Primer B66 primer as needed")
         self.assertEqual((materials.coat_count(quoted, b53), materials.coat_count(quoted, b66)), ((2, ""), (None, "X-SP-055 states no coat count for B66")))
@@ -185,9 +186,15 @@ class ItemCase(unittest.TestCase):
         # two readings, neither picked (Determinism); a dry time is not a count
         for text in ("Apply 1-2 coats", "one or two coats", "Coats: 2-3", "coats: 2 to 3", "Apply 2\u20133 coats"):
             self.assertEqual(materials.coat_count(row("C", text)), (None, "C states a range of coats; it does not settle this product's"), text)
-        for text in ("Dry time between coats: 4 hours", "Dry time between coats: 1.5 hours", "Apply a 15 mil coat of Example Elastomeric A100",
-                     "Coats: 2 - 3", "Coats: 2 \u2013 3", "Coats: 2 to 3"):
+        for text in ("Dry time between coats: 4 hours", "Dry time between coats: 1.5 hours", "Dry time between coats: 24 hours",
+                     "coats: 16 hrs", "coats: 10 mils", "Finish coat: 400 sq ft/gal", "Apply a 15 mil coat of Example Elastomeric A100",
+                     "Coats: 2 - 3", "Coats: 2 \u2013 3", "Coats: 2 to 3", "between two and three coats", "0 coats", "Coats: 0", "Two (0) coats"):
             self.assertEqual(materials.coat_count(row("C", text))[0], None, text)
+        self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 24 hours")), (None, "C states no coat count"))
+        self.assertEqual(materials.coat_count(row("C", "between two and three coats")), (None, "C states a range of coats; it does not settle this product's"))
+        # after "coats:" the number ends the clause or is followed by punctuation or "coat(s)"
+        for text in ("Coats: 2", "Coats: 2.", "Coats: 2; recoat: 4 hours", "(coats: 2)", "coats: 12"):
+            self.assertEqual(materials.coat_count(row("C", text))[0], 12 if "12" in text else 2, text)
         self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 1.5 hours")), (None, "C states no coat count"))
         self.assertEqual(materials.coat_count(row("C", "Coats: 2 - 3")), (None, "C states a range of coats; it does not settle this product's"))
         # "two (2) coats" is one count said twice; "two (3)" is two

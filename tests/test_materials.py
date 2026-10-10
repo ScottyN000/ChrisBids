@@ -249,6 +249,30 @@ class ClaimCase(unittest.TestCase):
         for text in ("Apply additional paint where thin", "Recoat patched areas", "Coats as required to achieve full hide"):
             self.assertTrue(materials.spec_wide_floor(ONE_COAT, {"X-SP-093": row("X-SP-093", text)}), text)
 
+    def test_a_clause_headed_by_one_surface_floors_only_that_surface(self):
+        # "Exterior trim: a second coat at repairs" is the trim's: a wall count stays fixed, a trim count is a floor
+        walls = row("X-SP-014", "Walls: Example Satin X100, 2 coats", locator="p.3")
+        trim = row("X-SP-015", "Exterior wood trim and fascia: Example Satin X100, 2 coats", locator="p.3")
+        stucco = row("X-SP-016", "Finish coat: Example Satin X100, 2 coats", locator="p.16 Masonry/Stucco B")
+        bare = row("X-SP-017", "Finish coat: Example Satin X100, 2 coats", locator="p.3")
+        for text, fixed, floored in (
+                ("Exterior trim: a second coat at repairs", (walls, stucco), (trim, bare)),
+                ("Doors and frames: additional coats as required", (walls, trim, stucco), (bare,)),
+                # spec-wide wording under a heading, and a heading that names no surface, floor every count
+                ("Exterior trim: additional coats regardless of the number specified", (), (walls, trim, stucco, bare)),
+                ("Trim: at least two coats on all surfaces", (), (walls, trim, stucco, bare)),
+                ("General: additional coats as required for full hide", (), (walls, trim, stucco, bare)),
+                ("Additional coats at trim where thin", (), (walls, trim, stucco, bare))):
+            floor = {"X-SP-094": row("X-SP-094", text)}
+            for coat_row in fixed:
+                self.assertEqual(materials.spec_wide_floor(coat_row, floor), "", (text, coat_row.statement))
+            for coat_row in floored:
+                self.assertEqual(materials.spec_wide_floor(coat_row, floor),
+                                 f"X-SP-094 adds coats or sets a minimum across the spec, so {coat_row.claim_id}'s count "
+                                 "is not a fixed one", (text, coat_row.statement))
+        self.assertEqual(materials.surfaces("Gutters, downspouts and wood doors; Masonry/Stucco"),
+                         {"gutter", "downspout", "wood", "door", "masonry", "stucco"})
+
     def test_a_sealant_is_a_length_over_a_rate_per_tube_with_no_coats(self):
         c = materials.order_claim("X-MT-03", SEALANT, 2, 2, BY_ID)
         self.assertEqual((c.value, c.value_num, c.unit, c.calc, c.flag, c.statement, c.division),

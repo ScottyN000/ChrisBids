@@ -82,11 +82,14 @@ FINISH_WORD = re.compile(r"\b(?:finish(?:es)?|final|top|topcoats?|intermediate|s
 # stays one coat.
 # Words after "in" that make a small number a tool or part size, not an added coat ("9 in rollers", "2 in diameter").
 TOOL_WORDS = r"diameter|dia|nap|rollers?|brush(?:es)?"
-# A small number after a label word or another number is that label's ("Part 3 for", "Section 09 01 90 for", "color 2 at").
-# The list is knowingly incomplete: a label it misses only costs a refusal, never a figure.
-LABEL_WORDS = ("part", "section", "division", "article", "note", "table", "sheet", "detail", "item", "no.", "color", "colour",
-               "level", "floor", "phase", "building", "unit", "type", "class", "grade", "step", "zone", "area", "figure",
-               "page", "paragraph", "view", "fig.", "room", "door", "elevation", "schedule", "exhibit",
+# A small number after a label word or another number is that label's ("Part 3 for", "Section 09 01 90 for", "Sheet 2 at").
+# The list cuts both ways. A label it misses costs a refusal, never a figure; a word on it hides an added coat, keeping
+# a firm count. So it holds only document references, after which a number is never a count. A place or thing a count
+# can follow ("high-traffic area 2 at walls", "doors 2 at edges", "color 2 at accent walls") is left off: "Level 2 at"
+# then refuses, the safe way. A number before it hides an added coat the same way, and is kept because a number
+# after a number is far likelier the end of a label ("Section 09 01 90 for", "Detail 5 2 at") than a count.
+LABEL_WORDS = ("part", "section", "division", "article", "note", "table", "sheet", "detail", "item", "no.", "figure",
+               "page", "paragraph", "view", "fig.", "schedule", "exhibit",
                "than")   # "more than two in exterior exposures" compares, and HEDGE reads it as a floor
 NOT_LABELLED = "".join(rf"(?<!\b{re.escape(w)} )" for w in LABEL_WORDS) + r"(?<!\d )"
 MORE = re.compile(rf"\b(?:second|third|fourth|additional|extra|another|plus|further|double|(?<!\bor )(?<!\band )more)[\s-]+(?:(?:[1-9]\d*|one|two|three|four|five|six)\s+)?{ROLE}coats?\b"
@@ -128,7 +131,10 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b|\b(?:more than|in e
 # coats; apply more as required", "2 coats; deep colors may require more", and, since code
 # cannot tell whose work the hedge is, "2 coats; remove loose plaster, or as required by the
 # Architect" too: the safe direction, a flagged order with no figure that the estimator settles,
-# never wrong gallons; "2 coats. Where required, back-prime trim" keeps the count); a hedge before
+# never wrong gallons; "2 coats. Where required, back-prime trim" keeps the count). An added coat
+# in a later sentence ("Accent color SW6258: additional coat", "Apply extra paint at repairs") floors
+# every count before it in the part whatever product it names, since it is about coats either way
+# (a colour number reads like a product code). A hedge before
 # any count ("B66 as needed, then 1 coat B53", "10 ft or more above grade: B53, 2 coats") says
 # nothing about coats. A bare "or more" that follows another figure directly bounds that figure ("2
 # coats on surfaces 10 ft or more above grade"), and "more than" is a comparison ("more than 10 ft

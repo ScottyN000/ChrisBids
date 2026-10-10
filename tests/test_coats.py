@@ -377,13 +377,17 @@ class CoatCountCase(unittest.TestCase):
         b53 = row("X-WEB-010", "B53 data sheet", method="fetched", role="code", source="WEB", tag="B53 enamel")
         firm, floor = (2, ""), (None, "C states a minimum coat count for B53, not a fixed one; it does not settle this product's")
         loose = (None, "C does not tie a coat count to one product; which is this product's is not settled")
+        added = (None, "C states a coat count for B53 and more coats in places; it does not settle this product's")
         cases = [
             # 1, 6: a small number before at/on/over/for/where/in/more is an added coat unless a label word or a tool size owns it
             ("B53, 1 coat; 2 in high-traffic areas", loose), ("B53, 1 coat; 2 in deep colors", loose),
             ("B53, 1 coat; apply two at patched areas", loose), ("B53, 1 coat; 2 at patched areas", loose),
             ("B53, 2 coats; use 2 in diameter brushes", firm), ("B53, 2 coats with 3 in rollers", firm),
             ("B53, 2 coats; use 2 in. rollers", firm), ("B53, 2 coats, see Part 3 for prep", firm),
-            ("B53, 2 coats, see No. 2 at the end", firm), ("B53, 2 coats, color 2 at entries", firm),
+            ("B53, 2 coats, see No. 2 at the end", firm), ("B53, 2 coats, see Sheet 2 at the end", firm),
+            # a place or thing a count can follow is no label: "area 2 at walls" may be two coats, so the count refuses
+            ("B53, 2 coats, color 2 at entries", added), ("B53, 1 coat; high-traffic area 2 at walls", loose),
+            ("B53, 2 coats, Level 2 at stairs", added), ("B53, 2 coats, see Detail 5 2 at the end", firm),
             ("B53, 2 coats, Section 09 01 90 for prep", firm),
             # 2: "in" is an inch only before a tool word, so "more than two in deep colors" hedges the count
             ("B53, 2 coats. High-traffic areas may need more than two in deep colors.", floor),

@@ -188,7 +188,6 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
         part_end = next((s[0] for s in spans[i + 1:] if not s[2]), len(text))
         starts = sentences(text, part_start, part_end)
         sentence = max(st for st in starts if st <= m.start())
-        sentence_end = min([st for st in starts if st > m.start()] + [part_end])
         before = [(p, e) for p, e in counted if sentence <= p < m.start()]
         if before:
             if BARE_MORE.fullmatch(m.group()) and BOUNDED.search(PRODUCT_CODE.sub(" ", text[before[-1][1]:m.start()])):

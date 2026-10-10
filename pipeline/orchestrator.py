@@ -211,7 +211,8 @@ def bid(packet: Path, job: str, out: Path, *, reader_client: ModelClient, takeof
         if fetcher is not None:
             result.results["web"] = webread.run(broker, job, reader_client, fetcher, table=web_table,
                                                     repeats=repeats)
-            result.results["materials"] = materials.run(broker, job, reader_client, repeats=repeats)
+            # the order step reconciles rows from three agents, so it runs on the client Takeoff uses (Sonnet)
+            result.results["materials"] = materials.run(broker, job, takeoff_client, repeats=repeats)
         result.scope = scope_writer.run(broker, job, scope_client, phrase_library, repeats=repeats)
         scope_writer.write(result.scope, out)
         result.audit = auditor.run(

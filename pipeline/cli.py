@@ -205,7 +205,8 @@ def cmd_web(a) -> int:
         return 3
     # the Materials agent's second job: order rows over the sheets it just read and the fixture's figures
     data, _ = fixtures.read_fixture(Path(a.fixture))
-    orders = materials.run(broker, data["job"], client, repeats=a.repeats)
+    order_client = live.LiveClient(model=a.order_model, effort=a.effort or None, record=out / "recordings")
+    orders = materials.run(broker, data["job"], order_client, repeats=a.repeats)
     order_gate = materials.gate(orders, data["rows"])
     report = "\n".join([result.text(), gate.text(), orders.text(), order_gate.text()])
     print(report)
@@ -332,6 +333,8 @@ def main(argv=None) -> int:
     p.add_argument("--repeats", type=int, default=2)
     p.add_argument("--model", default="claude-haiku-5-5",
                    help="fetch a page, extract a quoted clause or rate: Haiku (architecture p.13)")
+    p.add_argument("--order-model", default="claude-sonnet-5-5",
+                   help="the order step reconciles spec, takeoff and page rows: Sonnet, as Takeoff")
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
     p.set_defaults(func=cmd_web)

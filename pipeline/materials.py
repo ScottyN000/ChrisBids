@@ -1,26 +1,33 @@
-"""Materials order rows: the quantity a takeoff figure and a data sheet rate give (architecture p.4, p.17).
+"""Materials order rows: the quantity a takeoff figure and a data sheet rate give (architecture p.4, p.16).
 
 The Materials agent's second job, after reading the data sheets (webread.py):
 "product data sheet figures (spread rate, yield, pack size), order quantities"
 (p.4). It reads ledger rows, never documents or pages. The model's one job is
 to say, for each product the job's rows name, which rows the order rests on:
 the quantity row it covers (a takeoff area or count, the allowance it goes into,
-or the FIELD row that says it will be measured), the number of coats the spec gives, the spec's own
-coverage row when there is one (the spec's stated rate takes precedence over
-the data sheet, p.17) and the fetched data-sheet row. Code works the quantity
-out, `{AREA} * coats / {RATE}`, at both ends of a rate stated as a range, and
-writes it as a `fetched` material row citing the sheet, the only method the
-access matrix lets Materials write (p.11). A product with no data-sheet row in
-the ledger gets no row, and the run says so; a quantity that waits on a FIELD
-row, a coat count the spec does not give or a rate nobody stated is written
-without a figure, flagged unverified, saying what is missing.
+or the FIELD row that says it will be measured), the clause row that states the
+coat count, the spec's own coverage row when there is one (the spec's stated
+rate takes precedence over the data sheet, p.16) and the fetched data-sheet
+row. Code checks that those rows fit together (the quantity's unit is the
+rate's numerator; a count is a counted row in each; the coat row states one
+count), works the quantity out, `{AREA} * coats / {RATE}` for a coating and
+`{Q} / {RATE}` for a mortar, sealant or adhesive, at both ends of a rate stated
+as a range, and writes it as a `fetched` material row citing the sheet, the
+only method the access matrix lets Materials write (p.11). The row is named
+after the sheet's page, never in the model's words. A product with no
+data-sheet row in the ledger gets no row, and the run says so; a quantity that
+waits on a FIELD row, a coat count no clause gives or a rate nobody stated is
+written without a figure, flagged unverified, saying what is missing.
 
 The model is called once per bid, as one stateless unit holding the rows, read
-`repeats` times. Items are compared across runs by the rows they rest on; an
-item that not every run produced is written flagged unverified, never dropped
-or chosen. Scaled and observed rows are never shown (p.6), and a rate, a yield,
-a waste factor or a spare count is never a number in a formula: it is a row or
-it is nothing.
+`repeats` times, on the client the Orchestrator gives it (the Sonnet client
+Takeoff uses: the step reconciles rows from three agents, which the frugality
+rule puts on Sonnet, p.13 placing Materials on Haiku for its page reads).
+Items are compared across runs by the rows they rest on; an item that not
+every valid run produced is written flagged unverified, never dropped or
+chosen. Scaled and observed rows are never shown (p.6), and a rate, a yield, a
+coat count, a waste factor or a spare count is never a number from the model:
+it is a row or it is nothing.
 """
 from __future__ import annotations
 
@@ -33,16 +40,25 @@ from .broker import Broker
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
 from .readers.rows import Unit
-from .schema import Claim, LedgerError
+from .schema import CalcError, Claim, LedgerError
+from .takeoff import _join, current
 
 NAME = "materials"
 PRINCIPAL = "materials"
 # The quantity a product is ordered in, and the word a rate's unit ends with
 # that names it ("sq ft/gal", "cu ft per bag", "LF/tube").
 UNITS = {"gal": "gal", "bags": "bag", "tubes": "tube", "cartridges": "cartridge", "each": ""}
-# One container under two names: a sealant's tube is an adhesive's cartridge. The
-# gate reads them as one unit (the repaint's hand bid says tubes, the run said cartridges).
-SAME_UNIT = {"cartridges": "tubes"}
+# The quantity units a rate's numerator may name, each under the one spelling
+# code compares ("sq ft/gal" covers a row in SF; "LF/tube" a row in lin ft).
+UNIT_WORDS = {
+    "sq ft": ("sq ft", "sqft", "sq. ft", "sf", "square feet", "square foot", "ft2", "sq feet"),
+    "lf": ("lf", "lin ft", "lin. ft", "linear feet", "linear foot", "ft", "feet", "foot"),
+    "cu ft": ("cu ft", "cf", "cu. ft", "cubic feet", "cubic foot", "ft3"),
+    "each": ("each", "ea", "pcs", "pieces", "count"),
+}
+# How a clause states a coat count: "2 coats", "two finish coats", "coats: 1".
+COATS = re.compile(r"\b(\d+|one|two|three|four|five|six)\s+(?:\w+\s+)?coats?\b|\bcoats?\s*[:=]\s*(\d+)", re.I)
+COAT_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 # One spare run, made only when a run was discarded or the runs name different
 # orders (the page reader does the same): an order one run saw is written flagged,
 # and the spare says whether a second run sees it too.
@@ -54,7 +70,6 @@ QUANTITY_METHODS = ("dimensioned", "counted", "FIELD")
 QUANTITY_ROLES = ("quantity", "allowance")
 # Rows the model is shown: what the sources say, the figures and the data sheets.
 SHOWN_METHODS = ("clause", "customer", "fetched", "dimensioned", "counted", "FIELD")
-COATS_MAX = 6
 ROW_ID = r"^[A-Z0-9-]{1,40}$"
 
 SCHEMA = {
@@ -70,8 +85,8 @@ SCHEMA = {
             "unit": {"enum": list(UNITS)},
             # The row the quantity covers: a takeoff figure, an allowance or the FIELD row for one; "" for none.
             "quantity": {"type": "string", "maxLength": 40},
-            # Coats the spec gives; 0 when it does not say.
-            "coats": {"type": "integer", "minimum": 0, "maximum": COATS_MAX},
+            # The clause row that states the coat count (a coating only); "" when none does.
+            "coats": {"type": "string", "maxLength": 40},
             # The spec's own coverage row for the product, "" when the spec gives none.
             "spec_rate": {"type": "string", "maxLength": 40},
             # The fetched data-sheet row for the product.
@@ -108,11 +123,6 @@ class OrderResult:
         return "\n".join(lines)
 
 
-def current(broker: Broker) -> list[Claim]:
-    gone = broker.ledger.superseded()
-    return [c for c in broker.ledger.claims() if c.claim_id not in gone]
-
-
 def inputs(claims: list[Claim]) -> list[Claim]:
     """The rows the model is shown: what the documents say (clause, customer),
     the data sheets and code pages (fetched), the figures (dimensioned, counted)
@@ -144,44 +154,117 @@ def figure(c: Claim | None) -> tuple[float, ...] | None:
     return schema.value_range(c.value)
 
 
-def rate_unit(c: Claim | None) -> str:
-    """The order unit a rate's unit names: `sq ft/gal` orders gallons, `cu ft per bag` bags."""
-    if c is None or figure(c) is None:
-        return ""
-    tail = re.split(r"\s*(?:/|\bper\b)\s*", c.unit.strip())[-1].strip().lower()
+def norm_unit(unit: str) -> str:
+    """A quantity unit under the one spelling code compares ("SF" and "sq. ft." are "sq ft")."""
+    t = re.sub(r"\s+", " ", unit.strip().lower().replace(".", ""))
+    for one, words in UNIT_WORDS.items():
+        if t == one or t in words:
+            return one
+    return t
+
+
+def rate_parts(c: Claim | None) -> tuple[str, str]:
+    """What a rate's unit says: (the quantity unit it covers, the order unit it is
+    per): "sq ft/gal" is ("sq ft", "gal"), "cu ft per bag" is ("cu ft", "bags").
+    A row with no figure, or a unit that names no order unit, gives ("", "")."""
+    if c is None or figure(c) is None or not c.unit:
+        return "", ""
+    parts = re.split(r"\s*(?:/|\bper\b)\s*", c.unit.strip())
+    if len(parts) < 2:
+        return "", ""
+    tail = parts[-1].strip().lower()
     for unit, word in UNITS.items():
         if word and tail.startswith(word):
-            return unit
-    return ""
+            return norm_unit(parts[0]), unit
+    return "", ""
+
+
+def rate_unit(c: Claim | None) -> str:
+    """The order unit a rate's unit names: `sq ft/gal` orders gallons, `cu ft per bag` bags."""
+    return rate_parts(c)[1]
+
+
+def rate_of(spec: Claim | None, sheet: Claim) -> Claim | None:
+    """The one rate an order rests on: the spec's own when it states one (p.16), else the sheet's."""
+    if spec is not None:
+        return spec
+    return sheet if rate_unit(sheet) else None
+
+
+def coat_count(c: Claim) -> tuple[int | None, str]:
+    """The coat count a clause row states, read by code: (count, "") when it states
+    exactly one; (None, why) when it states none, several (a row covering two
+    products), or says the count is not stated."""
+    text = f"{c.statement} {c.quote}"
+    if re.search(r"coats?\s+(?:is |are )?not stated|not stated", text, re.I):
+        return None, f"{c.claim_id} says the coat count is not stated"
+    found = []
+    for m in COATS.finditer(text):
+        word = (m.group(1) or m.group(2)).lower()
+        n = COAT_WORDS.get(word) or int(word)
+        if n not in found:
+            found.append(n)
+    if not found:
+        return None, f"{c.claim_id} states no coat count"
+    if len(found) > 1:
+        return None, f"{c.claim_id} states {len(found)} coat counts; it does not settle this product's"
+    return found[0], ""
+
+
+def cited_text(item: dict, by_id: dict[str, Claim]) -> str:
+    rows = [by_id[r] for r in (item["sheet"], item["quantity"], item["spec_rate"], item["coats"], *item["basis"])
+            if r and r in by_id]
+    return " ".join(f"{c.statement} {c.quote} {c.tag}" for c in rows)
 
 
 def item_errors(item: dict, by_id: dict[str, Claim], shown: str = "") -> list[str]:
     """Why code will not write this item. Empty means the rows it names bear it out."""
-    stray = [n for n in re.findall(r"\d+", item["product"]) if n not in re.findall(r"\d+", shown)]
-    if stray:
-        return [f"product {item['product']!r} carries {', '.join(stray)}, which is in none of the rows"]
     if not item["sheet"]:
         return ["names no data-sheet row; a product with none gets no order row"]
-    named = [item["sheet"], item["quantity"], item["spec_rate"], *item["basis"]]
+    named = [item["sheet"], item["quantity"], item["spec_rate"], item["coats"], *item["basis"]]
     unknown = [r for r in named if r and r not in by_id]
     if unknown:
         return [f"names {', '.join(unknown)}, which is not a row it was shown"]
+    # a product code the model wrote must be in the rows the item cites, not just somewhere in the ledger
+    stray = [n for n in re.findall(r"\d+", item["product"]) if n not in re.findall(r"\d+", cited_text(item, by_id))]
+    if stray:
+        return [f"product {item['product']!r} carries {', '.join(stray)}, which is in none of the rows it cites"]
     sheet = by_id[item["sheet"]]
     if sheet.method != "fetched" or not sheet.url:
         return [f"sheet {sheet.claim_id} is not a fetched row with a URL"]
     q = by_id.get(item["quantity"]) if item["quantity"] else None
-    if item["quantity"] and (q.method not in QUANTITY_METHODS or q.role not in QUANTITY_ROLES):
-        return [f"quantity {q.claim_id} is a {q.method} {q.role} row, not a takeoff figure, an allowance or a FIELD row"]
+    if q is not None:
+        if q.method not in QUANTITY_METHODS or q.role not in QUANTITY_ROLES:
+            return [f"quantity {q.claim_id} is a {q.method} {q.role} row, not a takeoff figure, an allowance or a FIELD row"]
+        if q.method != "FIELD" and figure(q) is None:
+            return [f"quantity {q.claim_id} carries no figure"]
     spec = by_id.get(item["spec_rate"]) if item["spec_rate"] else None
-    if spec is not None and (spec.method != "clause" or figure(spec) is None or not spec.unit):
-        return [f"spec_rate {spec.claim_id} is not a clause row stating a rate"]
-    rate = spec or (sheet if figure(sheet) is not None and sheet.unit else None)
-    if item["unit"] != "each":
+    if spec is not None and (spec.method != "clause" or not rate_unit(spec)):
+        return [f"spec_rate {spec.claim_id} is not a clause row stating a rate per gallon, bag, tube or cartridge"]
+    coats = by_id.get(item["coats"]) if item["coats"] else None
+    if coats is not None:
+        if item["unit"] != "gal":
+            return [f"coats apply to a coating ordered by the gallon, not to {item['unit']}"]
+        if coats.method not in ("clause", "customer"):
+            return [f"coats {coats.claim_id} is a {coats.method} row, not a clause"]
+        n, why = coat_count(coats)
+        if n is None:
+            return [f"coats {why}"]
+    if item["unit"] == "each":
+        if spec is not None:
+            return ["orders each, so no rate applies"]
+        # a count is a counted row in each, or the FIELD row that will count it; an area or a length is never a count
+        if q is not None and q.method != "FIELD" and (q.method != "counted" or norm_unit(q.unit) != "each"):
+            return [f"orders each, but {q.claim_id} is a {q.method} row in {q.unit or 'no unit'}, not a count"]
+        return []
+    rate = rate_of(spec, sheet)
+    if rate is not None:
         # no rate at all is not refused: the row is written with no figure, flagged, saying so (order_claim)
-        if rate is not None and rate_unit(rate) != item["unit"]:
+        covers, per = rate_parts(rate)
+        if per != item["unit"]:
             return [f"orders {item['unit']} but the rate {rate.claim_id} is per {rate.unit!r}"]
-    elif spec is not None:
-        return ["orders each, so no rate applies"]
+        if q is not None and q.unit and norm_unit(q.unit) != covers:
+            return [f"quantity {q.claim_id} is in {q.unit}, but the rate {rate.claim_id} covers {covers}"]
     return []
 
 
@@ -191,29 +274,24 @@ def item_key(item: dict) -> tuple:
     return (item["unit"], item["quantity"], item["coats"], item["spec_rate"], item["sheet"])
 
 
-def vote(runs: list[list[dict]]) -> list[tuple[dict, int]]:
-    """(first item, runs that produced it) per distinct order, in first-seen order."""
-    order, seen = [], {}
-    for items in runs:
-        this_run = set()
+def vote(runs: list[list[dict]]) -> tuple[list[tuple[dict, int]], list[str]]:
+    """(first item, runs that produced it) per distinct order, in first-seen order,
+    and a note for each later item in a run that named an order already named
+    in that run (two wordings of one order give one row)."""
+    order, seen, dupes = [], {}, []
+    for n, items in enumerate(runs, 1):
+        this_run = {}
         for it in items:
             k = item_key(it)
             if k in this_run:
+                dupes.append(f"run {n}: {it['product']!r} names the same order as {this_run[k]!r}; one row")
                 continue
-            this_run.add(k)
+            this_run[k] = it["product"]
             if k not in seen:
                 seen[k] = [it, 0]
                 order.append(k)
             seen[k][1] += 1
-    return [(seen[k][0], seen[k][1]) for k in order]
-
-
-def _join(values) -> list[str]:
-    out = []
-    for v in values:
-        if v and v not in out:
-            out.append(v)
-    return out
+    return [(seen[k][0], seen[k][1]) for k in order], dupes
 
 
 def _fig(c: Claim) -> str:
@@ -222,64 +300,75 @@ def _fig(c: Claim) -> str:
 
 def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str, Claim]) -> Claim:
     """The material row an item gives: a figure when its rows carry one, else
-    the formula with what is missing named, flagged unverified."""
+    the formula with what is missing named, flagged unverified. The row is
+    named after the sheet's page (the page table's title), not the model's words."""
     sheet = by_id[item["sheet"]]
     q = by_id.get(item["quantity"]) if item["quantity"] else None
     spec = by_id.get(item["spec_rate"]) if item["spec_rate"] else None
-    rate = spec or (sheet if rate_unit(sheet) else None)
+    coat_row = by_id.get(item["coats"]) if item["coats"] else None
+    coats = coat_count(coat_row)[0] if coat_row is not None else None
+    rate = rate_of(spec, sheet)
     basis = [by_id[r] for r in dict.fromkeys(item["basis"]) if r in by_id]
-    coats = item["coats"]
+    cited = [c for c in [q, spec, coat_row, sheet, *basis] if c is not None]
     notes, calc, value, value_num = [], "", "", None
     if seen < runs:
         notes.append(f"seen in {seen} of {runs} runs")
-    shaky = [c.claim_id for c in [q, spec, sheet, *basis] if c is not None and c.flag]
+    shaky = [c.claim_id for c in cited if c.flag]
     if shaky:
         notes.append(f"uses flagged {', '.join(_join(shaky))}")
+    questions = _join(c.question for c in cited if c.question)
+    if questions:
+        notes.append(f"open question {', '.join(questions)}")
     if not sheet.quote:
         # the page was looked at and did not show the product (the repaint's "or equivalent" caulk, 2026-10-09)
         notes.append(f"the page {sheet.claim_id} cites quotes nothing for the product")
     if item["unit"] == "each":
-        how = f"{q.claim_id}" if q is not None else "no count row"
         if q is None:
+            how = "no count row"
             notes.append("no count row names how many")
         elif q.method == "FIELD":
+            how = f"count per {q.claim_id}"
             notes.append(f"the count waits on {q.claim_id} (FIELD)")
         else:
-            calc = f"{{{q.claim_id}}}"
+            calc, how = f"{{{q.claim_id}}}", f"count from {q.claim_id} ({q.method})"
     else:
-        how = (f"{q.claim_id if q is not None else 'FIELD'} x {coats or '?'} coat{'s' if coats != 1 else ''}"
-               f" / {rate.claim_id}" if rate is not None else "no rate")
+        per_coat = item["unit"] == "gal"
+        how = (f"{q.claim_id if q is not None else 'FIELD'}" + (f" x {coats or '?'} coat{'s' if coats != 1 else ''}" if per_coat else "")
+               + f" / {rate.claim_id}" if rate is not None else "no rate")
         if q is None:
             notes.append("no quantity row names what it covers")
         elif q.method == "FIELD":
             notes.append(f"the quantity waits on {q.claim_id} (FIELD)")
-        if not coats:
-            notes.append("the spec does not say how many coats")
+        if per_coat and coats is None:
+            notes.append("no clause states how many coats")
         if rate is None:
             notes.append("no row states a rate")
-        if q is not None and q.method != "FIELD" and coats and rate is not None:
-            calc = f"{{{q.claim_id}}} * {coats} / {{{rate.claim_id}}}"
+        if q is not None and q.method != "FIELD" and rate is not None and (coats or not per_coat):
+            calc = f"{{{q.claim_id}}} * {coats} / {{{rate.claim_id}}}" if per_coat else f"{{{q.claim_id}}} / {{{rate.claim_id}}}"
     if calc:
-        lo, hi = schema.evaluate(calc, by_id)
+        lo, hi = schema.evaluate(calc, by_id)     # CalcError reaches run(), which refuses the item
         value, value_num = schema.value_of(lo, hi)
         if item["unit"] == "each":
-            how = f"{_fig(q)} ({q.claim_id})"
+            how = f"{_fig(q)} ({q.claim_id}, {q.method})"
         else:
             shown = calc
             for c in (q, rate):
                 shown = shown.replace("{" + c.claim_id + "}", _fig(c))
             how = f"{shown.replace('*', 'x')} = {value} {item['unit']}"
     if spec is not None and rate_unit(sheet):
-        notes.append(f"the spec's rate ({spec.claim_id}) governs over the sheet's {_fig(sheet)} (p.17)")
+        # the precedence rule settles the choice (p.16); it is part of the derivation, not a doubt that flags the row
+        how += f"; the spec's rate ({spec.claim_id}, {spec.tag or spec.locator}) governs over the sheet's {_fig(sheet)}"
     derivation = "; ".join([how] + notes)
-    sources = _join(s for c in [q, *basis, spec] if c is not None for s in schema.sources_of(c.source_id))
+    sources = _join(s for c in [q, *basis, spec, coat_row] if c is not None for s in schema.sources_of(c.source_id))
+    name = sheet.tag or sheet.statement[:80]
     return Claim(
-        claim_id=claim_id, statement=f"{item['product'].strip()}: {derivation}",
+        claim_id=claim_id, statement=f"{name}: {derivation}",
         source_id=" + ".join(sources + ["WEB"]), locator=" and ".join(_join(c.locator for c in [*basis, spec] if c)),
         tag=" + ".join(_join([*(c.tag for c in basis), sheet.tag])), method="fetched", role="material",
         confidence="exact" if calc else "missing", value=value, value_num=value_num, unit=item["unit"],
         calc=calc, derivation=derivation, division=next((c.division for c in [*basis, q] if c and c.division), ""),
-        flag="unverified" if notes else "", url=sheet.url, retrieved=sheet.retrieved, quote=sheet.quote,
+        flag="unverified" if notes else "", question=questions[0] if questions else "",
+        url=sheet.url, retrieved=sheet.retrieved, quote=sheet.quote,
     )
 
 
@@ -299,11 +388,10 @@ def run(broker: Broker, job: str, client: ModelClient | None, *, repeats: int = 
     unit = unit_for(job, rows)
     by_id = {c.claim_id: c for c in rows}
     system = prompt(NAME)
-    valid, made = [], 0
+    valid = []
     for r in range(repeats + SPARES):
         if r >= repeats and len(valid) >= repeats and len({frozenset(item_key(i) for i in v) for v in valid}) == 1:
             break
-        made += 1
         result.calls += 1
         raw = client.complete(NAME, unit, system, SCHEMA, r)
         try:
@@ -326,8 +414,15 @@ def run(broker: Broker, job: str, client: ModelClient | None, *, repeats: int = 
         valid.append(kept)
     if not valid:
         result.unread.append(unit.unit_id)
-    for n, (item, seen) in enumerate(vote(valid), 1):
-        claim = order_claim(f"{job}-MT-{n:02d}", item, seen, made, by_id)
+    orders, dupes = vote(valid)
+    result.notes += dupes
+    for n, (item, seen) in enumerate(orders, 1):
+        claim_id = f"{job}-MT-{n:02d}"
+        try:
+            claim = order_claim(claim_id, item, seen, len(valid), by_id)
+        except CalcError as e:
+            result.refused.append(f"{claim_id}: {e}")
+            continue
         try:
             result.rows.append(writer.append(claim))
         except LedgerError as e:
@@ -364,12 +459,12 @@ CITED = re.compile(r"\b([A-Z]+-C-\d+)\b")
 def gate(result: OrderResult, fixture_rows: list[dict]) -> Gate:
     """For every material row of the fixture that cites a fetched page (a C-row
     named in its tag or statement, with a URL), the run must have an order row
-    in the fixture's unit citing a page the fixture holds for the job, that page
-    first, and with a figure exactly when the fixture has one, equal to it. A
+    in the fixture's unit (a tube is not a cartridge) citing a page the fixture holds for
+    the job, that page first, and with a figure exactly when the fixture has one, equal to it. A
     product has several pages (its evaluation report, its data sheet, the maker's
     letter), and the hand bid cited one of them; a run row citing another is
     noted, not missed. A row with the wrong figure is a wrong order and fails
-    the gate. A fixture order with no run row is a miss: safe, since the
+    the gate; a firm row where the hand bid flags its order is noted. A fixture order with no run row is a miss: safe, since the
     bid then has no figure for it, but incomplete, so at least ANSWERED of the
     compared orders must have one. A fixture order that cites no page is noted
     and left out: Materials writes fetched rows only (p.11)."""
@@ -378,10 +473,14 @@ def gate(result: OrderResult, fixture_rows: list[dict]) -> Gate:
     failures, notes, misses = [], [], []
 
     def same(c: Claim, unit: str) -> bool:
-        return SAME_UNIT.get(c.unit, c.unit) == SAME_UNIT.get(unit, unit)
+        return c.unit == unit
 
     def check(f: dict, rows: list[Claim]) -> None:
         unit, want = f.get("unit", "") or "", schema.format_value(f.get("value"))[0]
+        if f.get("flag") and not all(c.flag for c in rows):
+            # the estimator's doubt (a pending approval, a phased-out product) lives in an open question
+            # the run's rows may not cite; reported, since a firm row where the hand bid hedged is worth a look
+            notes.append(f"{f['id']}: the hand bid flags it {f['flag']}; the run's row is firm")
         if not want and all(c.value for c in rows):
             failures.append(f"{f['id']}: gives {rows[0].value} {unit} where the fixture waits on a FIELD measure")
         elif want and not any(c.value == want for c in rows):

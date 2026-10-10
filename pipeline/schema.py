@@ -227,14 +227,18 @@ class CalcError(ValueError):
     """A calc that cannot be replayed: a missing input, a bad expression, a zero divisor."""
 
 
+class MissingInput(CalcError):
+    """A calc input that is not a row, or a row with no figure."""
+
+
 def ends_of(ref: str, by_id: dict[str, Claim]) -> tuple[float, ...]:
     """The figure a calc input gives: one end, or the two ends of a range."""
     src = by_id.get(ref)
     if src is None:
-        raise CalcError(f"calc references unknown claim {ref}")
+        raise MissingInput(f"calc references unknown claim {ref}")
     span = (src.value_num,) if src.value_num is not None else value_range(src.value)
     if span is None:
-        raise CalcError(f"calc input {ref} has no numeric value")
+        raise MissingInput(f"calc input {ref} has no numeric value")
     return span
 
 
@@ -324,9 +328,9 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
             errors.append(f"{c.claim_id}: calc names range input {ref} more than once; write it once (2 * {{{ref}}})")
     try:
         lo, hi = evaluate(c.calc, by_id)
+    except MissingInput as e:
+        return [f"{c.claim_id}: {e}"]
     except CalcError as e:
-        if str(e).startswith("calc input") or str(e).startswith("calc references"):
-            return [f"{c.claim_id}: {e}"]
         return errors + [f"{c.claim_id}: {e}"]
     if hi - lo <= 1e-9:
         if c.value_num is None or abs(lo - c.value_num) > 1e-9:

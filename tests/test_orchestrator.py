@@ -247,8 +247,11 @@ class BidCase(unittest.TestCase):
             self.assertEqual([s["agent"] for s in plan["steps"] if s["run"]],
                              ["drawing", "spec", "photo", "correspondence", "takeoff", "codes", "materials",
                               "scope_writer", "auditor"])
-            self.assertEqual(len(clients[0].calls), (6 + 2 + 1 + 1 + 1 + 1) * 2)   # readers, web, order step
-            self.assertEqual([c[2] for c in clients[1].calls], [0, 1])      # Takeoff: the wall run is an input
+            self.assertEqual(len(clients[0].calls), (6 + 2 + 1 + 1 + 1) * 2)   # readers and the web pages (Haiku)
+            # the order step reconciles the spec, the takeoff and the sheet, so it runs on the takeoff client (p.13)
+            self.assertEqual([c[:2] for c in clients[1].calls],
+                             [("takeoff", "J#takeoff")] * 2 + [("materials", "J#materials")] * 2)
+            self.assertEqual([c[2] for c in clients[1].calls[:2]], [0, 1])      # Takeoff: the wall run is an input
             self.assertEqual(clients[2].calls, [("scope_writer", "J#scope", 0), ("scope_writer", "J#scope", 1)])
             self.assertEqual(res.results["takeoff"].calls, 2)
             self.assertEqual(res.audit.verdicts, {"pass": 3, "unverified": 4})

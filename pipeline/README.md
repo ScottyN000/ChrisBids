@@ -297,36 +297,50 @@ The gate runs in `live.yml` (`part: web`).
 [`materials.py`](materials.py) is the Materials agent's second job: "product
 data sheet figures (spread rate, yield, pack size), order quantities" (p.4). It
 reads ledger rows, never documents or pages. After the pages are read, the model
-(Haiku) is shown the job's current rows (what the documents say, the figures,
-the FIELD rows for what will be measured, the fetched data sheets; never a scaled
-or observed row, p.6) and says, for each product the rows name, which rows its
-order rests on: the data-sheet row, the quantity row it covers (a takeoff area or
-count, the allowance it goes into, or the FIELD row for one), the coats the spec gives (0 when it does not
-say) and the spec's own coverage row when there is one, since the spec's stated
-rate takes precedence over the data sheet's (p.17). Code works the quantity out,
-`{AREA} * coats / {RATE}`, at both ends of a rate stated as a range, and writes
-it as a `fetched` material row citing the sheet (URL, date, quote), the only
-method the access matrix lets Materials write (p.11). A count (anchors, bolts)
-cites its count row. A product with no data-sheet row in the ledger gets no row,
-and the run says so; an order that waits on a FIELD row, a coat count the spec
-does not give or a rate nobody stated is written with no figure, flagged
-unverified, naming what is missing; so is one whose page did not show the
-product (a fetched row with no quote). Items are compared across the runs by
-the rows they rest on and their unit, not the product's wording; when the runs
-name different orders, or a run was discarded, one spare run is made (as the
-page reader does); an order not every run saw is written flagged unverified,
-never dropped or chosen. A rate, a yield, a waste factor or a spare count is
-never a number in a formula: it is a row or it is nothing, and the schema and
+is shown the job's current rows (what the documents say, the figures, the FIELD
+rows for what will be measured, the fetched data sheets; never a scaled or
+observed row, p.6) and says, for each product the rows name, which rows its
+order rests on: the data-sheet row, the quantity row it covers (a takeoff area,
+length, volume or count, the allowance it goes into, or the FIELD row for one),
+the clause row that states the coat count (a coating only) and the spec's own
+coverage row when there is one, since the spec's stated rate takes precedence
+over the data sheet's (p.16). The model writes no number: code reads the coat
+count from the clause it names (one count, or the item is refused), checks that
+the quantity row's unit is what the rate covers (an area for a rate per gallon
+over square feet, a length for a rate per tube over linear feet) and that a part
+in `each` rests on a counted row in each, works the quantity out, `{AREA} *
+coats / {RATE}` for a coating and `{Q} / {RATE}` for a mortar, sealant or
+adhesive, at both ends of a rate stated as a range, and writes it as a `fetched`
+material row citing the sheet (URL, date, quote), the only method the access
+matrix lets Materials write (p.11). The row is named after the sheet's page (the
+page table's title), never in the model's words, and a product code the model
+writes must appear in the rows it cites. A count (anchors, bolts) cites its
+count row and says so (`count from NAN-Q-003 (counted)`); an open question or a
+flag on any row the order cites is carried onto the order. A product with no
+data-sheet row in the ledger gets no row, and the run says so; an order that
+waits on a FIELD row, a coat count no clause states or a rate nobody stated is
+written with no figure, flagged unverified, naming what is missing; so is one
+whose page did not show the product (a fetched row with no quote). Items are
+compared across the valid runs by the rows they rest on and their unit, not the
+product's wording (a second wording of one order in a run is noted, not written);
+when the runs name different orders, or a run was discarded, one spare run is
+made (as the page reader does); an order not every valid run saw is written
+flagged unverified, never dropped or chosen. The step runs on the client Takeoff
+uses (Sonnet): it reconciles rows from the spec, Takeoff and the page reader,
+which the frugality rule puts on Sonnet, while the page reads stay on Haiku
+(p.13). A rate, a yield, a coat count, a waste factor or a spare count is never
+a number from the model: it is a row or it is nothing, and the schema and
 [`schema.py`](schema.py) (`MATERIAL_OK`) hold the model and the broker to it.
 
 Golden gate, live only, in `python -m pipeline web` after the pages: for every
 material row of the fixture that cites a fetched page, the run must have an order
-row in the fixture's unit citing a page the fixture holds for the job (that page
-first; a product has several pages and the hand bid cited one of them, so a row
-citing another is noted), with a figure exactly when the fixture has one and
-equal to it; 80% of the compared orders must have a row. A
-fixture order that cites no page (the hand-made bid's angle footage, its bolts)
-is noted and left out: Materials writes fetched rows only.
+row in the fixture's unit (a tube is not a cartridge) citing a page the fixture
+holds for the job (that page first; a product has several pages and the hand bid
+cited one of them, so a row citing another is noted), with a figure exactly when
+the fixture has one and equal to it; a firm run row where the hand bid flags its
+order is noted; 80% of the compared orders must have a row. A fixture order that
+cites no page (the hand-made bid's angle footage, its bolts) is noted and left
+out: Materials writes fetched rows only.
 
 Not built yet: the cold-cache search, the 90-day cache for federal regulations,
 and the edition, effective-date, discontinuation and ESR-expiry comparisons

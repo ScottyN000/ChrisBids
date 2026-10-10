@@ -327,21 +327,25 @@ judged. A count for a system ("2-coat system") or split across products ("two
 coats including primer", "two coats (one primer, one finish)") is nobody's
 count, and a floor ("two coats, or more as required for full hide", "at least
 two (2) coats", "no less than two coats", "2 coats minimum", "two coats or as
-required", whatever follows) is not a fixed count; a floor tail ("or more",
-"and more", "as/if/where required", "more if needed") is a floor on the count
-before it in its stretch ("two coats of B53, or more as required for full
-hide", "two coats (or as required)", "2 coats at 350 sq ft/gal or as required
-for full hide"), or on the last count before it in the same part when its own
-stretch holds nothing but an application verb before it and no stretch between
-names a product ("two coats; or more as required", "2 coats; then apply more as
-required for full hide", "2 coats over sanded wood; apply more as required"),
-while a stretch with its own work keeps its tail ("2 coats; remove loose
-plaster, or as required by the Architect", "B66 as needed, then 1 coat B53"),
-a bare "or more" that follows another figure directly bounds that figure ("2
-coats on surfaces 10 ft or more above grade"), and a tail before any count
-("10 ft or more above grade: B53, 2 coats") says nothing about coats; "apply
-more coats as needed", "more paint as required", "recoat as required" and "a
-third coat where needed" add coats; a floor word
+required", whatever follows) is not a fixed count; a hedge after a count in
+its sentence ("or more", "and more", "additional", "extra", "further", "as/if/
+where required", whatever follows and whatever work it governs, since code
+cannot tell the count's work from another's within one sentence: "two coats of
+B53, or more as required for full hide", "2 coats over the prepared surface, or
+more", "2 coats, caulk joints as required") makes the count a floor; a hedge in
+a later sentence of the same part (sentences end at ";" or a full stop) makes
+the last count before it a floor only when its own sentence holds nothing but
+an application verb, "or" or "and" before it ("2 coats; apply more as
+required", "2 coats; or as required", "2 coats. Then apply more if needed."),
+while a sentence with its own work keeps its hedge ("2 coats; remove loose
+plaster, or as required by the Architect", "B66 as needed, then 1 coat B53")
+and a hedge before any count ("10 ft or more above grade: B53, 2 coats") says
+nothing about coats; a bare "or more" that follows another figure directly
+bounds that figure ("2 coats on surfaces 10 ft or more above grade"); a
+ceiling ("up to two coats", "no more than two coats", "two coats maximum") is
+a range, as "1-2 coats" is; "apply more coats as needed", "additional paint as
+required", "recoat as required" and "a third coat where needed" add coats, and
+a spec section number ("Section 09 01 90 for") is not an added coat; a floor word
 followed by a figure ("2 coats, minimum of 3 mils"), or set off by a comma or
 parenthesis and followed by a thickness word ("2 coats (min. 2.0 mils DFT per
 coat)", "2 coats, minimum DFT 2.0 mils"), is a film thickness, not a floor on

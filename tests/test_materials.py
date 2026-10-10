@@ -281,12 +281,17 @@ class ItemCase(unittest.TestCase):
                      # a figure between the count and the tail claims it only when the tail follows it directly
                      "Example Flat B53, 2 coats at 350 sq ft/gal, or more as required for full hide", "Example Flat B53, 2 coats at 4 mils DFT each, or as required for full hide",
                      "Example Flat B53, 2 coats, color 7006, or more as required",
-                     # a tail in a later stretch bounds the count before it unless its own stretch names a product or a figure
+                     # a hedge in a later sentence bounds the last count before it when its sentence holds only an application verb, "or" or "and" before it
                      "Example Flat B53, 2 coats; apply more as required for full hide", "Example Flat B53, 2 coats. Apply more if needed.",
                      "Example Flat B53, 2 coats; then apply more as required for full hide", "Example Flat B53, 2 coats. Then apply more if needed.",
                      "Example Flat B53, 2 coats over sanded wood; apply more as required",
                      # the "as required" forms bound the work whatever figure stands between, with or without a comma
-                     "Example Flat B53, 2 coats at 350 sq ft/gal or more as required for full hide", "Example Flat B53, 2 coats at 4 mils DFT or as required for full hide"):
+                     "Example Flat B53, 2 coats at 350 sq ft/gal or more as required for full hide", "Example Flat B53, 2 coats at 4 mils DFT or as required for full hide",
+                     # a hedge after the count in its sentence is a floor whatever cut words stand between, and whatever work it governs
+                     "Apply two coats of Example Flat B53 over the prepared surface, or more as required for full hide", "Example Flat B53, 2 coats over sanded wood, or more as required",
+                     "Example Flat B53, 2 coats after sanding, or as required for full hide", "Example Flat B53, 2 coats, caulk joints as required",
+                     "Example Flat B53, 2 coats; or as required for full hide", "Example Flat B53, 2 coats. Or as needed.",
+                     "Example Flat B53, 2 coats over existing paint; apply more as required for full hide"):
             self.assertEqual(materials.coat_count(row("C", text), b53),
                              (None, "C states a minimum coat count for B53, not a fixed one; it does not settle this product's"), text)
         self.assertEqual(materials.coat_count(row("C", "Two coats, or more as required for full hide")),
@@ -295,8 +300,14 @@ class ItemCase(unittest.TestCase):
                          (None, "C states a coat count and more coats in places; it does not settle this product's"))
         for text in ("Example Flat B53, 2 coats; apply more coats as needed", "Example Flat B53, 2 coats; recoat more where needed",
                      "Example Flat B53, 2 coats; apply more paint as required for full hide", "Example Flat B53, 2 coats; recoat as required for full hide",
-                     "Example Flat B53, 2 coats; a third coat where needed for full hide"):
+                     "Example Flat B53, 2 coats; a third coat where needed for full hide", "Example Flat B53, 2 coats. Apply additional paint as required for full hide.",
+                     "Example Flat B53, 2 coats; apply extra material where needed", "Example Flat B53, 2 coats; apply additional coating as required"):
             self.assertIsNone(materials.coat_count(row("C", text), b53)[0], text)
+        # a ceiling is a range, as "1-2 coats" is
+        for text in ("Example Flat B53, up to two coats", "Example Flat B53, no more than two coats", "Example Flat B53, two coats maximum", "Example Flat B53, a maximum of 2 coats",
+                     "Example Flat B53, 2 coats (max.)"):
+            self.assertEqual(materials.coat_count(row("C", text), b53), (None, "C states a range of coats for B53; it does not settle this product's"), text)
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 2 coats, maximum 4 mils DFT per coat"), b53), (2, ""))
         for text in ("Example Flat B53, 2 coats (min. 2.0 mils DFT per coat)", "Example Flat B53, two coats, minimum 4 mils DFT each",   # a film thickness, not a floor
                      "Example Flat B53, 2 coats, at least 3 mils dry", "Example Flat B53, 2 coats, minimum of 3 mils",
                      "Example Flat B53, 2 coats, minimum DFT 2.0 mils per coat", "Example Flat B53, 2 coats, min. dry film thickness 4 mils",
@@ -305,6 +316,7 @@ class ItemCase(unittest.TestCase):
                      "Example Flat B53, 2 coats on surfaces 10 ft or more above grade", "Example Flat B53, 2 coats where 50% or more of the surface is bare",
                      # a later stretch with its own work keeps its tail
                      "Example Flat B53, 2 coats; remove loose plaster, or as required by the Architect", "Example Flat B53, 2 coats; caulk joints as required",
+                     "Example Flat B53, 2 coats; refer to Section 09 01 90 for surface preparation.", "Example Flat B53, 2 coats per Section 9 for all trim",
                      # a primed substrate names no primer, and "priming" does only as a label
                      "Previously primed surfaces: Example B53, 2 coats", "Shop-primed steel: Example B53, two coats", "After priming, apply Example B53, 2 coats"):
             self.assertEqual(materials.coat_count(row("C", text), b53), (2, ""), text)

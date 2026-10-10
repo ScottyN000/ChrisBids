@@ -116,10 +116,10 @@ FINISH_WORD = re.compile(r"\b(?:finish(?:es)?|final|top|topcoats?|intermediate|s
 # nothing. A number counts only before at/on/over/for/where/in/more, so "1 coat (10 year)"
 # stays one coat.
 MORE = re.compile(rf"\b(?:second|third|fourth|additional|extra|another|plus|further|double|(?<!\bor )(?<!\band )more)[\s-]+(?:(?:[1-9]\d*|one|two|three|four|five|six)\s+)?{ROLE}coats?\b"
-                  rf"|\bmore\s+(?:paint|material|product)\b"
+                  rf"|\b(?:more|additional|extra|further)\s+(?:paint|material|product|coating)s?\b"
                   rf"|\bre-?coat\b(?:\s+[A-Za-z]+){{0,3}}\s+(?:at|where|areas|repairs)\b"   # not "recoat after 4 hours at 77F", a time
                   rf"|\bre-?coat\s+(?:as|if|where|when)\s+(?:required|needed|necessary)\b"
-                  rf"|(?<![\w./-])([1-9]\d*|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)
+                  rf"|(?<![\w./-])(?<!\d )(?<!Section )(?<!Division )(?<!Sect\. )(?<!Div\. )([1-9]\d*|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)   # not a spec section number
 # A count split across products, or a system's count ("2-coat system including primer", "two
 # coats (one primer, one finish)", "2-coat system"): whose coats they are is not settled.
 SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:prime|primer|priming|finish|topcoat|coats?)\b"
@@ -139,21 +139,27 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b"
                    rf"|\b(?:at least|a minimum of|minimum(?: of)?|not less than|no less than|no fewer than)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
                    rf"|\bcoats?\s*[,(]\s*(?:minimum|min|at least)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
                    rf"|\bcoats?\s+(?:minimum|min|at least)\b(?!\.?\s*(?:{FIGURE}))", re.I)
-# A floor tail ("or more", "and more", "as/if/where required/needed/necessary", "more as required",
-# whatever follows) is a floor on the count that comes before it in the same stretch ("two coats of
-# B53, or more as required for full hide", "two coats (or as required)", "2 coats at 350 sq ft/gal
-# or as required for full hide"), or on the last count before it in the same part when its own
-# stretch holds nothing but an application verb before it and no stretch between names a product
-# ("two coats; or more as required", "2 coats; apply more as required for full hide", "2 coats; then
-# apply more if needed", "2 coats over sanded wood; apply more as required"); a stretch of its own
-# ("2 coats; remove loose plaster, or as required by the Architect", "B66 as needed, then 1 coat
-# B53") speaks of its own work, not of coats. A bare "or more" that follows another figure directly
-# bounds that figure ("2 coats on surfaces 10 ft or more above grade"), while the "as required"
-# forms bound the work, whatever figure stands between. coat_mentions settles which.
-FLOOR_TAIL = re.compile(r"\b(?:or|and)\s+more\b|\b(?:more\s+(?:paint\s+|material\s+)?)?(?:as|if|where|when)\s+(?:required|needed|necessary)\b", re.I)
+# A hedge after a count in the same sentence ("or more", "and more", "additional", "extra", "further",
+# "as/if/where required/needed/necessary", whatever follows and whatever the hedge governs) makes the
+# count a floor, since code cannot tell the count's work from another's within one sentence ("two
+# coats of B53, or more as required for full hide", "2 coats over the prepared surface, or more",
+# "2 coats, caulk joints as required"); a hedge in a later sentence of the same part makes the last
+# count before it a floor only when its own sentence holds nothing but an application verb, or "or"
+# or "and", before it ("2 coats; apply more as required", "2 coats; or as required", "2 coats. Then
+# apply more if needed."), while a sentence with its own work keeps its hedge ("2 coats; remove loose
+# plaster, or as required by the Architect"), and a hedge before any count ("B66 as needed, then 1
+# coat B53", "10 ft or more above grade: B53, 2 coats") says nothing about coats. A bare "or more"
+# that follows another figure directly bounds that figure ("2 coats on surfaces 10 ft or more above
+# grade"). A ceiling ("up to two coats", "no more than two coats", "two coats maximum") is a range,
+# as "1-2 coats" is, with the film-thickness exception the floor words have. coat_mentions settles
+# which; sentences end at ";" or a full stop.
+HEDGE = re.compile(r"\b(?:or|and)\s+more\b|\b(?:more|additional|extra|further)\b|\b(?:as|if|where|when)\s+(?:required|needed|necessary)\b", re.I)
+CEILING = re.compile(rf"\b(?:up to|no more than|not more than|not to exceed|a maximum of|maximum(?: of)?|max\.?)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
+                     rf"|\bcoats?\s*[,(]\s*(?:maximum|max)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
+                     rf"|\bcoats?\s+(?:maximum|max)\b(?!\.?\s*(?:{FIGURE}))", re.I)
 BARE_MORE = re.compile(r"(?:or|and)\s+more", re.I)
-APPLY_LEAD = re.compile(r"[\s,;:.()\-\u2013]*(?:(?:apply|applying|add|adding|use|using|provide|providing|re-?coat)\s+)?", re.I)
-A_FIGURE = re.compile(r"\d|\b(?:one|two|three|four|five|six)\b", re.I)
+APPLY_LEAD = re.compile(r"[\s,;:.()\-\u2013]*(?:(?:then|or|and)\s+)?(?:(?:apply|applying|add|adding|use|using|provide|providing|re-?coat)\s+)?", re.I)
+SENTENCE = re.compile(r";|\.(?=\s|$)")
 # text ending in a figure and at most its unit words, which a bare "or more" then follows directly
 BOUNDED = re.compile(r"(?:\d+(?:[.,]\d+)*%?|\b(?:one|two|three|four|five|six)\b)(?:\s*(?:%|ft|feet|in|inches|mils?|DFT|WFT|sq\s*ft(?:/gal)?|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent)\b)*\s*$", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
@@ -307,7 +313,7 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
     (position, None) where it says the count is not stated, (position, "range")
     where it states a range or a choice of counts, and "more", "split" and "floor"
     where it adds coats, splits a count or sets a minimum (see MORE, SPLIT, FLOOR
-    and FLOOR_TAIL). `spans` are the text's stretches, from `stretches`; without
+    HEDGE and CEILING). `spans` are the text's stretches, from `stretches`; without
     them the whole text is one."""
     # a mention's position is its first word's, never the blank a label may begin with,
     # so it falls inside the stretch that holds it
@@ -326,23 +332,21 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
         for word in (w for w in (m.group(1), m.group(2), m.group(3)) if w):
             found.append((pos, COAT_WORDS.get(word.lower()) or int(word)))   # "two (2)" twice, the same count
     spans = spans or [(0, len(text), "", 0)]
-    for m in FLOOR_TAIL.finditer(text):
+    found += [(m.start(), "range") for m in CEILING.finditer(text)]
+    for m in HEDGE.finditer(text):
         i = next((i for i, (a, b, *_) in enumerate(spans) if a <= m.start() < b), None)
         if i is None:
             continue
-        a, b, opener, _ = spans[i]
-        before = [(p, e) for p, e in counted if a <= p < m.start()]
-        if not before and opener and APPLY_LEAD.fullmatch(text[a:m.start()]):
-            part_start = max(s[0] for s in spans[:i + 1] if not s[2])   # the part this stretch is in
-            before = [(p, e) for p, e in counted if part_start <= p < a]
-            if before and names_product(text[before[-1][1]:a]):
-                before = []   # a stretch between speaks of another product
-        if not before:
-            continue
-        between = PRODUCT_CODE.sub(" ", text[before[-1][1]:m.start()])
-        if BARE_MORE.fullmatch(m.group()) and BOUNDED.search(between):
-            continue   # "10 ft or more above grade" bounds the height
-        found.append((before[-1][0], "floor"))   # placed with the count it bounds
+        part_start = max(s[0] for s in spans[:i + 1] if not s[2])   # the part this hedge is in
+        sentence = max([part_start] + [x.end() for x in SENTENCE.finditer(text, part_start, m.start())])
+        before = [(p, e) for p, e in counted if sentence <= p < m.start()]
+        if before:
+            if BARE_MORE.fullmatch(m.group()) and BOUNDED.search(PRODUCT_CODE.sub(" ", text[before[-1][1]:m.start()])):
+                continue   # "10 ft or more above grade" bounds the height
+        elif sentence > part_start and APPLY_LEAD.fullmatch(text[sentence:m.start()]):
+            before = [(p, e) for p, e in counted if part_start <= p < sentence]
+        if before:
+            found.append((before[-1][0], "floor"))   # placed with the count it bounds
     return sorted(found, key=lambda f: f[0])
 
 

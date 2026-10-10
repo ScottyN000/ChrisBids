@@ -21,8 +21,8 @@ permissions:
   contents: read
 
 # A full run took about 45 minutes before Phase 3 and grows with the code; the
-# first Phase 3 run hit the old 90-minute limit. A newer push to the same branch
-# makes the older run moot, so it is cancelled rather than left holding a runner.
+# first Phase 3 run hit the old 90-minute limit. A run started by hand cancels a
+# scheduled one still going, rather than leaving two holding runners.
 concurrency:
   group: mutation-${{ github.ref }}
   cancel-in-progress: true

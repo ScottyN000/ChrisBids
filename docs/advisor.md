@@ -74,7 +74,8 @@ Alternate.
 Nantucket and Ocean Beach ledgers.
 
 **Every PR.** Combined mutation score of the mutants `tools/changed_mutants.py` picks
-(the functions it changes; a whole module when it changes module-level code) at or
+(the functions it changes; a whole module when it changes module-level code, a class
+decorator, or deletes a function; every module a test it weakens imports) at or
 above the floor in `tools/mutation_gate.py`, from a local run (the owner, 2026-10-09
 and 2026-10-10: narrowed from the whole of `pipeline/`, then moved out of Actions to
 save minutes; the weekly run on main runs every mutant); `docs/pipeline-dag.md` regenerated when the pipeline

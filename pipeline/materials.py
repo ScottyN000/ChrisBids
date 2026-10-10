@@ -97,16 +97,14 @@ PRODUCT_CODE = re.compile(r"(?<![A-Za-z0-9-])[A-Z]{1,4}-?\d{2,5}[A-Z]?(?![A-Za-z
 # parentheses stay inside their stretch, so "Finish coat (1 coat): Enamel, B53 series" is
 # one stretch. A cut can lose a count, or tie one to the code of its own narrower
 # stretch ("B53, 2 coats after B66" is B53's two coats); it never invents one.
-STRETCH = re.compile(r";|\.(?=\s|$)|\bor\b(?!\s+(?:an\s+)?(?:approved\s+)?(?:equal|equivalent)\b)"
+STRETCH = re.compile(r";|\.(?=\s|$)|\bor\b(?!\s+(?:an\s+)?(?:approved\s+)?(?:equal|equivalent)\b|\s+more\b)"
                      r"|\b(?:then|and|over|followed\s+by|after|before|prior\s+to)\b", re.I)
-# Words that name a product without a code, by its place in the system. Wording that speaks
-# of coats and names both a primer and a finish ("B53 finish with primer, 2 coats") holds two
-# products', so its count is tied to nothing: in a clause naming codes the words judged are
-# the stretch up to the end of the count's wording, or up to its code when the code follows
-# ("one coat of primer, B53"; not "one coat of X100 where the primer shows"); in a clause
-# naming none, the whole stretch. A stretch naming neither and no code ("Walls", "back-roll
-# the first") is about no product.
-COAT_END = re.compile(r"coats?\b", re.I)   # where a mention's own wording ends ("two finish coats")
+# Words that name a product without a code, by its place in the system. A stretch that speaks
+# of coats and names both a primer and a finish ("B53 finish with primer, 2 coats", "B53 with
+# one coat of primer", "two coats (primer and finish)") holds two products' wording, so its
+# count is tied to nothing; the whole stretch is judged, in a clause naming codes as in one
+# naming none. A stretch naming neither and no code ("Walls", "back-roll the first") is
+# about no product.
 PRIME_WORD = re.compile(r"\b(?:prime|primer|primers|sealer|conditioner|base coat|undercoat|undercoater|block filler|filler|surfacer)\b", re.I)
 FINISH_WORD = re.compile(r"\b(?:finish|final|top|topcoat|intermediate|stripe|enamel|satin|semi-gloss|gloss|eggshell|flat|paint|coating)\b", re.I)
 # A second count said without the word "coat", or an added coat ("one coat; two at patched
@@ -122,6 +120,11 @@ MORE = re.compile(rf"\b(?:second|additional|extra|another|plus|further|double)[\
 SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:prime|primer|finish|topcoat|coats?)\b"
                    rf"|\bcoats?[\s-]+system\b"
                    rf"|\b(?:[1-9]\d*|one|two|three|four|five|six)\s+(?:{ROLE_WORDS})\b(?![\s-]*coats?\b)", re.I)
+# A floor, not a count ("two coats, or more as required for full hide", "at least two coats",
+# "minimum of 2 coats", "2 coats minimum"): the count is not fixed, so no figure is written.
+FLOOR = re.compile(rf"\bor more\b|\bas (?:required|needed) for (?:full |complete )?(?:hide|coverage)\b"
+                   rf"|\b(?:at least|a minimum of|minimum(?: of)?|not less than|no fewer than)\s+(?:[1-9]\d*|one|two|three|four|five|six)[\s-]+{ROLE}coats?\b"
+                   rf"|\bcoats?\s+(?:minimum|at least|or more)\b", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
 # (a product, "Base coat as needed", or a step, "Scrape"), and one opened by "and" continues
 # a product named before it; so a count written after its code there ("B53 over B66 primer,
@@ -279,6 +282,7 @@ def coat_mentions(text: str) -> list[tuple[int, int | str | None]]:
     found += [(m.start(), None) for m in NOT_STATED.finditer(text)]
     found += [(m.start(), "more") for m in MORE.finditer(text)]
     found += [(m.start(), "split") for m in SPLIT.finditer(text)]
+    found += [(m.start(), "floor") for m in FLOOR.finditer(text)]
     for m in COATS.finditer(text):
         pos = m.start(1) if m.group(1) else m.start(3)   # the number's position
         if any(a <= pos < b for a, b in ranges):
@@ -331,6 +335,8 @@ def _settle(c: Claim, mentions: list[tuple[int, int | str | None]], whom: str = 
         return None, f"{c.claim_id} states a coat count{whom} and more coats in places; it does not settle this product's"
     if any(n == "split" for _, n in mentions):
         return None, f"{c.claim_id} states a coat count{whom} for a system or split across products; whose coats they are is not settled"
+    if any(n == "floor" for _, n in mentions):
+        return None, f"{c.claim_id} states a minimum coat count{whom}, not a fixed one; it does not settle this product's"
     left_open = any(n is None for _, n in mentions)
     if not mentions:
         return None, f"{c.claim_id} states no coat count{whom}"
@@ -361,11 +367,11 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     coats: two coats" gives the primer nothing). A sheet row naming no code is
     read as the clause's one code when every stretch names it or names no
     product; when a stretch names a product without a code, or the clause names
-    several, it settles nothing for that sheet. A count with a primer word in its
-    wording (the stretch up to the count, or up to its code when the code follows)
-    is read only for a primer-only sheet, and one with a finish word there is no
-    primer-only sheet's ("B53 with primer, 2 coats" may be the primer's two coats);
-    a count for a system or split across products ("2-coat system including
+    several, it settles nothing for that sheet. A count whose stretch names a
+    primer word is read only for a sheet that is a primer's alone (a primer word
+    and no finish word), and one whose stretch names a finish word is no such
+    sheet's ("B53 with primer, 2 coats" and "B53 with one coat of primer" may be
+    the primer's coats); a count for a system or split across products ("2-coat system including
     primer") settles nothing, see SPLIT."""
     parts = [c.statement, c.quote] if c.quote else [c.statement]
     text = SEP.join(parts)
@@ -382,7 +388,7 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
         counting = [text[a:b] for a, b, *_ in spans if any(a <= pos < b for pos, _ in mentions)]
         if any(two_roles(here) for here in counting):
             return None, f"{c.claim_id} names no product code and speaks of a primer and a finish where it states coats; which the count is for is not settled"
-        # a clause about a primer only is read for a sheet that names a primer; one about a finish only is no primer sheet's
+        # a clause about a primer only is read for a sheet that is a primer's alone; one about a finish only is no such sheet's
         said, sheet = " ".join(counting), (f"{product.statement} {product.quote} {product.tag}" if product else "")
         roles = (bool(PRIME_WORD.search(said)), bool(FINISH_WORD.search(said)))
         sheet_roles = (bool(PRIME_WORD.search(sheet)), bool(FINISH_WORD.search(sheet)))
@@ -423,19 +429,13 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
         continued = (opener in SEQUENCE and before.strip(" ,;:.")) or (opener == "and" and names_product(before))
         # the stretch up to the end of the count's own wording: what is said after it ("one coat of X100 where
         # the primer shows") does not take the count
-        # ... or up to the code when it follows the count ("one coat of primer, B53" names the primer with it)
-        ends = COAT_END.search(text, pos)
-        end = ends.end() if ends and ends.end() <= b else pos
-        if named and code_at > pos:
-            end = max(end, code_at + len(named[0]))
-        led = text[a:end]
-        counted = isinstance(n, int) or n is None   # a count or an open count; a range, an added coat or a split refuses on its own
-        if len(named) != 1 or (counted and two_roles(led)) or (continued and code_at < pos):
+        counted = isinstance(n, int) or n is None   # a count or an open count; a range, an added coat, a split or a floor refuses on its own
+        if len(named) != 1 or (counted and two_roles(here)) or (continued and code_at < pos):
             return None, f"{c.claim_id} does not tie a coat count to one product; which is this product's is not settled"
-        # a primer named with the count ("B53 with primer, 2 coats") may own it, unless this sheet is a primer's alone;
-        # a finish named with it is not a primer's count
-        if counted and named[0] == mine[0] and ((PRIME_WORD.search(led) and sheet_roles != (True, False)) or (FINISH_WORD.search(led) and sheet_roles == (True, False))):
-            return None, f"{c.claim_id} names a {'primer' if PRIME_WORD.search(led) else 'finish'} with the coat count{whom}; whether the count is {mine[0]}'s is not settled"
+        # a primer named in the count's stretch ("B53 with primer, 2 coats", "B53 with one coat of primer") may own the
+        # count, unless this sheet is a primer's alone; a finish named there is not a primer's count
+        if counted and named[0] == mine[0] and ((PRIME_WORD.search(here) and sheet_roles != (True, False)) or (FINISH_WORD.search(here) and sheet_roles == (True, False))):
+            return None, f"{c.claim_id} names a {'primer' if PRIME_WORD.search(here) else 'finish'} with the coat count{whom}; whether the count is {mine[0]}'s is not settled"
         if named[0] == mine[0]:
             owned.append((pos, n))
     return _settle(c, owned, whom)

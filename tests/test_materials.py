@@ -26,7 +26,7 @@ def row(claim_id, statement, *, method="clause", role="scope", value="", unit=""
 
 
 SYSTEM = row("X-SP-010", "Finish coat: Example Satin X100, 2 coats")
-ONE_COAT = row("X-SP-011", "Touch-up: one coat of Example Satin X100 where the primer shows", locator="p.7", tag="SW p.7")
+ONE_COAT = row("X-SP-011", "Touch-up: one coat of Example Satin X100 where scuffed", locator="p.7", tag="SW p.7")
 NO_COAT = row("X-SP-012", "Prime coat: Example Primer X50", locator="p.4")
 TWO_PRODUCTS = row("X-SP-013", "Finish: Example Satin X100 (coats not stated), or Example Flat X200, 1 coat", locator="p.4")
 SEAL_SPEC = row("X-SP-020", "Joint sealant: Example Seal S9 at all control joints", locator="p.6", tag="SW p.6", division="07")
@@ -240,13 +240,35 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.coat_count(row("C", "Example Flat B53, one coat (two-coat finish on bare wood)"), b53),
                          (None, "C states 2 coat counts for B53; it does not settle this product's"))
         # a system's count, or one split across products, is nobody's count
-        for text in ("Example Flat B53, 2-coat system", "Example Flat B53, 2-coat system including primer", "Example Flat B53, two coats (one primer, one finish)",
-                     "Example Flat B53, 2 coats incl. primer", "Example Flat B53, two coats of which one is primer"):
+        for text in ("Example Flat B53, 2-coat system", "Example B53, 2 coats incl. primer"):   # "incl." ends a sentence, so the primer is cut off
             self.assertEqual(materials.coat_count(row("C", text), b53),
                              (None, "C states a coat count for B53 for a system or split across products; whose coats they are is not settled"), text)
+        for text in ("Example B53, 2-coat system including primer", "Example B53, two coats of which one is primer"):
+            self.assertEqual(materials.coat_count(row("C", text), b53),
+                             (None, "C names a primer with the coat count for B53; whether the count is B53's is not settled"), text)
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, two coats (one primer, one finish)"), b53),
+                         (None, "C does not tie a coat count to one product; which is this product's is not settled"))
+        for text in ("2-coat system including primer", "two coats incl. primer", "two coats of which one is primer", "two coats (one primer, one finish)"):
+            self.assertEqual(materials.coat_mentions(text)[-1][1], "split", text)
         self.assertEqual(materials.coat_count(row("C", "Two-coat system including primer"), primer_sheet),
                          (None, "C states a coat count for a system or split across products; whose coats they are is not settled"))
-        # the count's own object is judged with it ("one coat of primer, B53"), and so is a code that follows the count
+        # the whole stretch is judged, the count's own object ("one coat of primer, B53", "B53 with one coat of primer") included
+        for text, who in (("Example Flat B53 with one coat of primer", b53), ("Example Primer B66, 2 coats of finish", b66),
+                          ("Example Primer B66 under 2 coats of finish", b66), ("Example Flat B53, two coats (primer and finish)", b53)):
+            self.assertEqual(materials.coat_count(row("C", text), who),
+                             (None, "C does not tie a coat count to one product; which is this product's is not settled"), text)
+        self.assertEqual(materials.coat_count(row("C", "Example B53 with one coat of primer"), b53),
+                         (None, "C names a primer with the coat count for B53; whether the count is B53's is not settled"))
+        self.assertEqual(materials.coat_count(row("C", "Example B66, 2 coats of finish"), primer_sheet), (None, "C names B66, not this product"))
+        self.assertEqual(materials.coat_count(row("C", "Example B66, 2 coats of finish"), b66),
+                         (None, "C names a finish with the coat count for B66; whether the count is B66's is not settled"))
+        # a floor is not a fixed count
+        for text in ("Example Flat B53, two coats, or more as required for full hide", "Example Flat B53: at least two coats", "Example Flat B53, a minimum of two coats",
+                     "Example Flat B53, 2 coats minimum", "Example Flat B53, minimum 2 coats", "Example Flat B53, two coats as needed for complete coverage"):
+            self.assertEqual(materials.coat_count(row("C", text), b53),
+                             (None, "C states a minimum coat count for B53, not a fixed one; it does not settle this product's"), text)
+        self.assertEqual(materials.coat_count(row("C", "Two coats, or more as required for full hide")),
+                         (None, "C states a minimum coat count, not a fixed one; it does not settle this product's"))
         self.assertEqual(materials.coat_count(row("C", "Trim: one coat of primer, Example B53"), b53),
                          (None, "C names a primer with the coat count for B53; whether the count is B53's is not settled"))
         self.assertEqual(materials.coat_count(row("C", "2 coats of finish, Example B66"), b66),
@@ -272,7 +294,7 @@ class ItemCase(unittest.TestCase):
         after = row("C", "Example Flat B53, 2 coats after Example Primer B66")
         self.assertEqual((materials.coat_count(after, b53), materials.coat_count(after, b66)), ((2, ""), (None, "C states no coat count for B66")))
         # a primer named before the count may own it ("B53 with primer, 2 coats"), unless the sheet is the primer's;
-        # a primer named after the count does not ("one coat of X100 where the primer shows", tested above)
+        # ... wherever in the count's stretch the primer is named, "B53 with one coat of primer" included
         for text in ("Example B53 with primer, 2 coats", "Base coat as needed, Example B53, 2 coats", "Primer as needed, 1 coat Example B53"):
             self.assertEqual(materials.coat_count(row("C", text), b53),
                              (None, "C names a primer with the coat count for B53; whether the count is B53's is not settled"), text)

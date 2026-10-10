@@ -103,10 +103,15 @@ class RangeCase(unittest.TestCase):
                          ["T-M-001: calc input T-WEB-001 is fetched; it cannot feed an allowance"])
         self.assertEqual(schema.replay_calc(order(calc="{T-S-001} * 2 / {T-WEB-001}", value="0.2-0.25"), by_id),
                          ["T-M-001: calc input T-S-001 is scaled; it cannot feed an order quantity"])
-        # one note per row used, however often the formula names it
+        # one method note per row used, however often the formula names it; a range named twice is refused
+        # (the corner replay bounds a formula that uses each range once), a single figure may repeat
         self.assertEqual(schema.replay_calc(order(role="allowance", method="counted", calc="{T-WEB-001} + {T-WEB-001}",
                                                   value="640-800"), by_id),
-                         ["T-M-001: calc input T-WEB-001 is fetched; it cannot feed an allowance"])
+                         ["T-M-001: calc input T-WEB-001 is fetched; it cannot feed an allowance",
+                          "T-M-001: calc names range input T-WEB-001 more than once; write it once (2 * {T-WEB-001})"])
+        self.assertEqual(schema.replay_calc(claim(claim_id="Q", method="counted", role="quantity", value="16",
+                                                  value_num=16.0, calc="{T-A-001} * (10 - {T-A-001})"),
+                                            {"T-A-001": claim(claim_id="T-A-001", value="2", value_num=2.0)}), [])
         # a counted row still rests on dimensioned and counted rows only
         self.assertEqual(schema.replay_calc(claim(claim_id="Q", method="counted", role="quantity", value="640-800",
                                                   value_num=None, calc="{T-WEB-001} * 2"), by_id),

@@ -156,6 +156,10 @@ class TableCase(unittest.TestCase):
             with self.assertRaises(ValueError) as e:
                 webread.load(p)
             self.assertIn("first # mark fills an identifier", str(e.exception))
+            p.write_text(yaml.safe_dump(page("Permit turnaround in weeks")))
+            with self.assertRaises(ValueError) as e:
+                webread.load(p)
+            self.assertIn("needs a # mark", str(e.exception))
             p.write_text(yaml.safe_dump(page("Permit turnaround # weeks under ESR-#")))
             self.assertEqual(webread.load(p).pages[0].asks[0].unit, "weeks")
 
@@ -565,6 +569,28 @@ class RunCase(unittest.TestCase):
         a2 = [(c.value, c.unit, c.flag) for c in res.rows if c.locator == "ask a2"]
         self.assertTrue(a2 and all(row == ("", "", "unverified") for row in a2), a2)
         self.assertTrue(res.readings and all(line.startswith("J#web1 a2: ") for line in res.readings), res.readings)
+
+    def test_a_single_figure_carries_its_number_and_can_feed_a_calc(self):
+        # the reader's row gets the same value and value_num the fixture loader would give it
+        text = "<html><body><p>Spread rate: 400 sq ft/gal. Coverage 2,500 sq ft per pail.</p></body></html>"
+        asks = (webread.Ask("a1", "Spread rate: # sq ft/gal", "J-C-001", unit="sq ft/gal"),
+                webread.Ask("a2", "Coverage per pail: # sq ft", "J-C-002", unit="sq ft"))
+        rate = answer("a1", "Spread rate: 400 sq ft/gal.", "400 sq ft/gal.", figures=["400"])
+        pail = answer("a2", "Coverage 2,500 sq ft per pail.", "2,500 sq ft per pail.", figures=["2,500"])
+        b, res = run(Fake({"answers": [rate, pail]}, {"answers": [rate, pail]}), pages={URL: Resp(text.encode())},
+                     tbl=table(source(asks=asks)))
+        by_id = b.ledger.by_id()
+        self.assertEqual([(c.value, c.value_num, c.unit) for c in res.rows], [("400", 400.0, "sq ft/gal"), ("2,500", 2500.0, "sq ft")])
+        self.assertEqual((by_id["J-WEB-001"].value_num, by_id["J-WEB-002"].value_num), (400.0, 2500.0))
+        # so an order quantity can rest on it
+        b.as_principal("drawing_reader").append(Claim(claim_id="J-D-001", statement="walls", source_id="SP", method="dimensioned",
+                                                      role="quantity", confidence="exact", value="1200", value_num=1200.0,
+                                                      unit="sq ft", tag="SP p.1"))
+        b.as_principal("materials").append(Claim(claim_id="J-M-001", statement="paint", source_id="SP", method="fetched",
+                                                 role="material", confidence="exact", value="6", value_num=6.0, unit="gal",
+                                                 tag="SP p.1", calc="{J-D-001} * 2 / {J-WEB-001}", url=URL,
+                                                 retrieved="2026-10-08", quote="Spread rate: 400 sq ft/gal."))
+        self.assertEqual(b.ledger.by_id()["J-M-001"].value_num, 6.0)
 
     def test_readings_that_differ_only_in_their_figure_are_both_kept(self):
         # one passage gives two rates; each run fills the mark with a different one, so there are two

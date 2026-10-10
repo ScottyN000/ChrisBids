@@ -47,7 +47,7 @@ from .broker import Broker
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
 from .readers.rows import Unit
-from .schema import Claim, LedgerError, sources_of
+from .schema import Claim, LedgerError, sources_of, format_value
 
 NAME = "web_reader"
 AGENTS = ("codes", "materials")
@@ -153,6 +153,8 @@ def load(path: Path = SOURCES) -> Table:
             # that fills one of the page's identifiers (ESR-#) holds a name, not a figure.
             if a.unit and a.options:
                 raise ValueError(f"{p['url']} {a.id}: an ask names a unit or options, not both")
+            if a.unit and "#" not in a.ask:
+                raise ValueError(f"{p['url']} {a.id}: a unit ask needs a # mark for its figure")
             if a.unit and 0 in id_marks(a.ask, ids):
                 raise ValueError(f"{p['url']} {a.id}: a unit ask's first # mark fills an identifier, not a figure")
         pages.append(Source(url=p["url"], title=p["title"], agent=p["agent"],
@@ -594,15 +596,19 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                                     f"choice {r.get('choice', '')!r}, quote {r['quote'][:100]!r}" for r in readings]
                 for a in readings:
                     value, figure_unit = figure_of(a, ask, ids)
+                    value, value_num = format_value(value)
                     write(_row(job, next_id(), source, page, confidence="inferred", flag="unverified",
                                quote=a["quote"].strip(), statement=a["statement"].strip(), value=value,
-                               unit=figure_unit, locator=f"ask {ask.id}"), source.agent)
+                               value_num=value_num, unit=figure_unit, locator=f"ask {ask.id}"), source.agent)
                 if not readings:
                     write(_gap(job, next_id(), source, page, ask, why), source.agent)
                 continue
             value, figure_unit = figure_of(agreed, ask, ids)
+            # the same canonical value and numeric reading the fixture loader gives the row, so a
+            # single figure (400 sq ft/gal, 6 ft) can feed a calc; a range or a choice has no number
+            value, value_num = format_value(agreed.get("choice", "") or value)
             write(_row(job, next_id(), source, page, confidence="exact", quote=agreed["quote"].strip(),
-                       statement=agreed["statement"].strip(), value=agreed.get("choice", "") or value,
+                       statement=agreed["statement"].strip(), value=value, value_num=value_num,
                        unit=figure_unit, locator=f"ask {ask.id}"),
                   source.agent)
     return result

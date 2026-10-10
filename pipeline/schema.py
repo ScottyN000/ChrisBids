@@ -230,8 +230,9 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
     the row's value must then be the range the ends give (written either way
     round). The
     ends bound a bid's formulas, which are sums, products and quotients of
-    positive figures; a calc rests on at most MAX_RANGES ranges. A row whose
-    input is flagged (unverified or conflict) must be flagged unverified itself.
+    positive figures, each range input named once; a calc rests on at most
+    MAX_RANGES ranges. A row whose input is flagged (unverified or conflict) must
+    carry a flag itself.
     """
     if not c.calc:
         return []
@@ -244,12 +245,16 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
         if span is None:
             return [f"{c.claim_id}: calc input {ref} has no numeric value"]
         if ref in ends:
+            if len(span) > 1:
+                # The corner replay bounds a formula that uses each range once; a
+                # range named twice ({A} * (10 - {A})) can peak between the corners.
+                errors.append(f"{c.claim_id}: calc names range input {ref} more than once; write it once (2 * {{{ref}}})")
             continue
         ends[ref] = span
-        if src.flag and c.flag != "unverified":
+        if src.flag and not c.flag:
             # Arithmetic on a reading nobody has settled is itself unsettled (p.9):
-            # the derived row carries the flag, so the bid never shows it as firm.
-            errors.append(f"{c.claim_id}: calc input {ref} is flagged {src.flag}; the row must be flagged unverified")
+            # the derived row carries a flag, so the bid never shows it as firm.
+            errors.append(f"{c.claim_id}: calc input {ref} is flagged {src.flag}; the row must be flagged")
         if c.role == "allowance" and src.method not in ALLOWANCE_OK:
             errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; it cannot feed an allowance")
         elif c.role == "material" and src.method not in MATERIAL_OK:

@@ -397,6 +397,11 @@ class CoatCountCase(unittest.TestCase):
             # 5: a code in parentheses before the hedge is that product's, as a bare code is
             ("B53, 2 coats; Example Primer (B66) as needed", firm), ("B53, 2 coats; Example Primer B66 as needed", firm),
             ("B53, 2 coats; Example Primer (B53) as needed", floor),
+            # a double quote is an inch only after a digit: a closing quotation mark keeps the hedge or the "or more"
+            ('B53, 2 coats. Deep colors may require more than two".', floor), ('B53, 2 coats. Trim may need more than 2".', firm),
+            ('B53, two coats" or more', floor), ('B53, 2 coats on trim 6 " or more', firm),
+            # a drawing label owns its number; one the list misses only refuses
+            ("B53, 2 coats, see View 3 on the north wall", firm), ("B53, 2 coats, see Fig. 2 at the end", firm),
         ]
         for text, want in cases:
             with self.subTest(text=text):

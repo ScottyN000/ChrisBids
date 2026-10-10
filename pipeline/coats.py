@@ -83,9 +83,10 @@ FINISH_WORD = re.compile(r"\b(?:finish(?:es)?|final|top|topcoats?|intermediate|s
 # Words after "in" that make a small number a tool or part size, not an added coat ("9 in rollers", "2 in diameter").
 TOOL_WORDS = r"diameter|dia|nap|rollers?|brush(?:es)?"
 # A small number after a label word or another number is that label's ("Part 3 for", "Section 09 01 90 for", "color 2 at").
+# The list is knowingly incomplete: a label it misses only costs a refusal, never a figure.
 LABEL_WORDS = ("part", "section", "division", "article", "note", "table", "sheet", "detail", "item", "no.", "color", "colour",
                "level", "floor", "phase", "building", "unit", "type", "class", "grade", "step", "zone", "area", "figure",
-               "page", "paragraph",
+               "page", "paragraph", "view", "fig.", "room", "door", "elevation", "schedule", "exhibit",
                "than")   # "more than two in exterior exposures" compares, and HEDGE reads it as a floor
 NOT_LABELLED = "".join(rf"(?<!\b{re.escape(w)} )" for w in LABEL_WORDS) + r"(?<!\d )"
 MORE = re.compile(rf"\b(?:second|third|fourth|additional|extra|another|plus|further|double|(?<!\bor )(?<!\band )more)[\s-]+(?:(?:[1-9]\d*|one|two|three|four|five|six)\s+)?{ROLE}coats?\b"
@@ -139,7 +140,7 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b|\b(?:more than|in e
 # a measurement's unit; the inch only as "in.", "inch(es)", a double quote or "in" before a tool word ("2 in rollers"),
 # since "in" is otherwise a preposition ("more than two in exterior exposures", "more than two in deep colors")
 MEASURE_UNITS = (r"(?:ft|feet|inch(?:es)?|mils?|DFT|WFT|sq\s*ft(?:/gal)?|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent)\b"
-                 rf"|in\.|\"|in(?=\s+(?:{TOOL_WORDS})\b)")   # a word unit ends at a word boundary; "in." and a double quote end in punctuation
+                 rf"|in\.|(?<=\d)\"|(?<=\d )\"|in(?=\s+(?:{TOOL_WORDS})\b)")   # a word unit ends at a word boundary; "in." and a double quote end in punctuation, and a double quote is an inch only after a digit (never a closing quotation mark)
 A_NUMBER = r"\d+(?:[.,]\d+)*|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty|thirty|forty|fifty|hundred"
 # "more than" followed directly by a figure and a unit is a comparison ("more than 10 ft above grade"); "more than two.",
 # "more than that" and "more than two coats" hedge the count
@@ -183,7 +184,8 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
     ranges = [(m.end() - len(m.group().lstrip()), m.end()) for m in COAT_RANGE.finditer(text)]
     found: list[tuple[int, int | str | None]] = [(a, "range") for a, _ in ranges]
     found += [(m.start(), None) for m in NOT_STATED.finditer(text)]
-    found += [(m.start(), "more") for m in MORE.finditer(text)]
+    added = [(m.start(), m.end()) for m in MORE.finditer(text)]
+    found += [(a, "more") for a, _ in added]
     found += [(m.start(), "split") for m in SPLIT.finditer(text)]
     found += [(m.start(), "floor") for m in FLOOR.finditer(text)]
     counted: list[tuple[int, int]] = []   # each count's number position and where its wording ends
@@ -212,7 +214,7 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
         elif sentence > part_start:
             lead = text[sentence:m.start()]
             # an added coat ("Accent color SW6258: additional coat") is about coats whoever it names, so it floors them all
-            adds = any(a.start() <= m.start() < a.end() for a in MORE.finditer(text))
+            adds = any(a <= m.start() < b for a, b in added)
             for p, _ in counted:
                 if part_start <= p < sentence and (adds or not other_product(text[stretch_at(spans, p)], lead)):
                     found.append((p, "floor"))   # every count before, in the part, unless the other product stands right before the hedge

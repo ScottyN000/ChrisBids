@@ -80,13 +80,24 @@ FINISH_WORD = re.compile(r"\b(?:finish(?:es)?|final|top|topcoats?|intermediate|s
 # "double coat at repairs", "recoat patched areas"): a second reading, so the clause settles
 # nothing. A number counts only before at/on/over/for/where/in/more, so "1 coat (10 year)"
 # stays one coat.
+# Words after "in" that make a small number a tool or part size, not an added coat ("9 in rollers", "2 in diameter").
+TOOL_WORDS = r"diameter|dia|nap|rollers?|brush(?:es)?"
+# A small number after a label word or another number is that label's ("Part 3 for", "Section 09 01 90 for", "color 2 at").
+# The list is knowingly incomplete: a label it misses only costs a refusal, never a figure.
+LABEL_WORDS = ("part", "section", "division", "article", "note", "table", "sheet", "detail", "item", "no.", "color", "colour",
+               "level", "floor", "phase", "building", "unit", "type", "class", "grade", "step", "zone", "area", "figure",
+               "page", "paragraph", "view", "fig.", "room", "door", "elevation", "schedule", "exhibit",
+               "than")   # "more than two in exterior exposures" compares, and HEDGE reads it as a floor
+NOT_LABELLED = "".join(rf"(?<!\b{re.escape(w)} )" for w in LABEL_WORDS) + r"(?<!\d )"
 MORE = re.compile(rf"\b(?:second|third|fourth|additional|extra|another|plus|further|double|(?<!\bor )(?<!\band )more)[\s-]+(?:(?:[1-9]\d*|one|two|three|four|five|six)\s+)?{ROLE}coats?\b"
                   rf"|\b(?:more|additional|extra|further)\s+(?:paint|material|product|coating)s?\b(?!\s*:)"   # not an "Extra materials:" article
                   rf"|\bre-?coat\b(?:\s+[A-Za-z]+){{0,3}}\s+(?:at|where|areas|repairs)\b"   # not "recoat after 4 hours at 77F", a time
                   rf"|\bre-?coat\s+(?:as|if|where|when)\s+(?:required|needed|necessary)\b"
-                  rf"|(?<![\w./-])(?:^|(?<=[;,(:] )|(?<=[;,(:])|(?<=\. )|(?<=\band )|(?<=\bplus )|(?<=\bthen )|(?<=\bor )|(?<=\bover )|(?<=\bafter )|(?<=\bbefore )|(?<=\bfollowed by )|(?<=\bprior to )|(?<=\bwith )|(?<=\bbut ))"
-                  rf"([1-6]|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?!\s+in\.?\s+(?:diameter|dia\b|wide|thick|deep|high|long|nap|rollers?|brush(?:es)?))(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)
-                  # a small number only, where a second count can start (after punctuation or a cut word) and not a measurement: not "Part 3 for", "9 in rollers", "2 in diameter" or "7005 for trim"
+                  rf"|(?<![\w./-]){NOT_LABELLED}"
+                  rf"([1-6]|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?!\s*(?:in\.|\"))(?!\s+in\s+(?:{TOOL_WORDS})\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)
+                  # a small number only, not a label's number ("Part 3 for", "No. 2 at", "Section 09 01 90 for"), a tool size ("9 in rollers",
+                  # "2 in diameter", "4 in. wide", '6" or more') or part of a longer number ("7005 for trim"); any other ("apply two at patched areas",
+                  # "2 in high-traffic areas", "2 in deep colors") is an added coat, the safe direction
 # A count split across products, or a system's count ("2-coat system including primer", "two
 # coats (one primer, one finish)", "2-coat system"): whose coats they are is not settled.
 SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:prime|primer|priming|finish|topcoat|coats?)\b"
@@ -126,14 +137,14 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b|\b(?:more than|in e
 # coats" is, with the film-thickness exception the floor words have. coat_mentions settles which;
 # sentences end at ";" or at a full stop (a period before a capital or the end) outside parentheses,
 # so "min." and "approx." end none.
-# a measurement's unit; the inch only as "in.", "inch(es)", a double quote or "in" before a dimension word, since "in"
-# is otherwise a preposition ("more than two in exterior exposures")
-MEASURE_UNITS = (r"ft|feet|in\.|inch(?:es)?|\"|in(?=\s+(?:wide|high|deep|thick|long|diameter|dia\.?|nap))|mils?|DFT|WFT|sq\s*ft(?:/gal)?"
-                 r"|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent")
+# a measurement's unit; the inch only as "in.", "inch(es)", a double quote or "in" before a tool word ("2 in rollers"),
+# since "in" is otherwise a preposition ("more than two in exterior exposures", "more than two in deep colors")
+MEASURE_UNITS = (r"(?:ft|feet|inch(?:es)?|mils?|DFT|WFT|sq\s*ft(?:/gal)?|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent)\b"
+                 rf"|in\.|(?<=\d)\"|(?<=\d )\"|in(?=\s+(?:{TOOL_WORDS})\b)")   # a word unit ends at a word boundary; "in." and a double quote end in punctuation, and a double quote is an inch only after a digit (never a closing quotation mark)
 A_NUMBER = r"\d+(?:[.,]\d+)*|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty|thirty|forty|fifty|hundred"
 # "more than" followed directly by a figure and a unit is a comparison ("more than 10 ft above grade"); "more than two.",
 # "more than that" and "more than two coats" hedge the count
-COMPARISON = rf"(?!\s+than\s+(?:{A_NUMBER})(?:%|\s*(?:{MEASURE_UNITS})\b))"
+COMPARISON = rf"(?!\s+than\s+(?:{A_NUMBER})(?:%|\s*(?:{MEASURE_UNITS})))"
 HEDGE = re.compile(rf"\b(?:or|and)\s+more\b{COMPARISON}|\b(?:more{COMPARISON}|additional|extra|further)\b(?!\s+materials?\s*:)|\b(?:as|if|where|when)\s+(?:required|needed|necessary)\b", re.I)
 CEILING = re.compile(rf"\b(?:up to|no more than|not more than|not to exceed|a maximum of|maximum(?: of)?|max\.?)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
                      rf"|\bcoats?\s*[,(]\s*(?:maximum|max)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
@@ -142,7 +153,7 @@ BARE_MORE = re.compile(r"(?:or|and)\s+more", re.I)
 SENTENCE_MARK = re.compile(r"[();.]")
 FULL_STOP = re.compile(r"\.(?:\s+[A-Z(\"']|\s*$)")
 # text ending in a figure and at most its unit words, which a bare "or more" then follows directly
-BOUNDED = re.compile(rf"(?:\d+(?:[.,]\d+)*|\b(?:{A_NUMBER})\b)(?:%|(?:\s*(?:{MEASURE_UNITS})\b)*)\s*$", re.I)
+BOUNDED = re.compile(rf"(?:\d+(?:[.,]\d+)*|\b(?:{A_NUMBER})\b)(?:%|(?:\s*(?:{MEASURE_UNITS}))*)\s*$", re.I)
 # The mark a clause's statement and quote are joined with, one text to read.
 SEP = "; "
 # A stretch opened by a sequence word continues whatever came before it in the same part
@@ -173,7 +184,8 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
     ranges = [(m.end() - len(m.group().lstrip()), m.end()) for m in COAT_RANGE.finditer(text)]
     found: list[tuple[int, int | str | None]] = [(a, "range") for a, _ in ranges]
     found += [(m.start(), None) for m in NOT_STATED.finditer(text)]
-    found += [(m.start(), "more") for m in MORE.finditer(text)]
+    added = [(m.start(), m.end()) for m in MORE.finditer(text)]
+    found += [(a, "more") for a, _ in added]
     found += [(m.start(), "split") for m in SPLIT.finditer(text)]
     found += [(m.start(), "floor") for m in FLOOR.finditer(text)]
     counted: list[tuple[int, int]] = []   # each count's number position and where its wording ends
@@ -201,8 +213,10 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
             found.append((before[-1][0], "floor"))   # placed with the count it bounds
         elif sentence > part_start:
             lead = text[sentence:m.start()]
+            # an added coat ("Accent color SW6258: additional coat") is about coats whoever it names, so it floors them all
+            adds = any(a <= m.start() < b for a, b in added)
             for p, _ in counted:
-                if part_start <= p < sentence and not other_product(text[stretch_at(spans, p)], lead):
+                if part_start <= p < sentence and (adds or not other_product(text[stretch_at(spans, p)], lead)):
                     found.append((p, "floor"))   # every count before, in the part, unless the other product stands right before the hedge
     return sorted(found, key=lambda f: f[0])
 
@@ -262,7 +276,7 @@ def other_product(own: str, lead: str) -> bool:
     words = lead.strip(" ,;:.()-\u2013").split()
     if not words:
         return False
-    last = words[-1]
+    last = words[-1].strip("()[],;:.")   # "Example Primer (B66)" ends in B66
     codes = product_codes(lead)
     if codes:
         return last in codes and not set(codes) & set(product_codes(own))

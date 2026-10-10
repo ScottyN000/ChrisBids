@@ -18,7 +18,7 @@ flowchart TD
     correspondence["<b>Correspondence</b><br/>emails, PM notes<br/><i>replay-only</i>"]
     takeoff["<b>Takeoff</b><br/>derivation or FIELD<br/><i>built</i>"]
     codes["<b>Codes & Regs</b><br/>fetched, URL + section<br/><i>built</i>"]
-    materials["<b>Materials</b><br/>data sheet rates, cited<br/><i>built</i>"]
+    materials["<b>Materials</b><br/>data sheet rates and order quantities, cited<br/><i>built</i>"]
     customer["<b>Customer Reqs</b><br/>base vs alternates<br/><i>planned</i>"]
     ledger[("<b>Claim ledger</b><br/>value, source, locator, method, derivation, audit result")]
     scope_writer["<b>Scope Writer</b><br/>reads the ledger only<br/><i>built</i>"]
@@ -36,6 +36,8 @@ flowchart TD
     photo --> takeoff
     spec --> codes
     photo --> materials
+    spec -->|products| materials
+    takeoff -->|figures| materials
     correspondence --> customer
     drawing -->|rows| ledger
     spec -->|rows| ledger
@@ -75,7 +77,7 @@ flowchart TD
 | Correspondence | replay-only | 2 | correspondence_reader | [`pipeline/readers/prompts/correspondence.md`](../pipeline/readers/prompts/correspondence.md) |
 | Takeoff | built | 3 | takeoff | [`pipeline/takeoff.py`](../pipeline/takeoff.py) |
 | Codes & Regs | built | 4 | codes | [`pipeline/webread.py`](../pipeline/webread.py) |
-| Materials | built | 4 | materials | [`pipeline/webread.py`](../pipeline/webread.py) |
+| Materials | built | 4 | materials | [`pipeline/materials.py`](../pipeline/materials.py) |
 | Customer Reqs | planned | 3 | customer_requirements | — |
 | Claim ledger | data | — | — | [`pipeline/broker.py`](../pipeline/broker.py) |
 | Scope Writer | built | 3 | scope_writer | [`pipeline/scope_writer.py`](../pipeline/scope_writer.py) |

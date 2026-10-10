@@ -372,5 +372,40 @@ class CoatCountCase(unittest.TestCase):
 
 
 
+    def test_round_25_readings_each_side_of_the_line(self):
+        # #23's advisor round 25: each misread pinned with one input on either side of the boundary
+        b53 = row("X-WEB-010", "B53 data sheet", method="fetched", role="code", source="WEB", tag="B53 enamel")
+        firm, floor = (2, ""), (None, "C states a minimum coat count for B53, not a fixed one; it does not settle this product's")
+        loose = (None, "C does not tie a coat count to one product; which is this product's is not settled")
+        cases = [
+            # 1, 6: a small number before at/on/over/for/where/in/more is an added coat unless a label word or a tool size owns it
+            ("B53, 1 coat; 2 in high-traffic areas", loose), ("B53, 1 coat; 2 in deep colors", loose),
+            ("B53, 1 coat; apply two at patched areas", loose), ("B53, 1 coat; 2 at patched areas", loose),
+            ("B53, 2 coats; use 2 in diameter brushes", firm), ("B53, 2 coats with 3 in rollers", firm),
+            ("B53, 2 coats; use 2 in. rollers", firm), ("B53, 2 coats, see Part 3 for prep", firm),
+            ("B53, 2 coats, see No. 2 at the end", firm), ("B53, 2 coats, color 2 at entries", firm),
+            ("B53, 2 coats, Section 09 01 90 for prep", firm),
+            # 2: "in" is an inch only before a tool word, so "more than two in deep colors" hedges the count
+            ("B53, 2 coats. High-traffic areas may need more than two in deep colors.", floor),
+            ("B53, 2 coats. Trim may need more than 2 in. wide", firm),
+            # 3: an added coat in a later sentence floors the count whoever it names; another hedge there stays that product's
+            ("B53, 2 coats. Accent color SW6258: additional coat.", floor),
+            ("B53, 2 coats. Accent color SW6258 as required.", firm),
+            # 4: "in." and a double quote are units, so the comparison or bound reads as a measurement
+            ("B53, 2 coats, trim more than 4 in. wide", firm), ("B53, 2 coats on trim 6 in. or more", firm),
+            ('B53, 2 coats on trim 6" or more', firm), ("B53, 2 coats, trim more than 4 in wide", floor),
+            # 5: a code in parentheses before the hedge is that product's, as a bare code is
+            ("B53, 2 coats; Example Primer (B66) as needed", firm), ("B53, 2 coats; Example Primer B66 as needed", firm),
+            ("B53, 2 coats; Example Primer (B53) as needed", floor),
+            # a double quote is an inch only after a digit: a closing quotation mark keeps the hedge or the "or more"
+            ('B53, 2 coats. Deep colors may require more than two".', floor), ('B53, 2 coats. Trim may need more than 2".', firm),
+            ('B53, two coats" or more', floor), ('B53, 2 coats on trim 6 " or more', firm),
+            # a drawing label owns its number; one the list misses only refuses
+            ("B53, 2 coats, see View 3 on the north wall", firm), ("B53, 2 coats, see Fig. 2 at the end", firm),
+        ]
+        for text, want in cases:
+            with self.subTest(text=text):
+                self.assertEqual(coats.coat_count(row("C", text), b53), want)
+
 if __name__ == "__main__":
     unittest.main()

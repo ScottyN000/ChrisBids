@@ -168,7 +168,7 @@ class Fake:
                 return {"items": [{"kind": "dimension", "label": "Wall run", "text": "10'-0\"", "count": None,
                                    "unit": None}]}
             return {"items": []}
-        if reader == "takeoff":
+        if reader in ("takeoff", "materials"):
             return {"items": []}
         if reader == "web_reader":
             first = next(line.strip() for line in unit.text.splitlines() if line.strip())
@@ -224,7 +224,8 @@ class BidCase(unittest.TestCase):
             res = orch.bid(packet, "J", out, reader_client=clients[0], takeoff_client=clients[1],
                            scope_client=clients[2], fetcher=fetcher, web_table=table)  # default repeats: 2
             self.assertEqual(res.problems, [])
-            self.assertEqual(sorted(res.results), ["correspondence", "drawing", "photo", "spec", "takeoff", "web"])
+            self.assertEqual(sorted(res.results), ["correspondence", "drawing", "materials", "photo", "spec", "takeoff",
+                                                   "web"])
             web_rows = res.results["web"].rows
             self.assertEqual([(c.claim_id, c.quote, c.url, c.retrieved) for c in web_rows],
                              [("J-WEB-001", "Washing needs no permit.", "https://permits.example.gov/wash",
@@ -246,8 +247,11 @@ class BidCase(unittest.TestCase):
             self.assertEqual([s["agent"] for s in plan["steps"] if s["run"]],
                              ["drawing", "spec", "photo", "correspondence", "takeoff", "codes", "materials",
                               "scope_writer", "auditor"])
-            self.assertEqual(len(clients[0].calls), (6 + 2 + 1 + 1 + 1) * 2)
-            self.assertEqual([c[2] for c in clients[1].calls], [0, 1])      # Takeoff: the wall run is an input
+            self.assertEqual(len(clients[0].calls), (6 + 2 + 1 + 1 + 1) * 2)   # readers and the web pages (Haiku)
+            # the order step reconciles the spec, the takeoff and the sheet, so it runs on the takeoff client (p.13)
+            self.assertEqual([c[:2] for c in clients[1].calls],
+                             [("takeoff", "J#takeoff")] * 2 + [("materials", "J#materials")] * 2)
+            self.assertEqual([c[2] for c in clients[1].calls[:2]], [0, 1])      # Takeoff: the wall run is an input
             self.assertEqual(clients[2].calls, [("scope_writer", "J#scope", 0), ("scope_writer", "J#scope", 1)])
             self.assertEqual(res.results["takeoff"].calls, 2)
             self.assertEqual(res.audit.verdicts, {"pass": 3, "unverified": 4})

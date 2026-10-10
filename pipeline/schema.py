@@ -223,6 +223,59 @@ def check_method_rules(c: Claim) -> list[str]:
     return errors
 
 
+class CalcError(ValueError):
+    """A calc that cannot be replayed: a missing input, a bad expression, a zero divisor."""
+
+
+class MissingInput(CalcError):
+    """A calc input that is not a row, or a row with no figure."""
+
+
+def ends_of(ref: str, by_id: dict[str, Claim]) -> tuple[float, ...]:
+    """The figure a calc input gives: one end, or the two ends of a range."""
+    src = by_id.get(ref)
+    if src is None:
+        raise MissingInput(f"calc references unknown claim {ref}")
+    span = (src.value_num,) if src.value_num is not None else value_range(src.value)
+    if span is None:
+        raise MissingInput(f"calc input {ref} has no numeric value")
+    return span
+
+
+def evaluate(calc: str, by_id: dict[str, Claim]) -> tuple[float, float]:
+    """What a calc comes to, as its low and high end: the formula replayed at
+    every corner of its range inputs (at most MAX_RANGES of them), which bound a
+    bid's formulas, sums, products and quotients of positive figures. A calc
+    over single figures gives two equal ends."""
+    ends = {ref: ends_of(ref, by_id) for ref in dict.fromkeys(CALC_REF.findall(calc))}
+    if sum(1 for span in ends.values() if len(span) > 1) > MAX_RANGES:
+        raise CalcError(f"calc {calc!r} rests on more than {MAX_RANGES} ranges")
+    got = []
+    for corner in itertools.product(*ends.values()):
+        expr = calc
+        for ref, v in zip(ends, corner):
+            expr = expr.replace("{" + ref + "}", repr(v))
+        if not CALC_SAFE.fullmatch(expr):
+            raise CalcError(f"calc {calc!r} is not plain arithmetic")
+        try:
+            got.append(arith(expr))
+        except (ValueError, ZeroDivisionError) as e:
+            raise CalcError(f"calc {calc!r} does not evaluate: {e}") from None
+    if any(len(span) > 1 for span in ends.values()) and min(got) <= 0:
+        # The corner replay bounds sums, products and quotients of positive figures;
+        # a corner at or below zero means the formula is not one of those (a pole a
+        # constant offsets would pass: the docstring says so, and no bid formula has one).
+        raise CalcError(f"calc {calc!r} gives {min(got)} at a corner; a calc over a range must stay positive")
+    return min(got), max(got)
+
+
+def value_of(lo: float, hi: float) -> tuple[str, float | None]:
+    """A replayed result as a ledger value: one figure when the ends meet, else the range."""
+    if hi - lo <= 1e-9:
+        return format_value(lo)
+    return format_range(lo, hi), None
+
+
 def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
     """Code recomputes every derived figure (architecture p.9).
 
@@ -243,21 +296,11 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
     """
     if not c.calc:
         return []
-    errors, ends = [], {}
-    for ref in CALC_REF.findall(c.calc):
+    errors, refs = [], CALC_REF.findall(c.calc)
+    for ref in dict.fromkeys(refs):
         src = by_id.get(ref)
         if src is None:
             return [f"{c.claim_id}: calc references unknown claim {ref}"]
-        span = (src.value_num,) if src.value_num is not None else value_range(src.value)
-        if span is None:
-            return [f"{c.claim_id}: calc input {ref} has no numeric value"]
-        if ref in ends:
-            if len(span) > 1:
-                # The corner replay bounds a formula that uses each range once; a
-                # range named twice ({A} * (10 - {A})) can peak between the corners.
-                errors.append(f"{c.claim_id}: calc names range input {ref} more than once; write it once (2 * {{{ref}}})")
-            continue
-        ends[ref] = span
         if src.flag and not c.flag:
             # Arithmetic on a reading nobody has settled is itself unsettled (p.9):
             # the derived row carries a flag, so the bid never shows it as firm.
@@ -279,25 +322,16 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
             # whatever the row's role: a counted allowance rests on counts, not on a clause.
             errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; a {c.method} row rests on "
                           f"dimensioned and counted rows only")
-    if sum(1 for span in ends.values() if len(span) > 1) > MAX_RANGES:
-        return errors + [f"{c.claim_id}: calc {c.calc!r} rests on more than {MAX_RANGES} ranges"]
-    got = []
-    for corner in itertools.product(*ends.values()):
-        expr = c.calc
-        for ref, v in zip(ends, corner):
-            expr = expr.replace("{" + ref + "}", repr(v))
-        if not CALC_SAFE.fullmatch(expr):
-            return errors + [f"{c.claim_id}: calc {c.calc!r} is not plain arithmetic"]
-        try:
-            got.append(arith(expr))
-        except (ValueError, ZeroDivisionError) as e:
-            return errors + [f"{c.claim_id}: calc {c.calc!r} does not evaluate: {e}"]
-    lo, hi = min(got), max(got)
-    if any(len(span) > 1 for span in ends.values()) and lo <= 0:
-        # The corner replay bounds sums, products and quotients of positive figures;
-        # a corner at or below zero means the formula is not one of those (a pole a
-        # constant offsets would pass: the docstring says so, and no bid formula has one).
-        return errors + [f"{c.claim_id}: calc {c.calc!r} gives {lo} at a corner; a calc over a range must stay positive"]
+        if refs.count(ref) > 1 and src.value_num is None and value_range(src.value) is not None:
+            # The corner replay bounds a formula that uses each range once; a
+            # range named twice ({A} * (10 - {A})) can peak between the corners.
+            errors.append(f"{c.claim_id}: calc names range input {ref} more than once; write it once (2 * {{{ref}}})")
+    try:
+        lo, hi = evaluate(c.calc, by_id)
+    except MissingInput as e:
+        return [f"{c.claim_id}: {e}"]
+    except CalcError as e:
+        return errors + [f"{c.claim_id}: {e}"]
     if hi - lo <= 1e-9:
         if c.value_num is None or abs(lo - c.value_num) > 1e-9:
             errors.append(f"{c.claim_id}: calc {c.calc} = {lo}, ledger says {c.value or '(blank)'}")

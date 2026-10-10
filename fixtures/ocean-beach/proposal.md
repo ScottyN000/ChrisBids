@@ -240,7 +240,7 @@ Not in any source document. Each must be measured or answered before the allowan
 
 ## Materials (no pricing)
 
-Order quantities are printed only where the ledger has a dimensioned or counted value; spares and stock-length rounding are Contractor Co. purchasing decisions and are not in the sources.
+Order quantities are printed only where the ledger has a dimensioned or counted value, or a takeoff figure and a stated rate (the spec's own rate over the data sheet's, replayed at both ends of a range); spares, pack sizes and stock-length rounding are Contractor Co. purchasing decisions and are not in the sources.
 
 | Claim | Material | Qty | Unit | Source | Method |
 |---|---|---|---|---|---|

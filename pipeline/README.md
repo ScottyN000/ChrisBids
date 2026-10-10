@@ -317,7 +317,7 @@ a sequence word ("then", "over", "followed by", "after", "before", "prior to")
 that continues anything, or by "and" after a product ("B53 over B66 primer, 2
 coats" and "Base coat as needed, then B53, 2 coats" may give the system two
 coats: two readings, neither picked, though "Walls and ceilings: B53, 2 coats"
-continues no product). A stretch that names both a primer and a finish before a count ("B53
+continues no product). A stretch that names both a primer and a finish where it states a count ("B53
 finish with primer, 2 coats") holds two products' wording, so its count is
 tied to nothing; a primer word in the count's stretch ("B53 with primer, 2
 coats", "B53 with one coat of primer") makes the count the primer's as well, so
@@ -326,7 +326,8 @@ finish word), and a finish word there is no such sheet's; the whole stretch is
 judged. A count for a system ("2-coat system") or split across products ("two
 coats including primer", "two coats (one primer, one finish)") is nobody's
 count, and a floor ("two coats, or more as required for full hide", "at least
-two coats", "2 coats minimum") is not a fixed count. Primer words are prime(r), sealer, conditioner, base coat, undercoat(er),
+two (2) coats", "no less than two coats", "2 coats minimum", "two coats or as
+required to achieve full hide") is not a fixed count. Primer words are prime(r), sealer, conditioner, base coat, undercoat(er),
 filler and surfacer; finish words are finish, final, top(coat), intermediate,
 stripe, enamel, satin, semi-gloss, gloss, eggshell, flat, paint and coating. A clause naming no code settles a count only
 when no stretch names a product (a primer or finish word) the count could be
@@ -337,7 +338,10 @@ when a stretch names a product without a code, or the clause names several
 codes, it settles nothing for that sheet; a sheet row that names a second
 code (a recommended primer, a system) is read for neither; and a codeless
 clause that speaks of a primer only is read for a sheet that is a primer's
-alone, one that speaks of a finish only is no such sheet's. A second count said
+alone, and one that speaks of a finish only, or of no role at all ("Walls: two
+coats", usually the finish's or the system's), is no such sheet's; a codeless
+primer-only sheet read as the clause's one code takes a count only where its
+stretch names a primer. A second count said
 without the word "coat", or an added coat ("one coat; two at patched areas",
 "1 coat; 2 at patched areas", "a second coat at repairs", "plus 1 coat at
 repairs", "double coat at repairs", "recoat patched areas"), is a second

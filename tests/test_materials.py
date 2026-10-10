@@ -218,6 +218,12 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.coat_count(row("C", "Finish: two coats"), primer_sheet),
                          (None, "C speaks of a finish where it states coats, and this product's row names a primer"))
         self.assertEqual(materials.coat_count(row("C", "Prime coat: two coats of primer"), primer_sheet), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Walls: two coats"), primer_sheet),   # a bare count is the finish's or the system's
+                         (None, "C names no primer where it states coats, and this product's row names a primer"))
+        self.assertEqual(materials.coat_count(row("C", "Example B53, 2 coats"), primer_sheet),
+                         (None, "C names no primer with the coat count for B53, and this product's row names a primer; whether the count is B53's is not settled"))
+        self.assertEqual(materials.coat_count(row("C", "Example Primer B53, 2 coats"), primer_sheet), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Example B53, 2 coats"), plain), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "Prime coat: two coats of primer")), (2, ""))
         for text in ("one coat; two at patched areas", "one coat (two at repairs)", "a second coat at repairs", "One coat, another coat at repairs"):
             self.assertEqual(materials.coat_count(row("C", text))[0], None, text)
@@ -264,7 +270,10 @@ class ItemCase(unittest.TestCase):
                              (None, "C names a finish with the coat count for B66; whether the count is B66's is not settled"))
         # a floor is not a fixed count
         for text in ("Example Flat B53, two coats, or more as required for full hide", "Example Flat B53: at least two coats", "Example Flat B53, a minimum of two coats",
-                     "Example Flat B53, 2 coats minimum", "Example Flat B53, minimum 2 coats", "Example Flat B53, two coats as needed for complete coverage"):
+                     "Example Flat B53, 2 coats minimum", "Example Flat B53, minimum 2 coats", "Example Flat B53, two coats as needed for complete coverage",
+                     "Example Flat B53: at least two (2) coats", "Example Flat B53, minimum of two (2) coats", "Example Flat B53: no less than two coats",
+                     "Example Flat B53, two coats, minimum", "Example Flat B53, two coats (minimum)", "Example Flat B53, 2 coats min.",
+                     "Example Flat B53, two coats or as required to achieve full hide", "Example Flat B53, 2 coats or as necessary to obtain a uniform hide"):
             self.assertEqual(materials.coat_count(row("C", text), b53),
                              (None, "C states a minimum coat count for B53, not a fixed one; it does not settle this product's"), text)
         self.assertEqual(materials.coat_count(row("C", "Two coats, or more as required for full hide")),
@@ -293,7 +302,7 @@ class ItemCase(unittest.TestCase):
         # a count in the stretch before a sequence word is that stretch's code's ("B53, 2 coats after B66")
         after = row("C", "Example Flat B53, 2 coats after Example Primer B66")
         self.assertEqual((materials.coat_count(after, b53), materials.coat_count(after, b66)), ((2, ""), (None, "C states no coat count for B66")))
-        # a primer named before the count may own it ("B53 with primer, 2 coats"), unless the sheet is the primer's;
+        # a primer named in the count's stretch may own it ("B53 with primer, 2 coats"), unless the sheet is the primer's;
         # ... wherever in the count's stretch the primer is named, "B53 with one coat of primer" included
         for text in ("Example B53 with primer, 2 coats", "Base coat as needed, Example B53, 2 coats", "Primer as needed, 1 coat Example B53"):
             self.assertEqual(materials.coat_count(row("C", text), b53),

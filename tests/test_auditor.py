@@ -54,6 +54,28 @@ class FiguresCase(unittest.TestCase):
                         confidence="exact", value="2500", value_num=2500.0)]
         self.assertEqual(auditor.audit_proposal("Carry 2,500 psi.", claims), [])
 
+    def test_a_range_is_one_figure_and_must_trace(self):
+        def rows(*values):
+            return [Claim(claim_id=f"C-{i}", statement="s", source_id="S-1", method="clause", role="code",
+                          confidence="exact", value=v) for i, v in enumerate(values)]
+        self.assertEqual([f.text for f in auditor.extract_figures("spread 320-400 sq ft/gal, 2 - 4 weeks, 10–15%")],
+                         ["320-400", "2 - 4", "10–15"])
+        # Before, neither end of "320-400" was read, so a made-up range went unchecked.
+        self.assertEqual([o.figure for o in auditor.audit_proposal("Spread 300-450 sq ft/gal.", rows("320-400"))],
+                         ["300-450"])
+        for text, values in (("Spread 320-400 sq ft/gal.", ("320-400",)),
+                             ("Spread 320 - 400 sq ft/gal.", ("320-400",)),
+                             ("Spread 320–400 sq ft/gal.", ("320-400",)),
+                             ("Spread 320-400 sq ft/gal.", ("320", "400")),
+                             ("Spread 2,000-2,500 sq ft.", ("2000-2500",))):
+            with self.subTest(text=text, values=values):
+                self.assertEqual(auditor.audit_proposal(text, rows(*values)), [])
+        for text, values in (("Spread 320-400 sq ft/gal.", ("320",)),
+                             ("Spread 400 sq ft/gal.", ("320-400",)),
+                             ("Spread 320-450 sq ft/gal.", ("320", "400"))):
+            with self.subTest(text=text, values=values):
+                self.assertEqual(len(auditor.audit_proposal(text, rows(*values))), 1)
+
 
 class VerdictCase(unittest.TestCase):
     def setUp(self):
@@ -84,13 +106,13 @@ class VerdictCase(unittest.TestCase):
         self.assertEqual(report.verdicts.get("unverified"), 1)
         self.assertEqual(self.intake.ledger.by_id()["U-001"].audit, "unverified")
 
-    def test_a_replayed_derivation_passes_and_a_bare_count_does_not(self):
+    def test_a_replayed_derivation_is_no_firmer_than_the_count_it_rests_on(self):
         self.add(claim_id="D-001")
         self.add(claim_id="Q-001", principal="takeoff", value="18", value_num=18.0,
                  calc="{D-001} * 3", statement="3 per bracket x 6")
         report = self.audit()
         verdicts = {c.claim_id: c.audit for c in self.intake.ledger.claims()}
-        self.assertEqual(verdicts["Q-001"], "pass")
+        self.assertEqual(verdicts["Q-001"], "unverified")
         self.assertEqual(verdicts["D-001"], "unverified")
         self.assertFalse(report.failures)
 

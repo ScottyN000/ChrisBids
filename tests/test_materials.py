@@ -237,9 +237,17 @@ class ClaimCase(unittest.TestCase):
             self.assertEqual((c.value, c.flag), ("3-3.75", ""), other.statement)
         # a floor in the quote alone counts too; the coat row itself is read by coat_count, not here
         quoted = row("X-SP-092", "General", quote="additional coats regardless of the number specified")
-        self.assertEqual(materials.spec_wide_floor(ONE_COAT, {"X-SP-092": quoted})[0], None)
-        self.assertIsNone(materials.spec_wide_floor(quoted, {"X-SP-092": quoted}))
-        self.assertIsNone(materials.spec_wide_floor(ONE_COAT, BY_ID))
+        self.assertEqual(materials.spec_wide_floor(ONE_COAT, {"X-SP-092": quoted}),
+                         "X-SP-092 adds coats or sets a minimum across the spec, so X-SP-011's count is not a fixed one")
+        self.assertEqual(materials.spec_wide_floor(quoted, {"X-SP-092": quoted}), "")
+        self.assertEqual(materials.spec_wide_floor(ONE_COAT, BY_ID), "")
+        # a note about no coat leaves the count fixed: a bare number before "at"/"in", or more material
+        for text in ("Through-bolts: 2 at each post", "Sleeves: 1 in each cell", "Furnish additional material at no cost",
+                     "Provide extra product for attic stock"):
+            self.assertEqual(materials.spec_wide_floor(ONE_COAT, {"X-SP-093": row("X-SP-093", text)}), "", text)
+        # added paint and a recoat do bear on coats
+        for text in ("Apply additional paint where thin", "Recoat patched areas", "Coats as required to achieve full hide"):
+            self.assertTrue(materials.spec_wide_floor(ONE_COAT, {"X-SP-093": row("X-SP-093", text)}), text)
 
     def test_a_sealant_is_a_length_over_a_rate_per_tube_with_no_coats(self):
         c = materials.order_claim("X-MT-03", SEALANT, 2, 2, BY_ID)

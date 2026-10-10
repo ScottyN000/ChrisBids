@@ -393,7 +393,8 @@ is a count. A count the clause settles is still a floor when another clause
 row in the ledger names no product and adds coats or sets a minimum across
 the spec ("Hide must be complete, with additional coats regardless of the
 number specified"): the order is written with no figure, flagged, naming
-that row. A customer row sets no count (it never overrides a spec clause). A
+that row (only wording about coats or paint counts, so "Through-bolts: 2 at
+each post" or "additional material" floors nothing). A customer row sets no count (it never overrides a spec clause). A
 recoat time ("between coats: 24 hours") or a coverage line ("finish coat: 400
 sq ft/gal") is no count: the "coats:" form counts only when "coats" is the label
 itself (the label starts a stretch, after punctuation or a cut word, and may
@@ -448,4 +449,7 @@ Not built yet: the cold-cache search, the 90-day cache for federal regulations,
 and the edition, effective-date, discontinuation and ESR-expiry comparisons
 between bids (p.8). The page hash is in the fetch log, not on the row. An agreed
 figure with no unit in the table (a date) is checked by code but stored only in
-the row's sentence, not in `value`.
+the row's sentence, not in `value`. The order step runs once per bid over
+every division's rows, as Takeoff does, not once per division (p.6), and its
+schema takes at most 40 orders per run, so a large multi-division job could
+have orders cut off; splitting the unit by division is the fix when one does.

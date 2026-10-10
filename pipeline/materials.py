@@ -69,6 +69,8 @@ QUANTITY_ROLES = ("quantity", "allowance")
 # Rows the model is shown: what the sources say, the figures and the data sheets.
 SHOWN_METHODS = ("clause", "customer", "fetched", "dimensioned", "counted", "FIELD")
 ROW_ID = r"^[A-Z0-9-]{1,40}$"
+# What a spec-wide floor or added-coat wording must speak of to bear on a coat count (spec_wide_floor).
+COATING = re.compile(r"coat|paint", re.I)
 
 SCHEMA = {
     "type": "object",
@@ -274,17 +276,20 @@ def vote(runs: list[list[dict]]) -> tuple[list[tuple[dict, int]], list[str]]:
     return [(seen[k][0], seen[k][1]) for k in order], dupes
 
 
-def spec_wide_floor(coat_row: Claim, by_id: dict[str, Claim]) -> tuple[None, str] | None:
-    """(None, why) when another clause row naming no product adds coats or sets a
-    minimum across the spec ("Hide must be complete, with additional coats
-    regardless of the number specified"): every stated count is then a floor, so
-    the order waits on the estimator; None when no such row is in the ledger."""
+def spec_wide_floor(coat_row: Claim, by_id: dict[str, Claim]) -> str:
+    """Why the count `coat_row` states is a floor: another clause row naming no
+    product adds coats or sets a minimum across the spec ("Hide must be complete,
+    with additional coats regardless of the number specified"), so the order waits
+    on the estimator; "" when no such row is in the ledger. Only wording about
+    coats or paint counts: a bare number ("Through-bolts: 2 at each post") or
+    "additional material" is about no coat."""
     for c in by_id.values():
         text = SEP.join([c.statement, c.quote] if c.quote else [c.statement])
-        if (c.method == "clause" and c.claim_id != coat_row.claim_id and not product_codes(text)
-                and (MORE.search(text) or FLOOR.search(text))):
-            return None, f"{c.claim_id} adds coats or sets a minimum across the spec, so {coat_row.claim_id}'s count is not a fixed one"
-    return None
+        if c.method != "clause" or c.claim_id == coat_row.claim_id or product_codes(text):
+            continue
+        if any(COATING.search(m.group()) for m in (*MORE.finditer(text), *FLOOR.finditer(text))):
+            return f"{c.claim_id} adds coats or sets a minimum across the spec, so {coat_row.claim_id}'s count is not a fixed one"
+    return ""
 
 
 def _fig(c: Claim) -> str:
@@ -301,7 +306,9 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
     coat_row = by_id.get(item["coats"]) if item["coats"] else None
     coats, coats_why = coat_count(coat_row, sheet) if coat_row is not None else (None, "")
     if coats is not None:
-        coats, coats_why = spec_wide_floor(coat_row, by_id) or (coats, coats_why)
+        floor = spec_wide_floor(coat_row, by_id)
+        if floor:
+            coats, coats_why = None, floor
     rate = rate_of(spec, sheet)
     basis = [by_id[r] for r in dict.fromkeys(item["basis"]) if r in by_id]
     cited = [c for c in [q, spec, coat_row, sheet, *basis] if c is not None]

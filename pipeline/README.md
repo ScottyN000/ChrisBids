@@ -250,8 +250,10 @@ So is the figure of an ask whose table entry names its `unit` (`# sq ft/gal`,
 figure, with that unit. A data sheet's spread rate then reaches the ledger as a
 value, and a `material` row's calc may rest on it ([`schema.py`](schema.py)
 replays a calc at both ends of a range and the row's value is the range the
-ends give). An ask with no unit (a date, an edition) keeps its figures in the
-sentence.
+ends give; a calc that rests on a flagged row is refused unless the row is
+flagged unverified itself). An ask with no unit (a date, an edition) keeps its
+figures in the sentence; a unit ask has no `options`, and its first mark never
+fills one of the page's identifiers.
 
 When the runs find differing readings on the page (different passages and
 figures, or one run finds it and one does not), code does not pick one. Each

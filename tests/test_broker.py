@@ -166,6 +166,16 @@ class BrokerCase(unittest.TestCase):
         self.who("takeoff").append(claim(claim_id="Q-002", method="counted", value="18",
                                          value_num=18.0, unit="each", calc="{D-001} * 3"))
 
+    def test_a_calc_on_a_flagged_input_is_flagged_itself(self):
+        self.who("drawing_reader").append(claim(claim_id="D-001", value="6", value_num=6.0, unit="each",
+                                                confidence="inferred", flag="unverified"))
+        with self.assertRaises(LedgerError) as e:
+            self.who("takeoff").append(claim(claim_id="Q-001", method="counted", value="18",
+                                             value_num=18.0, unit="each", calc="{D-001} * 3"))
+        self.assertIn("calc input D-001 is flagged unverified; the row must be flagged unverified", str(e.exception))
+        self.who("takeoff").append(claim(claim_id="Q-001", method="counted", value="18", value_num=18.0,
+                                         unit="each", calc="{D-001} * 3", flag="unverified"))
+
     def test_calc_is_arithmetic_only(self):
         with self.assertRaises(LedgerError):
             self.who("takeoff").append(claim(claim_id="Q-003", method="counted", value="1",

@@ -351,7 +351,7 @@ rows:
      url: 'https://www.aws.org/about/news/d11-release/',
      quote: 'AWS Announces Release of D1.1/D1.1M:2025, Structural Welding Code – Steel',
      statement: 'AWS D1.1/D1.1M:2025 released'}
-  - {id: NAN-C-025, role: code, method: fetched, confidence: exact, source: WEB, tag: 29 CFR 1926.501, retrieved: 2026-10-07,
+  - {id: NAN-C-025, role: code, method: fetched, value: '6', unit: ft, confidence: exact, source: WEB, tag: 29 CFR 1926.501, retrieved: 2026-10-07,
      url: 'https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-M/section-1926.501',
      quote: 'Each employee on a walking/working surface (horizontal and vertical surface) with an unprotected side or edge which is 6 feet (1.8 m) or more above a lower level shall be protected from falling',
      statement: 'Fall protection at 6 ft or more above a lower level'}
@@ -365,7 +365,7 @@ rows:
      supersedes: 'NAN-TB p.10 "Chipping and drilling concrete and CMU: Table 1 controls (water delivery or dust collection)" quoting the water clause',
      reason: 'Drilling (anchor holes) is Table 1 entry vii: shroud with dust collection and HEPA vacuum, not water',
      statement: 'Silica, drilling anchor holes: shroud with dust collection, HEPA vacuum to clean holes (Table 1 entry vii)'}
-  - {id: NAN-C-028, role: code, method: fetched, confidence: exact, source: WEB, tag: 29 CFR 1926.1053, retrieved: 2026-10-07,
+  - {id: NAN-C-028, role: code, method: fetched, value: '3', unit: ft, confidence: exact, source: WEB, tag: 29 CFR 1926.1053, retrieved: 2026-10-07,
      url: 'https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-X/section-1926.1053',
      quote: 'the ladder side rails shall extend at least 3 feet (.9 m) above the upper landing surface to which the ladder is used to gain access',
      statement: 'Ladders: side rails 3 ft above the upper landing'}

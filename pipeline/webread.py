@@ -145,13 +145,18 @@ def load(path: Path = SOURCES) -> Table:
     for p in data["pages"]:
         if p["agent"] not in AGENTS:
             raise ValueError(f"{p['url']}: agent {p['agent']!r} is not one of {AGENTS}")
-        pages.append(Source(
-            url=p["url"], title=p["title"], agent=p["agent"],
-            when=tuple(tuple(t.lower() for t in g) for g in p["when"]),
-            asks=tuple(Ask(a["id"], a["ask"], a.get("fixture", ""), tuple(a.get("options", ())), a.get("unit", ""))
-                       for a in p["asks"]),
-            ids=tuple(p.get("ids", ())),
-        ))
+        ids = tuple(p.get("ids", ()))
+        asks = tuple(Ask(a["id"], a["ask"], a.get("fixture", ""), tuple(a.get("options", ())), a.get("unit", ""))
+                     for a in p["asks"])
+        for a in asks:
+            # A unit ask's value is the figure in its first mark: a closed ask has no figure, and a mark
+            # that fills one of the page's identifiers (ESR-#) holds a name, not a figure.
+            if a.unit and a.options:
+                raise ValueError(f"{p['url']} {a.id}: an ask names a unit or options, not both")
+            if a.unit and 0 in id_marks(a.ask, ids):
+                raise ValueError(f"{p['url']} {a.id}: a unit ask's first # mark fills an identifier, not a figure")
+        pages.append(Source(url=p["url"], title=p["title"], agent=p["agent"],
+                            when=tuple(tuple(t.lower() for t in g) for g in p["when"]), asks=asks, ids=ids))
     return Table(named=frozenset(data["named_domains"]), pages=pages)
 
 
@@ -277,9 +282,10 @@ def slots(answer: dict, ids: tuple[str, ...] = (), marks: frozenset[int] = froze
 
 def figure_of(answer: dict, ask: Ask, ids: tuple[str, ...] = ()) -> tuple[str, str]:
     """The row's value and unit from an ask that names its unit: the one figure
-    the answer fills the first # mark with, as the quote writes it (a range is
-    one figure: "320-400"), and the table's unit. An ask with no unit, an answer
-    not found, or a first mark filled with no figure or several gives none."""
+    the answer fills the first # mark with, as `figures` normalises it (a range
+    is one figure, "320-400", whatever dash or spacing the page used), and the
+    table's unit. An ask with no unit, an answer not found, or a first mark
+    filled with no figure or several gives none."""
     if not ask.unit or not answer.get("found"):
         return "", ""
     filled = slots(answer, ids, id_marks(ask.ask, ids))
@@ -452,22 +458,25 @@ def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
         return None, "a run's answer was refused", []
     answers = answers[:need]    # the first kept answers; a spare run only stands in
     found = [a for a in answers if a["found"]]
+    marks = id_marks(ask.ask, ids)
     if not found:
         return None, "not on the page", []
     if len(found) < len(answers):
-        return None, "the runs disagree on whether the page says it", _distinct(found)
+        return None, "the runs disagree on whether the page says it", _distinct(found, ids, marks)
     first = answers[0]
-    marks = id_marks(ask.ask, ids)
     if not all(_same_reading(first, a, ids, marks) for a in answers[1:]):
-        return None, "the runs give different readings", _distinct(found)
+        return None, "the runs give different readings", _distinct(found, ids, marks)
     return first, "", []
 
 
-def _distinct(answers: list[dict]) -> list[dict]:
-    """The readings, once each (two runs may give the same quote and sentence)."""
+def _distinct(answers: list[dict], ids: tuple[str, ...] = (), marks: frozenset[int] = frozenset()) -> list[dict]:
+    """The readings, once each (two runs may give the same quote and sentence).
+    Two answers that quote one passage but fill the ask's marks with different
+    figures (a sheet that gives 350-400 on one surface and 250-300 on another)
+    are two readings, and both are kept: code never picks between them."""
     out, seen = [], set()
     for a in answers:
-        key = (web.normalize(a["quote"]), web.normalize(a["statement"]))
+        key = (web.normalize(a["quote"]), web.normalize(a["statement"]), slots(a, ids, marks))
         if key not in seen:
             seen.add(key)
             out.append(a)
@@ -683,6 +692,9 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict],
             elif a.options and got.value != (choices or {}).get(a.fixture):
                 failures.append(f"{a.fixture}: chose {got.value!r}, the fixture's answer is "
                                 f"{(choices or {}).get(a.fixture)!r}")
+            elif a.unit and str(f.get("value", "")) != "" and got.value != str(f["value"]):
+                failures.append(f"{a.fixture}: gives {got.value!r} {a.unit}, the fixture's figure is "
+                                f"{str(f['value'])!r}")
     ok = not failures and compared > 0 and compared - len(misses) >= ANSWERED * compared
     return Gate(ok=ok, compared=compared, failures=failures, notes=notes, misses=misses)
 

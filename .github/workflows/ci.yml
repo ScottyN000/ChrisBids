@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# The job only reads the checkout: the token gets no more than that.
+permissions:
+  contents: read
+
 # Actions minutes are billed while the repo is private: a branch push with a PR open used to run
 # this twice (push and pull_request), so branches run it through their PR only,
 # and a newer push cancels the older run (never on main, so each merge commit

@@ -27,6 +27,8 @@ produces is treated as data: it can fill a schema field, never steer the code.
 - **pip-audit**: known vulnerabilities in `requirements.txt`. Same triggers as bandit.
 - **gitleaks**: secrets in the code or its git history, on every push to any branch.
 - **Dependabot**: weekly update PRs for pip packages, GitHub Actions and the Docker base image.
+- **CodeQL** (GitHub's default setup, Python and Actions): alerts on the Security tab; a PR check reports new alerts in the code it changes.
+- **Workflow tokens**: every workflow sets `permissions:` at the top (`contents: read`, or `{}` where a job sets its own), so a job's token can write nothing it does not need.
 
 ## Known gaps
 

@@ -31,6 +31,10 @@ on:
     - cron: "41 7 * * 1"   # weekly, on main
   workflow_dispatch:
 
+# The job only reads the checkout: the token gets no more than that.
+permissions:
+  contents: read
+
 # A full run took about 45 minutes before Phase 3 and grows with the code; the
 # first Phase 3 run hit the old 90-minute limit. A newer push to the same branch
 # makes the older run moot, so it is cancelled rather than left holding a runner.

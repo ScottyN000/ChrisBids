@@ -249,7 +249,7 @@ class ItemCase(unittest.TestCase):
         # the count's own object is judged with it ("one coat of primer, B53"), and so is a code that follows the count
         self.assertEqual(materials.coat_count(row("C", "Trim: one coat of primer, Example B53"), b53),
                          (None, "C names a primer with the coat count for B53; whether the count is B53's is not settled"))
-        self.assertEqual(materials.coat_count(row("C", "2 coats of finish, Example Primer B66"), b66),
+        self.assertEqual(materials.coat_count(row("C", "2 coats of finish, Example B66"), b66),
                          (None, "C names a finish with the coat count for B66; whether the count is B66's is not settled"))
         # a finish sheet whose quote also names a primer is not a primer's sheet alone
         mixed = row("X-WEB-019", "Example Enamel B53 data sheet", method="fetched", role="code", source="WEB", tag="B53 enamel",

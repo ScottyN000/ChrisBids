@@ -10,6 +10,10 @@ system or split across products, or a count two products may share settles
 nothing, and the reason says why, so the order is written with no figure and
 flagged for the estimator (Determinism: two reasonable readings, neither
 picked).
+
+It reads one clause row. A spec-wide clause elsewhere that makes every stated
+count a floor ("additional coats regardless of the number specified") is the
+order step's to weigh before it uses a count from here.
 """
 from __future__ import annotations
 
@@ -139,6 +143,8 @@ SENTENCE_MARK = re.compile(r"[();.]")
 FULL_STOP = re.compile(r"\.(?:\s+[A-Z(\"']|\s*$)")
 # text ending in a figure and at most its unit words, which a bare "or more" then follows directly
 BOUNDED = re.compile(rf"(?:\d+(?:[.,]\d+)*|\b(?:{A_NUMBER})\b)(?:%|(?:\s*(?:{MEASURE_UNITS})\b)*)\s*$", re.I)
+# The mark a clause's statement and quote are joined with, one text to read.
+SEP = "; "
 # A stretch opened by a sequence word continues whatever came before it in the same part
 # (a product, "Base coat as needed", or a step, "Scrape"), and one opened by "and" continues
 # a product named before it; so a count written after its code there ("B53 over B66 primer,
@@ -196,7 +202,7 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
         elif sentence > part_start:
             lead = text[sentence:m.start()]
             for p, _ in counted:
-                if part_start <= p < sentence and not other_product(text[sentence_at(spans, p)], lead):
+                if part_start <= p < sentence and not other_product(text[stretch_at(spans, p)], lead):
                     found.append((p, "floor"))   # every count before, in the part, unless the other product stands right before the hedge
     return sorted(found, key=lambda f: f[0])
 
@@ -238,10 +244,7 @@ def stretches(*parts: str) -> list[tuple[int, int, str, int]]:
     return spans
 
 
-SEP = "; "
-
-
-def sentence_at(spans: list[tuple[int, int, str, int]], pos: int) -> slice:
+def stretch_at(spans: list[tuple[int, int, str, int]], pos: int) -> slice:
     """The stretch that holds `pos`, as a slice of the text."""
     a, b, *_ = next((s for s in spans if s[0] <= pos < s[1]), (0, 0))
     return slice(a, b)

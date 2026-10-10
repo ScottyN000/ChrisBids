@@ -331,7 +331,7 @@ def main(argv=None) -> int:
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
     p.add_argument("--no-web", action="store_true", help="skip Codes & Regs and Materials (no page is fetched)")
-    p.add_argument("--page-cache", default="runs/cache/pages.json",
+    p.add_argument("--page-cache", default="runs/cache/pages.jsonl",
                    help="what each page said, kept between bids; empty to read every page anew")
     p.set_defaults(func=cmd_bid)
 

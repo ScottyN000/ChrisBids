@@ -252,11 +252,18 @@ class Broker:
         self._log("fetch", url[:500], detail)
         self.ledger.db.commit()
 
-    def log_cached(self, url: str, detail: str) -> None:
-        """Record a page whose answers came from the page cache: when it was read, and why it was not read again."""
+    def cache_lookup(self, cache, url: str, key: str):
+        """Read the code and product cache (p.11: Codes & Regs, Materials and the Auditor)."""
         if not self.principal.egress:
-            self._deny("use the page cache")
-        self._log("cached", url[:500], detail)
+            self._deny("read the page cache")
+        return cache.get(url, key)
+
+    def cache_append(self, cache, entry, detail: str) -> None:
+        """Append a reading or a revalidation to the code and product cache (p.11: Codes & Regs and Materials)."""
+        if "fetched" not in self.principal.methods:
+            self._deny("append to the page cache")
+        cache.append(entry)
+        self._log("cached", entry.url[:500], detail)
         self.ledger.db.commit()
 
     def secret(self, name: str) -> str:

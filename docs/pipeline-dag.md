@@ -17,7 +17,7 @@ flowchart TD
     photo["<b>Photo Reader</b><br/>conditions, no numbers<br/><i>built</i>"]
     correspondence["<b>Correspondence</b><br/>emails, PM notes<br/><i>replay-only</i>"]
     takeoff["<b>Takeoff</b><br/>derivation or FIELD<br/><i>built</i>"]
-    codes["<b>Codes & Regs</b><br/>fetched, URL + section; federal regs cached 90 days<br/><i>built</i>"]
+    codes["<b>Codes & Regs</b><br/>fetched, URL + section; unchanged pages not re-read<br/><i>built</i>"]
     materials["<b>Materials</b><br/>data sheet rates and order quantities, cited<br/><i>built</i>"]
     customer["<b>Customer Reqs</b><br/>base vs alternates<br/><i>planned</i>"]
     ledger[("<b>Claim ledger</b><br/>value, source, locator, method, derivation, audit result")]

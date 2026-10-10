@@ -205,18 +205,18 @@ conclusion, since the table is the cache for every later job (p.7: evidence,
 never conclusions). A jurisdiction the table does not
 know gets no rows yet: the cold-cache search plan (p.13) is not built.
 
-Every bid re-fetches its pages, but for a federal regulation (the 29 CFR pages,
-`revalidate_days: 90` in the table) read within the last 90 days: its rows carry
-the date it was read, and the run says so. A cached row is evidence, never a
-conclusion (p.7-8), so the page cache ([`pagecache.py`](pagecache.py),
-`bid --page-cache`, default `runs/cache/pages.json`) keeps what each page said
-with its quote, and a re-fetched page whose bytes hash the same, with every
-quote still on it, keeps its answers without a model call; any change is read
-anew. An entry counts only for the same asks, page identifiers, prompt version
-and model, and only a page whose asks all agreed is kept. The architecture also
-re-reads a federal regulation on a Federal Register hit; that change feed is not
-built, so an amendment inside the 90 days waits for the window to close. The
-`web` gate reads every page anew. Code does the fetching ([`web.py`](web.py)) and checks every URL first:
+Every bid re-fetches its pages: the savings come from skipping the search and
+the reading, not the fetch (p.8). A cached row is evidence, never a conclusion
+(p.7-8), so the page cache ([`pagecache.py`](pagecache.py), `bid --page-cache`,
+default `runs/cache/pages.jsonl`) keeps what each page said with its quote, and
+a re-fetched page whose bytes hash the same, with every quote still on it, keeps
+its answers without a model call; its rows carry today's date and the run log
+says "cached". Any change is read anew. An entry counts only for the same asks,
+page identifiers, prompt version, model, number of agreeing runs and code rules,
+and only a page whose asks all agreed is kept. The file is append-only, through
+the broker (p.11: Codes & Regs and Materials append); a line that does not load
+is skipped and its page read anew. The `web` gate reads every page anew. Code
+does the fetching ([`web.py`](web.py)) and checks every URL first:
 
 - only `.gov` hosts, `.us` state portals (`*.state.xx.us`) or a domain the table
   names may be fetched (anyone may register a `.us` name, so other `.us` hosts
@@ -455,7 +455,9 @@ order is noted; 80% of the compared orders must have a row. A fixture order that
 cites no page (the hand-made bid's angle footage, its bolts) is noted and left
 out: Materials writes fetched rows only.
 
-Not built yet: the cold-cache search, the Federal Register change feed, and the edition, effective-date, discontinuation and ESR-expiry comparisons
+Not built yet: the cold-cache search, the 90-day window for federal regulations
+(the architecture pairs it with a Federal Register change feed, so federal pages
+are fetched every bid), and the edition, effective-date, discontinuation and ESR-expiry comparisons
 between bids (p.8). The page hash is in the fetch log, not on the row. An agreed
 figure with no unit in the table (a date) is checked by code but stored only in
 the row's sentence, not in `value`. The order step runs once per bid over

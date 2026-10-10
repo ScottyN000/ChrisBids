@@ -1,11 +1,8 @@
-"""The page cache: a federal regulation stands 90 days without a fetch; any other page stands while its bytes do."""
+"""The page cache: a page fetched with unchanged bytes keeps its answers without a model call."""
 import json
 import tempfile
 import unittest
-from dataclasses import replace
 from pathlib import Path
-
-import yaml
 
 from pipeline import pagecache, web, webread
 from pipeline.pagecache import Entry, PageCache
@@ -15,15 +12,15 @@ from tests.test_webread import PAGE, PLANS, TURNAROUND, URL, Fake, answer, broke
 from tests.webfake import Resp, Sites
 
 AGREE = {"answers": [TURNAROUND, PLANS]}
-CFR = replace(source(), revalidate_days=90)
+ROW = {"quote": "q", "statement": "s", "value": "", "value_num": None, "unit": ""}
 
 
-def bid(cache, client, today="2026-10-08", body=PAGE, src=None):
+def bid(cache, client, today="2026-10-08", body=PAGE, repeats=2):
     """One bid's web read: a fresh ledger, as every bid starts with, and the same cache."""
     b = broker_with()
-    sites = Sites({URL: Resp(body.encode())})
+    sites = Sites({URL: Resp(body.encode()) if isinstance(body, str) else body})
     f = web.Fetcher({"example.com"}, opener=sites, clock=lambda: today, resolve=False)
-    res = webread.run(b, "J", client, f, table=table(src or source()), cache=cache)
+    res = webread.run(b, "J", client, f, table=table(), cache=cache, repeats=repeats)
     return b, res, sites
 
 
@@ -32,100 +29,110 @@ def rows(res):
             for c in res.rows]
 
 
+def cached_log(b):
+    return [(e["principal"], e["action"], e["subject"], e["detail"]) for e in b.ledger.log()
+            if e["action"] in ("fetch", "cached")]
+
+
 class EntryCase(unittest.TestCase):
-    def test_the_key_is_the_asks_ids_prompt_and_model(self):
-        k = pagecache.key(source(), "v1", "m")
-        self.assertEqual(k, pagecache.key(source(title="another title"), "v1", "m"))
-        for other in (pagecache.key(source(), "v2", "m"), pagecache.key(source(), "v1", "m2"),
-                      pagecache.key(source(ids=("1926.501",)), "v1", "m"),
-                      pagecache.key(source(asks=(webread.Ask("a1", "Permit turnaround # days"),
-                                                 webread.Ask("a2", "Plans required"))), "v1", "m"),
-                      pagecache.key(source(asks=(webread.Ask("a1", "Permit turnaround # weeks", unit="weeks"),
-                                                 webread.Ask("a2", "Plans required"))), "v1", "m"),
-                      pagecache.key(source(asks=(webread.Ask("a1", "Permit turnaround # weeks"),
-                                                 webread.Ask("a2", "Plans required", options=("yes", "no")))),
-                                    "v1", "m")):
+    def test_the_key_is_the_asks_ids_prompt_model_runs_and_rules(self):
+        k = pagecache.key(source(), "v1", "m", 2, "r")
+        self.assertEqual(k, pagecache.key(source(title="another title"), "v1", "m", 2, "r"))
+        two = (webread.Ask("a2", "Plans required"),)
+        for other in (pagecache.key(source(), "v2", "m", 2, "r"), pagecache.key(source(), "v1", "m2", 2, "r"),
+                      pagecache.key(source(), "v1", "m", 1, "r"), pagecache.key(source(), "v1", "m", 2, "r2"),
+                      pagecache.key(source(ids=("1926.501",)), "v1", "m", 2, "r"),
+                      pagecache.key(source(asks=(webread.Ask("a1", "Permit turnaround # days"),) + two),
+                                    "v1", "m", 2, "r"),
+                      pagecache.key(source(asks=(webread.Ask("a1", "Permit turnaround # weeks", unit="weeks"),) + two),
+                                    "v1", "m", 2, "r"),
+                      pagecache.key(source(asks=(webread.Ask("a1", "Permit turnaround # weeks", options=("x",)),)
+                                           + two), "v1", "m", 2, "r")):
             self.assertNotEqual(k, other)
+        self.assertEqual(len(webread.RULES), 16)
 
-    def test_fresh_counts_whole_days_inside_the_window(self):
-        c, e = PageCache(), Entry(URL, "k", "2026-07-12", "s")
-        self.assertEqual(pagecache.age("2026-07-12", "2026-10-10"), 90)
-        self.assertIsNone(pagecache.age("July", "2026-10-10"))
-        self.assertIsNone(pagecache.age("2026-07-12", ""))
-        self.assertTrue(c.fresh(e, 90, "2026-10-09"))           # 89 days
-        self.assertTrue(c.fresh(e, 90, "2026-07-12"))           # the same day
-        self.assertFalse(c.fresh(e, 90, "2026-10-10"))          # 90 days: fetched again
-        self.assertFalse(c.fresh(e, 90, "2026-07-11"))          # read "tomorrow": a clock gone wrong
-        self.assertFalse(c.fresh(e, 0, "2026-07-12"))           # 0: fetched on every bid
-        self.assertFalse(c.fresh(Entry(URL, "k", "", "s"), 90, "2026-07-12"))
-
-    def test_the_file_keeps_entries_between_bids(self):
+    def test_the_file_is_appended_and_the_last_line_wins(self):
         with tempfile.TemporaryDirectory() as d:
-            path = Path(d) / "cache" / "pages.json"
+            path = Path(d) / "cache" / "pages.jsonl"
             c = PageCache(path)
-            self.assertEqual(c.entries, {})
-            e = Entry(URL, "k", "2026-10-08", "s", {"a1": {"quote": "q"}})
-            c.put(e)
-            self.assertEqual(PageCache(path).get(URL, "k"), e)
-            self.assertIsNone(PageCache(path).get(URL, "other key"))
-            self.assertIsNone(PageCache(path).get("https://other.example.com", "k"))
-            self.assertEqual(sorted(p.name for p in path.parent.iterdir()), ["pages.json"])   # no temp file left
-            c.put(Entry("https://b.example.com", "k", "2026-10-09", "t"))
-            self.assertEqual([x["url"] for x in json.loads(path.read_text())["pages"]], [URL, "https://b.example.com"])
+            self.assertEqual((c.entries, c.skipped), ({}, 0))
+            c.append(Entry(URL, "k", "2026-10-08", "s", {"a1": ROW}))
+            c.append(Entry(URL, "k", "2026-10-09", "s", {"a1": ROW}))
+            c.append(Entry(URL, "k2", "2026-10-07", "t"))
+            lines = [json.loads(x) for x in path.read_text().splitlines()]
+            self.assertEqual([(x["format"], x["retrieved"]) for x in lines],
+                             [(1, "2026-10-08"), (1, "2026-10-09"), (1, "2026-10-07")])
+            again = PageCache(path)
+            self.assertEqual(again.get(URL, "k"), Entry(URL, "k", "2026-10-09", "s", {"a1": ROW}))
+            self.assertEqual(again.get(URL, "k2").retrieved, "2026-10-07")
+            self.assertIsNone(again.get("https://other.example.com", "k"))
+
+    def test_a_line_that_does_not_load_is_skipped(self):
+        good = {"format": 1, "url": URL, "key": "k", "retrieved": "2026-10-08", "sha256": "s", "answers": {"a1": ROW}}
+        bad = ['{"format": 1, "url": "cut off', "[]", json.dumps(dict(good, format=2)), json.dumps(dict(good, extra=1)),
+               json.dumps({k: v for k, v in good.items() if k != "format"}),
+               json.dumps({k: v for k, v in good.items() if k != "sha256"}),
+               json.dumps(dict(good, answers=["q"])), json.dumps(dict(good, answers={"a1": "q"})),
+               json.dumps(dict(good, answers={"a1": dict(ROW, extra=1)})),
+               json.dumps(dict(good, answers={"a1": {k: v for k, v in ROW.items() if k != "unit"}})),
+               json.dumps(dict(good, answers={"a1": dict(ROW, quote=None)})),
+               json.dumps(dict(good, retrieved=20261008)), json.dumps(dict(good, url=None)),
+               json.dumps(dict(good, key=1)), json.dumps(dict(good, sha256=[]))]
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "pages.jsonl"
+            path.write_text("\n".join(bad + [json.dumps(good)]) + "\n")
+            c = PageCache(path)
+            self.assertEqual(c.skipped, len(bad))
+            self.assertEqual(list(c.entries), [(URL, "k")])
 
     def test_no_path_keeps_nothing_on_disk(self):
         c = PageCache()
-        c.put(Entry(URL, "k", "2026-10-08", "s"))
+        c.append(Entry(URL, "k", "2026-10-08", "s"))
         self.assertEqual(c.get(URL, "k").retrieved, "2026-10-08")
         self.assertIsNone(c.path)
 
 
 class RunCase(unittest.TestCase):
-    def test_a_federal_regulation_read_within_90_days_is_not_fetched_or_read(self):
+    def test_unchanged_bytes_keep_their_answers_without_a_call(self):
         cache = PageCache()
-        _, first, _ = bid(cache, Fake(AGREE, AGREE), src=CFR)
-        self.assertEqual((first.calls, first.cached), (2, []))
-        k = pagecache.key(CFR, prompt_version("web_reader"), "fake")
-        self.assertEqual(cache.get(URL, k).retrieved, "2026-10-08")
-        b, res, sites = bid(cache, Fake(), today="2026-12-01", src=CFR)
-        self.assertEqual((res.calls, res.fetched, sites.requests), (0, [], []))
-        self.assertEqual(res.cached, [f"{URL}: read 2026-10-08, within 90 days; not fetched"])
-        self.assertEqual(rows(res), [r for r in rows(first)])       # the rows carry the date the page was read
-        self.assertEqual(res.rows[0].url, URL)
-        log = [(e["action"], e["subject"], e["detail"]) for e in b.ledger.log() if e["action"] in ("fetch", "cached")]
+        b, first, _ = bid(cache, Fake(AGREE, AGREE))
         sha = first.fetched[0].sha256
-        self.assertEqual(log, [("cached", URL, f"read 2026-10-08, within 90 days; not fetched; sha256 {sha}")])
-        self.assertIn(f"  cached {URL}: read 2026-10-08", res.text())
+        self.assertEqual((first.calls, first.cached), (2, []))
+        self.assertEqual(cached_log(b), [("codes", "fetch", URL, f"2026-10-08; sha256 {sha}"),
+                                         ("codes", "cached", URL, "read; 2 answers cached")])
+        b, res, sites = bid(cache, Fake(), today="2026-12-01")
+        self.assertEqual((res.calls, len(sites.requests)), (0, 1))     # fetched, not read
+        why = "unchanged since 2026-10-08 (same sha256); not read again"
+        self.assertEqual(res.cached, [f"{URL}: {why}"])
+        self.assertIn(f"  cached {URL}: {why}", res.text())
+        self.assertEqual([r[1] for r in rows(res)], ["2026-12-01", "2026-12-01"])     # today's date
+        self.assertEqual([r[:1] + r[2:] for r in rows(res)], [r[:1] + r[2:] for r in rows(first)])
+        self.assertEqual(cached_log(b), [("codes", "fetch", URL, f"2026-12-01; sha256 {sha}"),
+                                         ("codes", "cached", URL, why)])
+        k = pagecache.key(source(), prompt_version("web_reader"), "fake", 2, webread.RULES)
+        self.assertEqual(cache.get(URL, k).retrieved, "2026-12-01")     # the last check is appended
+        _, res, _ = bid(cache, Fake(), today="2026-12-02")
+        self.assertEqual(res.cached, [f"{URL}: unchanged since 2026-12-01 (same sha256); not read again"])
 
-    def test_at_90_days_it_is_fetched_and_unchanged_bytes_stand_without_a_call(self):
+    def test_changed_bytes_are_read_anew(self):
         cache = PageCache()
-        _, first, _ = bid(cache, Fake(AGREE, AGREE), src=CFR)
-        b, res, sites = bid(cache, Fake(), today="2027-01-06", src=CFR)
-        self.assertEqual((res.calls, len(sites.requests)), (0, 1))
-        self.assertEqual(res.cached, [f"{URL}: unchanged since 2026-10-08 (same sha256); not read again"])
-        self.assertEqual([r[1] for r in rows(res)], ["2027-01-06", "2027-01-06"])
-        self.assertEqual([r[2:] for r in rows(res)], [r[2:] for r in rows(first)])
-        self.assertEqual(cache.get(URL, pagecache.key(CFR, prompt_version("web_reader"), "fake")).retrieved,
-                         "2027-01-06")                              # a new 90 days from the last check
-        self.assertEqual([e["action"] for e in b.ledger.log() if e["action"] in ("fetch", "cached")],
-                         ["fetch", "cached"])
-
-    def test_any_other_page_is_fetched_every_bid(self):
-        cache = PageCache()
-        _, first, _ = bid(cache, Fake(AGREE, AGREE))
-        _, res, sites = bid(cache, Fake(), today="2026-10-09")
-        self.assertEqual((res.calls, len(sites.requests)), (0, 1))
-        self.assertEqual([r[1] for r in rows(res)], ["2026-10-09", "2026-10-09"])
+        bid(cache, Fake(AGREE, AGREE))
         changed = PAGE.replace("<h1>Permits</h1>", "<h1>Permits and fees</h1>")
-        client = Fake(AGREE, AGREE)
-        _, res, _ = bid(cache, client, today="2026-10-10", body=changed)
-        self.assertEqual((res.calls, res.cached), (2, []))         # new bytes: read anew
+        _, res, _ = bid(cache, Fake(AGREE, AGREE), today="2026-10-09", body=changed)
+        self.assertEqual((res.calls, res.cached), (2, []))
 
     def test_a_cached_quote_no_longer_on_the_page_is_read_anew(self):
         cache = PageCache()
         bid(cache, Fake(AGREE, AGREE))
         e = next(iter(cache.entries.values()))
         e.answers["a1"]["quote"] = "Permits will be issued in 3 days"
+        _, res, _ = bid(cache, Fake(AGREE, AGREE), today="2026-10-09")
+        self.assertEqual((res.calls, res.cached), (2, []))
+
+    def test_an_entry_missing_an_ask_is_read_anew(self):
+        cache = PageCache()
+        bid(cache, Fake(AGREE, AGREE))
+        del next(iter(cache.entries.values())).answers["a2"]
         _, res, _ = bid(cache, Fake(AGREE, AGREE), today="2026-10-09")
         self.assertEqual((res.calls, res.cached), (2, []))
 
@@ -139,50 +146,43 @@ class RunCase(unittest.TestCase):
         self.assertEqual(len(res.unread), 1)
         self.assertEqual(cache.entries, {})
 
-    def test_a_new_model_or_ask_reads_the_page_anew(self):
+    def test_a_reading_by_fewer_runs_or_another_model_does_not_stand_in(self):
         cache = PageCache()
-        bid(cache, Fake(AGREE, AGREE), src=CFR)
-        _, res, _ = bid(cache, Fake(AGREE, AGREE, model_id="other"), today="2026-10-09", src=CFR)
+        bid(cache, Fake(AGREE), repeats=1)
+        _, res, _ = bid(cache, Fake(AGREE, AGREE), today="2026-10-09")
+        self.assertEqual((res.calls, res.cached), (2, []))         # one run's reading is not two runs' agreement
+        _, res, _ = bid(cache, Fake(AGREE, AGREE, model_id="other"), today="2026-10-09")
         self.assertEqual((res.calls, res.cached), (2, []))
-        self.assertEqual(len(cache.entries), 1)                    # keyed by URL: the newer reading replaces it
 
     def test_a_page_that_does_not_open_is_a_gap_even_when_cached(self):
         cache = PageCache()
         bid(cache, Fake(AGREE, AGREE))
-        b = broker_with()
-        f = web.Fetcher({"example.com"}, opener=Sites({URL: OSError("down")}), clock=lambda: "2026-10-09",
-                        resolve=False)
-        res = webread.run(b, "J", Fake(), f, table=table(), cache=cache)
+        _, res, _ = bid(cache, Fake(), today="2026-10-09", body=OSError("down"))
         self.assertEqual([(c.flag, c.confidence) for c in res.rows], [("unverified", "missing")])
         self.assertEqual(res.cached, [])
 
-    def test_only_a_principal_with_egress_may_use_the_cache(self):
-        b = broker_with()
-        with self.assertRaises(LedgerError):
-            b.as_principal("spec_reader").log_cached(URL, "read 2026-10-08")
-
-
-class TableCase(unittest.TestCase):
-    def test_only_federal_regulations_stand_90_days(self):
-        t = webread.load()
-        days = {s.url: s.revalidate_days for s in t.pages if s.revalidate_days}
-        self.assertTrue(days)
-        self.assertEqual(set(days.values()), {90})
-        for s in t.pages:
-            self.assertEqual(s.revalidate_days > 0, s.title.startswith("29 CFR"), s.url)
-
-    def test_revalidate_days_must_be_a_whole_number(self):
-        page = {"url": URL, "title": "t", "agent": "codes", "when": [["x"]], "asks": [{"id": "a1", "ask": "q"}]}
+    def test_lines_that_did_not_load_are_noted(self):
         with tempfile.TemporaryDirectory() as d:
-            path = Path(d) / "t.yaml"
-            for bad in (-1, "90", 1.5, True):
-                path.write_text(yaml.safe_dump({"named_domains": [], "pages": [dict(page, revalidate_days=bad)]}))
-                with self.subTest(bad), self.assertRaises(ValueError):
-                    webread.load(path)
-            path.write_text(yaml.safe_dump({"named_domains": [], "pages": [dict(page, revalidate_days=90)]}))
-            self.assertEqual(webread.load(path).pages[0].revalidate_days, 90)
-            path.write_text(yaml.safe_dump({"named_domains": [], "pages": [page]}))
-            self.assertEqual(webread.load(path).pages[0].revalidate_days, 0)
+            path = Path(d) / "pages.jsonl"
+            path.write_text("not json\n")
+            _, res, _ = bid(PageCache(path), Fake(AGREE, AGREE))
+            self.assertEqual(res.notes, ["page cache: 1 lines did not load; their pages are read anew"])
+            self.assertEqual(len(PageCache(path).entries), 1)
+
+    def test_only_codes_and_materials_append_and_only_egress_reads(self):
+        b, c = broker_with(), PageCache()
+        e = Entry(URL, "k", "2026-10-08", "s")
+        for name in ("spec_reader", "auditor"):
+            with self.subTest(name), self.assertRaises(LedgerError):
+                b.as_principal(name).cache_append(c, e, "read")
+        self.assertEqual(c.entries, {})
+        with self.assertRaises(LedgerError):
+            b.as_principal("spec_reader").cache_lookup(c, URL, "k")
+        b.as_principal("materials").cache_append(c, e, "read")
+        self.assertEqual(b.as_principal("auditor").cache_lookup(c, URL, "k"), e)
+        self.assertEqual([(x["principal"], x["action"]) for x in b.ledger.log() if x["action"] in ("cached", "denied")],
+                         [("spec_reader", "denied"), ("auditor", "denied"), ("spec_reader", "denied"),
+                          ("materials", "cached")])
 
 
 if __name__ == "__main__":

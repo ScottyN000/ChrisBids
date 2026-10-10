@@ -214,7 +214,7 @@ class ItemCase(unittest.TestCase):
         primer_sheet = row("X-WEB-016", "the primer data sheet", method="fetched", role="code", source="WEB", tag="primer sheet")
         for sheet in (plain, row("X-WEB-017", "Example Enamel data sheet", method="fetched", role="code", source="WEB", tag="enamel sheet")):
             self.assertEqual(materials.coat_count(row("C", "Prime coat: two coats of primer"), sheet),
-                             (None, "C speaks of a primer where it states coats, and this product's row names no primer"), sheet.tag)
+                             (None, "C speaks of a primer where it states coats, and this product's row is not a primer's alone"), sheet.tag)
         self.assertEqual(materials.coat_count(row("C", "Finish: two coats"), primer_sheet),
                          (None, "C speaks of a finish where it states coats, and this product's row names a primer"))
         self.assertEqual(materials.coat_count(row("C", "Prime coat: two coats of primer"), primer_sheet), (2, ""))
@@ -236,9 +236,29 @@ class ItemCase(unittest.TestCase):
                          (None, "C does not tie a coat count to one product; which is this product's is not settled"))
         self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 1 coat (10 year)"), b53), (1, ""))
         # a hyphenated count is a count ("2-coat system"), so two of them settle nothing
-        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 2-coat system"), b53), (2, ""))
-        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, one coat (two-coat system on bare wood)"), b53),
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 2-coat finish"), b53), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, one coat (two-coat finish on bare wood)"), b53),
                          (None, "C states 2 coat counts for B53; it does not settle this product's"))
+        # a system's count, or one split across products, is nobody's count
+        for text in ("Example Flat B53, 2-coat system", "Example Flat B53, 2-coat system including primer", "Example Flat B53, two coats (one primer, one finish)",
+                     "Example Flat B53, 2 coats incl. primer", "Example Flat B53, two coats of which one is primer"):
+            self.assertEqual(materials.coat_count(row("C", text), b53),
+                             (None, "C states a coat count for B53 for a system or split across products; whose coats they are is not settled"), text)
+        self.assertEqual(materials.coat_count(row("C", "Two-coat system including primer"), primer_sheet),
+                         (None, "C states a coat count for a system or split across products; whose coats they are is not settled"))
+        # the count's own object is judged with it ("one coat of primer, B53"), and so is a code that follows the count
+        self.assertEqual(materials.coat_count(row("C", "Trim: one coat of primer, Example B53"), b53),
+                         (None, "C names a primer with the coat count for B53; whether the count is B53's is not settled"))
+        self.assertEqual(materials.coat_count(row("C", "2 coats of finish, Example Primer B66"), b66),
+                         (None, "C names a finish with the coat count for B66; whether the count is B66's is not settled"))
+        # a finish sheet whose quote also names a primer is not a primer's sheet alone
+        mixed = row("X-WEB-019", "Example Enamel B53 data sheet", method="fetched", role="code", source="WEB", tag="B53 enamel",
+                    quote="Apply over a compatible primer; 350-400 sq ft/gal")
+        self.assertEqual(materials.coat_count(row("C", "Example B53 with primer, 2 coats"), mixed),
+                         (None, "C names a primer with the coat count for B53; whether the count is B53's is not settled"))
+        self.assertEqual(materials.coat_count(row("C", "Siding: primer, Example X100, 2 coats"),
+                                              row("X-WEB-020", "Example Paint & Primer X100 data sheet", method="fetched", role="code", source="WEB", tag="X100")),
+                         (None, "C names a primer with the coat count for X100; whether the count is X100's is not settled"))
         self.assertEqual(materials.coat_count(row("C", "One coat; 2-coat on new work"))[0], None)
         # a sheet that names a second product (a recommended primer, a system) is read for neither
         both = row("X-WEB-018", "Example Flat B53 data sheet; prime with Example Primer B66", method="fetched", role="code", source="WEB", tag="B53 enamel")
@@ -255,14 +275,14 @@ class ItemCase(unittest.TestCase):
         # a primer named after the count does not ("one coat of X100 where the primer shows", tested above)
         for text in ("Example B53 with primer, 2 coats", "Base coat as needed, Example B53, 2 coats", "Primer as needed, 1 coat Example B53"):
             self.assertEqual(materials.coat_count(row("C", text), b53),
-                             (None, "C names a primer before the coat count for B53; whether the count is B53's is not settled"), text)
+                             (None, "C names a primer with the coat count for B53; whether the count is B53's is not settled"), text)
         self.assertEqual(materials.coat_count(row("C", "Prime coat: Example Primer B66, 1 coat"), b66), (1, ""))
         enamel_sheet = row("X-WEB-017", "Example Enamel data sheet", method="fetched", role="code", source="WEB", tag="enamel sheet")
         self.assertEqual(materials.coat_count(row("C", "Prime coat: Example Primer B66, 1 coat"), enamel_sheet),
-                         (None, "C names a primer before the coat count for B66; whether the count is B66's is not settled"))
+                         (None, "C names a primer with the coat count for B66; whether the count is B66's is not settled"))
         self.assertEqual(materials.coat_count(row("C", "Prime coat: Example Primer B66, 1 coat"), primer_sheet), (1, ""))
         self.assertEqual(materials.coat_count(row("C", "Finish: Example Satin X100, 2 coats"), primer_sheet),
-                         (None, "C names a finish before the coat count for X100; whether the count is X100's is not settled"))
+                         (None, "C names a finish with the coat count for X100; whether the count is X100's is not settled"))
         self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 2 coats; recoat after 4 hours at 77F"), b53), (2, ""))
         # "Walls and ceilings: B53, 2 coats" continues no product, so the count after the code is B53's
         self.assertEqual(materials.coat_count(row("C", "Walls and ceilings: Example Flat B53, 2 coats"), b53), (2, ""))

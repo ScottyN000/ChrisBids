@@ -333,19 +333,25 @@ where required", whatever follows and whatever work it governs, since code
 cannot tell the count's work from another's within one sentence: "two coats of
 B53, or more as required for full hide", "2 coats over the prepared surface, or
 more", "2 coats, caulk joints as required") makes the count a floor; a hedge in
-a later sentence of the same part (sentences end at ";" or a full stop) makes
-the last count before it a floor only when its own sentence holds nothing but
-an application verb, "or" or "and" before it ("2 coats; apply more as
-required", "2 coats; or as required", "2 coats. Then apply more if needed."),
-while a sentence with its own work keeps its hedge ("2 coats; remove loose
-plaster, or as required by the Architect", "B66 as needed, then 1 coat B53")
-and a hedge before any count ("10 ft or more above grade: B53, 2 coats") says
-nothing about coats; a bare "or more" that follows another figure directly
-bounds that figure ("2 coats on surfaces 10 ft or more above grade"); a
-ceiling ("up to two coats", "no more than two coats", "two coats maximum") is
+a later sentence of the same part (sentences end at ";" or at a full stop
+before a capital or the end, outside parentheses, so "min." and "approx." end
+none) makes every count before it in the part a floor unless that sentence
+names another product, a code or a role word ("2 coats; apply more as
+required", "2 coats; deep colors may require more", and, since code cannot
+tell whose work the hedge is, "2 coats; remove loose plaster, or as required
+by the Architect" too: the safe direction, a flagged order with no figure that
+the estimator settles; "2 coats. Where required, back-prime trim" keeps the
+count), and a hedge before any count ("B66 as needed, then 1 coat B53", "10
+ft or more above grade: B53, 2 coats") says nothing about coats; a bare "or
+more" that follows another figure directly bounds that figure ("2 coats on
+surfaces 10 ft or more above grade"), and "more than" is a comparison ("more
+than 10 ft above grade") unless it bounds coats ("may require more than two
+coats", a floor); a ceiling ("up to two coats", "no more than two coats", "two coats maximum") is
 a range, as "1-2 coats" is; "apply more coats as needed", "additional paint as
 required", "recoat as required" and "a third coat where needed" add coats, and
-a spec section number ("Section 09 01 90 for") is not an added coat; a floor word
+a bare number is an added coat only where a second count can start, after
+punctuation, "and" or "plus" ("1 coat; 2 at patched areas"), so "Section 09 01
+90 for", "Part 3 for" and "a 9 in roller" are not; a floor word
 followed by a figure ("2 coats, minimum of 3 mils"), or set off by a comma or
 parenthesis and followed by a thickness word ("2 coats (min. 2.0 mils DFT per
 coat)", "2 coats, minimum DFT 2.0 mils"), is a film thickness, not a floor on

@@ -116,10 +116,10 @@ FINISH_WORD = re.compile(r"\b(?:finish(?:es)?|final|top|topcoats?|intermediate|s
 # nothing. A number counts only before at/on/over/for/where/in/more, so "1 coat (10 year)"
 # stays one coat.
 MORE = re.compile(rf"\b(?:second|third|fourth|additional|extra|another|plus|further|double|(?<!\bor )(?<!\band )more)[\s-]+(?:(?:[1-9]\d*|one|two|three|four|five|six)\s+)?{ROLE}coats?\b"
-                  rf"|\b(?:more|additional|extra|further)\s+(?:paint|material|product|coating)s?\b"
+                  rf"|\b(?:more|additional|extra|further)\s+(?:paint|material|product|coating)s?\b(?!\s*:)"   # not an "Extra materials:" article
                   rf"|\bre-?coat\b(?:\s+[A-Za-z]+){{0,3}}\s+(?:at|where|areas|repairs)\b"   # not "recoat after 4 hours at 77F", a time
                   rf"|\bre-?coat\s+(?:as|if|where|when)\s+(?:required|needed|necessary)\b"
-                  rf"|(?<![\w./-])(?<!\d )(?<!Section )(?<!Division )(?<!Sect\. )(?<!Div\. )([1-9]\d*|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)   # not a spec section number
+                  rf"|(?<![\w./-])(?:^|(?<=[;,(:] )|(?<=[;,(:])|(?<=\. )|(?<=\band )|(?<=\bplus ))([1-9]\d*|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)   # only where a second count can start, so not "Part 3 for" or "a 9 in roller"
 # A count split across products, or a system's count ("2-coat system including primer", "two
 # coats (one primer, one finish)", "2-coat system"): whose coats they are is not settled.
 SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:prime|primer|priming|finish|topcoat|coats?)\b"
@@ -134,7 +134,7 @@ SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:pr
 # coats minimum WFT 6 mils" may be read either way, so it stays a floor and no figure is written.
 FIGURE = r"\d|one\b|two\b|three\b|four\b|five\b|six\b|of\b|an?\b"
 THICKNESS = r"DFT\b|WFT\b|dry\b|wet\b|film\b|mils?\b|thickness\b"
-FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b"
+FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b|\b(?:more than|in excess of)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
                    rf"|\bcoats?[\s,]*as (?:required|needed|necessary) (?:for|to achieve|to obtain|to get) (?:a )?(?:full |complete |uniform )?(?:hide|coverage|hiding)\b"
                    rf"|\b(?:at least|a minimum of|minimum(?: of)?|not less than|no less than|no fewer than)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
                    rf"|\bcoats?\s*[,(]\s*(?:minimum|min|at least)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
@@ -143,23 +143,27 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b"
 # "as/if/where required/needed/necessary", whatever follows and whatever the hedge governs) makes the
 # count a floor, since code cannot tell the count's work from another's within one sentence ("two
 # coats of B53, or more as required for full hide", "2 coats over the prepared surface, or more",
-# "2 coats, caulk joints as required"); a hedge in a later sentence of the same part makes the last
-# count before it a floor only when its own sentence holds nothing but an application verb, or "or"
-# or "and", before it ("2 coats; apply more as required", "2 coats; or as required", "2 coats. Then
-# apply more if needed."), while a sentence with its own work keeps its hedge ("2 coats; remove loose
-# plaster, or as required by the Architect"), and a hedge before any count ("B66 as needed, then 1
-# coat B53", "10 ft or more above grade: B53, 2 coats") says nothing about coats. A bare "or more"
-# that follows another figure directly bounds that figure ("2 coats on surfaces 10 ft or more above
-# grade"). A ceiling ("up to two coats", "no more than two coats", "two coats maximum") is a range,
-# as "1-2 coats" is, with the film-thickness exception the floor words have. coat_mentions settles
-# which; sentences end at ";" or a full stop.
-HEDGE = re.compile(r"\b(?:or|and)\s+more\b|\b(?:more|additional|extra|further)\b|\b(?:as|if|where|when)\s+(?:required|needed|necessary)\b", re.I)
+# "2 coats, caulk joints as required"); a hedge in a later sentence of the same part makes every
+# count before it in the part a floor unless that sentence names another product, a code or a role
+# word ("2 coats; apply more as required", "2 coats; deep colors may require more", and, since code
+# cannot tell whose work the hedge is, "2 coats; remove loose plaster, or as required by the
+# Architect" too: the safe direction, a flagged order with no figure that the estimator settles,
+# never wrong gallons; "2 coats. Where required, back-prime trim" keeps the count); a hedge before
+# any count ("B66 as needed, then 1 coat B53", "10 ft or more above grade: B53, 2 coats") says
+# nothing about coats. A bare "or more" that follows another figure directly bounds that figure ("2
+# coats on surfaces 10 ft or more above grade"), and "more than" is a comparison ("more than 10 ft
+# above grade") unless it bounds coats ("may require more than two coats", a floor, see FLOOR). A
+# ceiling ("up to two coats", "no more than two coats", "two coats maximum") is a range, as "1-2
+# coats" is, with the film-thickness exception the floor words have. coat_mentions settles which;
+# sentences end at ";" or at a full stop (a period before a capital or the end) outside parentheses,
+# so "min." and "approx." end none.
+HEDGE = re.compile(r"\b(?:or|and)\s+more\b(?!\s+than\b)|\b(?:more(?!\s+than\b)|additional|extra|further)\b(?!\s+materials?\s*:)|\b(?:as|if|where|when)\s+(?:required|needed|necessary)\b", re.I)
 CEILING = re.compile(rf"\b(?:up to|no more than|not more than|not to exceed|a maximum of|maximum(?: of)?|max\.?)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
                      rf"|\bcoats?\s*[,(]\s*(?:maximum|max)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
                      rf"|\bcoats?\s+(?:maximum|max)\b(?!\.?\s*(?:{FIGURE}))", re.I)
 BARE_MORE = re.compile(r"(?:or|and)\s+more", re.I)
-APPLY_LEAD = re.compile(r"[\s,;:.()\-\u2013]*(?:(?:then|or|and)\s+)?(?:(?:apply|applying|add|adding|use|using|provide|providing|re-?coat)\s+)?", re.I)
-SENTENCE = re.compile(r";|\.(?=\s|$)")
+SENTENCE_MARK = re.compile(r"[();.]")
+FULL_STOP = re.compile(r"\.(?:\s+[A-Z(\"']|\s*$)")
 # text ending in a figure and at most its unit words, which a bare "or more" then follows directly
 BOUNDED = re.compile(r"(?:\d+(?:[.,]\d+)*%?|\b(?:one|two|three|four|five|six)\b)(?:\s*(?:%|ft|feet|in|inches|mils?|DFT|WFT|sq\s*ft(?:/gal)?|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent)\b)*\s*$", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
@@ -338,16 +342,33 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
         if i is None:
             continue
         part_start = max(s[0] for s in spans[:i + 1] if not s[2])   # the part this hedge is in
-        sentence = max([part_start] + [x.end() for x in SENTENCE.finditer(text, part_start, m.start())])
+        part_end = next((s[0] for s in spans[i + 1:] if not s[2]), len(text))
+        starts = sentences(text, part_start, part_end)
+        sentence = max(st for st in starts if st <= m.start())
+        sentence_end = min([st for st in starts if st > m.start()] + [part_end])
         before = [(p, e) for p, e in counted if sentence <= p < m.start()]
         if before:
             if BARE_MORE.fullmatch(m.group()) and BOUNDED.search(PRODUCT_CODE.sub(" ", text[before[-1][1]:m.start()])):
                 continue   # "10 ft or more above grade" bounds the height
-        elif sentence > part_start and APPLY_LEAD.fullmatch(text[sentence:m.start()]):
-            before = [(p, e) for p, e in counted if part_start <= p < sentence]
-        if before:
             found.append((before[-1][0], "floor"))   # placed with the count it bounds
+        elif sentence > part_start and not names_product(text[sentence:sentence_end]):
+            found += [(p, "floor") for p, _ in counted if part_start <= p < sentence]   # every count before, in the part
     return sorted(found, key=lambda f: f[0])
+
+
+def sentences(text: str, start: int, end: int) -> list[int]:
+    """Where the sentences of text[start:end] begin: at `start`, and after each ";" or
+    full stop (a period before a capital letter or the end) outside parentheses, so an
+    abbreviation ("min.", "approx.", "No.") ends none."""
+    starts, depth = [start], 0
+    for m in SENTENCE_MARK.finditer(text, start, end):
+        if m.group() == "(":
+            depth += 1
+        elif m.group() == ")":
+            depth = max(0, depth - 1)
+        elif depth == 0 and (m.group() == ";" or FULL_STOP.match(text, m.start(), end)):
+            starts.append(m.end())
+    return starts
 
 
 def stretches(*parts: str) -> list[tuple[int, int, str, int]]:

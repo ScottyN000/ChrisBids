@@ -277,11 +277,20 @@ class ItemCase(unittest.TestCase):
                      "Example Flat B53, two coats, or as required to provide full hide", "Example Flat B53, two coats or as required", "Example Flat B53, 2 coats or as needed to cover",
                      "Apply two coats of Example Flat B53, or more as required for full hide", "Example Flat B53, two coats (or as required)",
                      "Example Flat B53, two coats; or more as required for full hide", "Example Flat B53, 2 coats minimum WFT 6 mils", "Example Flat B53, two or more coats",
-                     "Example Flat B53, two coats, and more as required for full hide", "Example Flat B53, two coats, more if required for full hide", "Example Flat B53, two coats (more if needed)"):
+                     "Example Flat B53, two coats, and more as required for full hide", "Example Flat B53, two coats, more if required for full hide", "Example Flat B53, two coats (more if needed)",
+                     # a figure between the count and the tail claims it only when the tail follows it directly
+                     "Example Flat B53, 2 coats at 350 sq ft/gal, or more as required for full hide", "Example Flat B53, 2 coats at 4 mils DFT each, or as required for full hide",
+                     "Example Flat B53, 2 coats, color 7006, or more as required",
+                     # a tail in a later stretch bounds the count before it unless its own stretch names a product or a figure
+                     "Example Flat B53, 2 coats; apply more as required for full hide", "Example Flat B53, 2 coats. Apply more if needed."):
             self.assertEqual(materials.coat_count(row("C", text), b53),
                              (None, "C states a minimum coat count for B53, not a fixed one; it does not settle this product's"), text)
         self.assertEqual(materials.coat_count(row("C", "Two coats, or more as required for full hide")),
                          (None, "C states a minimum coat count, not a fixed one; it does not settle this product's"))
+        self.assertEqual(materials.coat_count(row("C", "Walls: 2 coats; apply more coats as needed")),   # added coats, not a floor
+                         (None, "C states a coat count and more coats in places; it does not settle this product's"))
+        for text in ("Example Flat B53, 2 coats; apply more coats as needed", "Example Flat B53, 2 coats; recoat more where needed"):
+            self.assertIsNone(materials.coat_count(row("C", text), b53)[0], text)
         for text in ("Example Flat B53, 2 coats (min. 2.0 mils DFT per coat)", "Example Flat B53, two coats, minimum 4 mils DFT each",   # a film thickness, not a floor
                      "Example Flat B53, 2 coats, at least 3 mils dry", "Example Flat B53, 2 coats, minimum of 3 mils",
                      "Example Flat B53, 2 coats, minimum DFT 2.0 mils per coat", "Example Flat B53, 2 coats, min. dry film thickness 4 mils",

@@ -300,7 +300,12 @@ class ItemCase(unittest.TestCase):
                      # the count's own code or role in the later sentence names no other product; "more than" hedges unless it compares a measurement
                      "Example Flat B53, 2 coats. Deep colors of B53 may require more.", "Example Flat B53, 2 coats; apply more finish as required for full hide",
                      "Example Flat B53, 2 coats. Apply additional B53 where required for full hide.", "Example B53 enamel, 2 coats. Deep-tone enamels may require more.",
-                     "Example Flat B53, 2 coats. Deep colors may require more than two.", "Example Flat B53, 2 coats; dark colors may need more than that"):
+                     "Example Flat B53, 2 coats. Deep colors may require more than two.", "Example Flat B53, 2 coats; dark colors may need more than that",
+                     "Example Flat B53, 2 coats; deep colors may require more than two in exterior exposures",
+                     # naming the other product does not make the hedge its own unless it stands right before the hedge
+                     "Example B53 enamel, 2 coats; deep colors over a tinted primer may require more", "Example Flat B53, 2 coats. Apply more as required to hide the primer.",
+                     "Example Flat B53, 2 coats. Accent colors XC6258 may require more for full hide.", "Example Flat B53, 2 coats; apply more as required per ASTM D4258",
+                     "Example Flat B53, 2 coats. Where required, back-prime trim"):
             self.assertEqual(materials.coat_count(row("C", text), b53),
                              (None, "C states a minimum coat count for B53, not a fixed one; it does not settle this product's"), text)
         for text in ("Two coats, or more as required for full hide", "Two coats; deep colors may require more than two coats",
@@ -328,9 +333,12 @@ class ItemCase(unittest.TestCase):
                      # "or more" and "or as required" are floors only after a count
                      "Surfaces 10 ft or more above grade: Example Flat B53, 2 coats", "Scrape loose paint, or as required by the Architect; Example Flat B53, 2 coats.",
                      "Example Flat B53, 2 coats on surfaces 10 ft or more above grade", "Example Flat B53, 2 coats where 50% or more of the surface is bare",
-                     # "more than" is a comparison unless it bounds coats; a later sentence naming another product keeps its hedge
+                     # "more than" compares a measurement, else it hedges; the other product right before a later sentence's hedge keeps the count
                      "Example Flat B53, 2 coats on surfaces more than 10 ft above grade", "Example Flat B53, 2 coats, not more than 4 mils DFT per coat",
-                     "Example Flat B53, 2 coats. Where required, back-prime trim",
+                     "Example Flat B53, 2 coats; Example Primer B66 as needed", "Example Flat B53, 2 coats. Spot-prime as required.",
+                     "Example Flat B53, 2 coats where more than 50% of the surface is bare", "Example Flat B53, 2 coats on surfaces more than ten feet above grade",
+                     "Example Flat B53, 2 coats, applied with 9 in rollers", "Example Flat B53, 2 coats on piping over 2 in diameter",
+                     "Example Flat B53, 2 coats in color 7006, or 7005 for trim",
                      # a bare number is an added coat only where a second count can start
                      "Example Flat B53, 2 coats; refer to Section 09 01 90 for surface preparation.", "Example Flat B53, 2 coats per Section 9 for all trim",
                      "Example Flat B53, 2 coats; refer to Part 3 for surface preparation", "Example Flat B53, 2 coats with a 9 in roller",

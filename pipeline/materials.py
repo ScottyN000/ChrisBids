@@ -119,8 +119,9 @@ MORE = re.compile(rf"\b(?:second|third|fourth|additional|extra|another|plus|furt
                   rf"|\b(?:more|additional|extra|further)\s+(?:paint|material|product|coating)s?\b(?!\s*:)"   # not an "Extra materials:" article
                   rf"|\bre-?coat\b(?:\s+[A-Za-z]+){{0,3}}\s+(?:at|where|areas|repairs)\b"   # not "recoat after 4 hours at 77F", a time
                   rf"|\bre-?coat\s+(?:as|if|where|when)\s+(?:required|needed|necessary)\b"
-                  rf"|(?<![\w./-])(?:^|(?<=[;,(:] )|(?<=[;,(:])|(?<=\. )|(?<=\band )|(?<=\bplus )|(?<=\bthen )|(?<=\bor )|(?<=\bover )|(?<=\bafter )|(?<=\bbefore )|(?<=\bby )|(?<=\bto )|(?<=\bwith )|(?<=\bbut ))"
-                  rf"([1-9]\d*|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)   # only where a second count can start (after punctuation or a cut word), so not "Part 3 for" or "a 9 in roller"
+                  rf"|(?<![\w./-])(?:^|(?<=[;,(:] )|(?<=[;,(:])|(?<=\. )|(?<=\band )|(?<=\bplus )|(?<=\bthen )|(?<=\bor )|(?<=\bover )|(?<=\bafter )|(?<=\bbefore )|(?<=\bfollowed by )|(?<=\bprior to )|(?<=\bwith )|(?<=\bbut ))"
+                  rf"([1-6]|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?!\s+in\.?\s+(?:diameter|dia\b|wide|thick|deep|high|long|nap|rollers?|brush(?:es)?))(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)
+                  # a small number only, where a second count can start (after punctuation or a cut word) and not a measurement: not "Part 3 for", "9 in rollers", "2 in diameter" or "7005 for trim"
 # A count split across products, or a system's count ("2-coat system including primer", "two
 # coats (one primer, one finish)", "2-coat system"): whose coats they are is not settled.
 SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:prime|primer|priming|finish|topcoat|coats?)\b"
@@ -160,10 +161,14 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b|\b(?:more than|in e
 # coats" is, with the film-thickness exception the floor words have. coat_mentions settles which;
 # sentences end at ";" or at a full stop (a period before a capital or the end) outside parentheses,
 # so "min." and "approx." end none.
-MEASURE_UNITS = r"%|ft|feet|in|inches|mils?|DFT|WFT|sq\s*ft(?:/gal)?|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent"
+# a measurement's unit; the inch only as "in.", "inch(es)", a double quote or "in" before a dimension word, since "in"
+# is otherwise a preposition ("more than two in exterior exposures")
+MEASURE_UNITS = (r"ft|feet|in\.|inch(?:es)?|\"|in(?=\s+(?:wide|high|deep|thick|long|diameter|dia\.?|nap))|mils?|DFT|WFT|sq\s*ft(?:/gal)?"
+                 r"|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent")
+A_NUMBER = r"\d+(?:[.,]\d+)*|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty|thirty|forty|fifty|hundred"
 # "more than" followed directly by a figure and a unit is a comparison ("more than 10 ft above grade"); "more than two.",
 # "more than that" and "more than two coats" hedge the count
-COMPARISON = rf"(?!\s+than\s+(?:\d+(?:[.,]\d+)*%?|one|two|three|four|five|six)\s*(?:{MEASURE_UNITS})\b)"
+COMPARISON = rf"(?!\s+than\s+(?:{A_NUMBER})(?:%|\s*(?:{MEASURE_UNITS})\b))"
 HEDGE = re.compile(rf"\b(?:or|and)\s+more\b{COMPARISON}|\b(?:more{COMPARISON}|additional|extra|further)\b(?!\s+materials?\s*:)|\b(?:as|if|where|when)\s+(?:required|needed|necessary)\b", re.I)
 CEILING = re.compile(rf"\b(?:up to|no more than|not more than|not to exceed|a maximum of|maximum(?: of)?|max\.?)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
                      rf"|\bcoats?\s*[,(]\s*(?:maximum|max)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
@@ -172,7 +177,7 @@ BARE_MORE = re.compile(r"(?:or|and)\s+more", re.I)
 SENTENCE_MARK = re.compile(r"[();.]")
 FULL_STOP = re.compile(r"\.(?:\s+[A-Z(\"']|\s*$)")
 # text ending in a figure and at most its unit words, which a bare "or more" then follows directly
-BOUNDED = re.compile(rf"(?:\d+(?:[.,]\d+)*%?|\b(?:one|two|three|four|five|six)\b)(?:\s*(?:{MEASURE_UNITS})\b)*\s*$", re.I)
+BOUNDED = re.compile(rf"(?:\d+(?:[.,]\d+)*|\b(?:{A_NUMBER})\b)(?:%|(?:\s*(?:{MEASURE_UNITS})\b)*)\s*$", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
 # (a product, "Base coat as needed", or a step, "Scrape"), and one opened by "and" continues
 # a product named before it; so a count written after its code there ("B53 over B66 primer,
@@ -359,10 +364,10 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
                 continue   # "10 ft or more above grade" bounds the height
             found.append((before[-1][0], "floor"))   # placed with the count it bounds
         elif sentence > part_start:
-            said = text[sentence:sentence_end]
+            lead = text[sentence:m.start()]
             for p, _ in counted:
-                if part_start <= p < sentence and not other_product(text[sentence_at(spans, p)], said):
-                    found.append((p, "floor"))   # every count before, in the part, that the sentence does not hand to another product
+                if part_start <= p < sentence and not other_product(text[sentence_at(spans, p)], lead):
+                    found.append((p, "floor"))   # every count before, in the part, unless the other product stands right before the hedge
     return sorted(found, key=lambda f: f[0])
 
 
@@ -412,15 +417,23 @@ def sentence_at(spans: list[tuple[int, int, str, int]], pos: int) -> slice:
     return slice(a, b)
 
 
-def other_product(own: str, said: str) -> bool:
-    """Whether `said` names a product other than the one `own` (a count's stretch) speaks
-    of: a code `own` does not carry, or, with no code, the other role (a primer where
-    `own` speaks of a finish, or the reverse). The count's own code, its own role or a
-    generic word names no other product."""
-    codes = product_codes(said)
+def other_product(own: str, lead: str) -> bool:
+    """Whether `lead`, the words before a hedge in a later sentence, puts a product other
+    than the one `own` (a count's stretch) speaks of right before the hedge, so the hedge
+    is that product's ("Example Primer B66 as needed", "Spot-prime as required"): its
+    last word is a code `own` does not carry, or, with no code in the lead, a word of the
+    other role (a primer where `own` speaks of a finish, or the reverse). A product named
+    earlier in the lead ("deep colors over a tinted primer may require more"), the
+    count's own code or role, a colour number or a standard makes the hedge no other
+    product's, so the count is a floor: the safe direction."""
+    words = lead.strip(" ,;:.()-\u2013").split()
+    if not words:
+        return False
+    last = words[-1]
+    codes = product_codes(lead)
     if codes:
-        return not set(codes) & set(product_codes(own))
-    role = (bool(PRIME_WORD.search(said)), bool(FINISH_WORD.search(said)))
+        return last in codes and not set(codes) & set(product_codes(own))
+    role = (bool(PRIME_WORD.search(last)), bool(FINISH_WORD.search(last)))
     mine = (bool(PRIME_WORD.search(own)), bool(FINISH_WORD.search(own)))
     return (role == (True, False) and mine == (False, True)) or (role == (False, True) and mine == (True, False))
 

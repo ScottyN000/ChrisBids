@@ -336,26 +336,32 @@ more", "2 coats, caulk joints as required") makes the count a floor; a hedge in
 a later sentence of the same part (sentences end at ";" or at a full stop
 before a capital or the end, outside parentheses, so "min." and "approx." end
 none) makes every count before it in the part a floor unless that sentence
-names another product, a code the count's stretch does not carry or the other
-role (the count's own code or role, "deep colors of B53 may require more",
-"apply more finish as required", names no other product) ("2 coats; apply more
-as required", "2 coats; deep colors may require more", and, since code cannot
+puts another product right before the hedge, a code the count's stretch does
+not carry or a word of the other role as the last word before it ("2 coats;
+Example Primer B66 as needed" and "2 coats. Spot-prime as required." keep the
+count, while "deep colors over a tinted primer may require more", "apply more
+as required to hide the primer", the count's own code or role, a colour
+number or a standard name no other product) ("2 coats; apply more as
+required", "2 coats; deep colors may require more", and, since code cannot
 tell whose work the hedge is, "2 coats; remove loose plaster, or as required
-by the Architect" too: the safe direction, a flagged order with no figure that
-the estimator settles; "2 coats. Where required, back-prime trim" keeps the
-count), and a hedge before any count ("B66 as needed, then 1 coat B53", "10
+by the Architect" and "2 coats. Where required, back-prime trim" too: the safe
+direction, a flagged order with no figure that the estimator settles), and a
+hedge before any count ("B66 as needed, then 1 coat B53", "10
 ft or more above grade: B53, 2 coats") says nothing about coats; a bare "or
 more" that follows another figure directly bounds that figure ("2 coats on
 surfaces 10 ft or more above grade"), and "more than" followed directly by a
-figure and a unit is a comparison ("more than 10 ft above grade"), while any
-other "more than" hedges the count ("may require more than two", "more than
-two coats", a floor); a ceiling ("up to two coats", "no more than two coats", "two coats maximum") is
+figure and a unit is a comparison ("more than 10 ft above grade", "more than
+50% of the surface"; the inch counts only as "in.", "inch" or before a
+dimension word, since "in" is otherwise a preposition), while any other "more
+than" hedges the count ("may require more than two", "more than two coats",
+"more than two in exterior exposures", a floor); a ceiling ("up to two coats", "no more than two coats", "two coats maximum") is
 a range, as "1-2 coats" is; "apply more coats as needed", "additional paint as
 required", "recoat as required" and "a third coat where needed" add coats, and
-a bare number is an added coat only where a second count can start, after
-punctuation, "and", "plus", "with", "but" or a cut word ("1 coat; 2 at patched
-areas", "1 coat, then 2 at patched areas"), so "Section 09 01 90 for", "Part 3
-for" and "a 9 in roller" are not; a floor word
+a bare number is an added coat only when it is small (one to six), stands
+where a second count can start (after punctuation, "and", "plus", "with",
+"but" or a cut word: "1 coat; 2 at patched areas", "1 coat, then 2 at patched
+areas") and is no measurement, so "Section 09 01 90 for", "Part 3 for", "9 in
+rollers", "2 in diameter" and "or 7005 for trim" are not; a floor word
 followed by a figure ("2 coats, minimum of 3 mils"), or set off by a comma or
 parenthesis and followed by a thickness word ("2 coats (min. 2.0 mils DFT per
 coat)", "2 coats, minimum DFT 2.0 mils"), is a film thickness, not a floor on

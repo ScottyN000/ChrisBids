@@ -297,10 +297,6 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
         src = by_id.get(ref)
         if src is None:
             return [f"{c.claim_id}: calc references unknown claim {ref}"]
-        if refs.count(ref) > 1 and src.value_num is None and value_range(src.value) is not None:
-            # The corner replay bounds a formula that uses each range once; a
-            # range named twice ({A} * (10 - {A})) can peak between the corners.
-            errors.append(f"{c.claim_id}: calc names range input {ref} more than once; write it once (2 * {{{ref}}})")
         if src.flag and not c.flag:
             # Arithmetic on a reading nobody has settled is itself unsettled (p.9):
             # the derived row carries a flag, so the bid never shows it as firm.
@@ -322,6 +318,10 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
             # whatever the row's role: a counted allowance rests on counts, not on a clause.
             errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; a {c.method} row rests on "
                           f"dimensioned and counted rows only")
+        if refs.count(ref) > 1 and src.value_num is None and value_range(src.value) is not None:
+            # The corner replay bounds a formula that uses each range once; a
+            # range named twice ({A} * (10 - {A})) can peak between the corners.
+            errors.append(f"{c.claim_id}: calc names range input {ref} more than once; write it once (2 * {{{ref}}})")
     try:
         lo, hi = evaluate(c.calc, by_id)
     except CalcError as e:

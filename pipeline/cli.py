@@ -191,7 +191,7 @@ def cmd_scope(a) -> int:
 
 def cmd_web(a) -> int:
     """Read the pages the page table matches to a fixture, live, and gate the answers against its fetched rows."""
-    from . import web, webread
+    from . import fixtures, materials, web, webread
     from .readers import live
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -203,14 +203,25 @@ def cmd_web(a) -> int:
     except live.LiveRunError as e:
         print(f"NOT RUN: {e}", file=sys.stderr)
         return 3
-    print(result.text())
-    print(gate.text())
+    # the Materials agent's second job: order rows over the sheets it just read and the fixture's figures
+    data, _ = fixtures.read_fixture(Path(a.fixture))
+    order_client = live.LiveClient(model=a.order_model, effort=a.effort or None, record=out / "recordings")
+    try:
+        order_client.bind(broker)   # the key comes from the broker alone (p.12), as for the page reader
+    except live.LiveRunError as e:
+        broker.close()
+        print(f"NOT RUN: {e}", file=sys.stderr)
+        return 3
+    orders = materials.run(broker, data["job"], order_client, repeats=a.repeats)
+    order_gate = materials.gate(orders, data["rows"])
+    report = "\n".join([result.text(), gate.text(), orders.text(), order_gate.text()])
+    print(report)
     if (out / "recordings" / "calls.jsonl").exists():
         print(live.usage_totals(out / "recordings" / "calls.jsonl"))
-    (out / "gate.txt").write_text(result.text() + "\n" + gate.text() + "\n")
+    (out / "gate.txt").write_text(report + "\n")
     (out / "ledger.csv").write_text(broker.ledger.ledger_csv())
     broker.close()
-    return 0 if gate.ok else 1
+    return 0 if gate.ok and order_gate.ok else 1
 
 
 def cmd_bid(a) -> int:
@@ -328,6 +339,8 @@ def main(argv=None) -> int:
     p.add_argument("--repeats", type=int, default=2)
     p.add_argument("--model", default="claude-haiku-5-5",
                    help="fetch a page, extract a quoted clause or rate: Haiku (architecture p.13)")
+    p.add_argument("--order-model", default="claude-sonnet-5-5",
+                   help="the order step reconciles spec, takeoff and page rows: Sonnet, as Takeoff")
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
     p.set_defaults(func=cmd_web)

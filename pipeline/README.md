@@ -292,10 +292,164 @@ reported and left out:
 
 The gate runs in `live.yml` (`part: web`).
 
-Not built yet: the Materials order rows (the quantity a data sheet's rate and a
-takeoff area give, p.4; the ledger can carry them now, the step that writes
-them is next), the cold-cache search, the 90-day cache for federal regulations,
+### Order rows
+
+[`materials.py`](materials.py) is the Materials agent's second job: "product
+data sheet figures (spread rate, yield, pack size), order quantities" (p.4). It
+reads ledger rows, never documents or pages. After the pages are read, the model
+is shown the job's current rows (what the documents say, the figures, the FIELD
+rows for what will be measured, the fetched data sheets; never a scaled or
+observed row, p.6) and says, for each product the rows name, which rows its
+order rests on: the data-sheet row, the quantity row it covers (a takeoff area,
+length, volume or count, the allowance it goes into, or the FIELD row for one),
+the clause row that states the coat count (a coating only) and the spec's own
+coverage row when there is one, since the spec's stated rate takes precedence
+over the data sheet's (p.16). The model writes no number: code reads the coat
+count from the clause it names, and when the clause names a product code it
+reads the count for the code the data-sheet row carries: the clause is cut into
+stretches at semicolons, sentence ends, "or" (not "or approved equal"), "then", "and", "over", "followed by", "after", "before" and "prior to" (outside parentheses), and a
+count belongs to the one code its own stretch names ("A89 (coats not stated),
+or K62, 1 coat" gives K62 one coat and leaves A89 open; "B53 over one coat of
+primer" cuts at "over", so the primer's coat is not B53's); a count whose
+stretch names no code, or two, is tied to nothing, and the clause then settles
+no product's count; so is a count written after its code in a stretch opened by
+a sequence word ("then", "over", "followed by", "after", "before", "prior to")
+that continues anything, or by "and" after a product ("B53 over B66 primer, 2
+coats" and "Base coat as needed, then B53, 2 coats" may give the system two
+coats: two readings, neither picked, though "Walls and ceilings: B53, 2 coats"
+continues no product). A stretch that names both a primer and a finish where it states a count ("B53
+finish with primer, 2 coats") holds two products' wording, so its count is
+tied to nothing; a primer word in the count's stretch ("B53 with primer, 2
+coats", "B53 with one coat of primer") makes the count the primer's as well, so
+it is read only for a sheet that is a primer's alone (a primer word and no
+finish word), and a finish word there is no such sheet's; the whole stretch is
+judged. A count for a system ("2-coat system") or split across products ("two
+coats including primer", "two coats (one primer, one finish)") is nobody's
+count, and a floor ("two coats, or more as required for full hide", "at least
+two (2) coats", "no less than two coats", "2 coats minimum", "two coats or as
+required", whatever follows) is not a fixed count; a hedge after a count in
+its sentence ("or more", "and more", "additional", "extra", "further", "as/if/
+where required", whatever follows and whatever work it governs, since code
+cannot tell the count's work from another's within one sentence: "two coats of
+B53, or more as required for full hide", "2 coats over the prepared surface, or
+more", "2 coats, caulk joints as required") makes the count a floor; a hedge in
+a later sentence of the same part (sentences end at ";" or at a full stop
+before a capital or the end, outside parentheses, so "min." and "approx." end
+none) makes every count before it in the part a floor unless that sentence
+puts another product right before the hedge, a code the count's stretch does
+not carry or a word of the other role as the last word before it ("2 coats;
+Example Primer B66 as needed" and "2 coats. Spot-prime as required." keep the
+count, while "deep colors over a tinted primer may require more", "apply more
+as required to hide the primer", the count's own code or role, a colour
+number or a standard name no other product) ("2 coats; apply more as
+required", "2 coats; deep colors may require more", and, since code cannot
+tell whose work the hedge is, "2 coats; remove loose plaster, or as required
+by the Architect" and "2 coats. Where required, back-prime trim" too: the safe
+direction, a flagged order with no figure that the estimator settles), and a
+hedge before any count ("B66 as needed, then 1 coat B53", "10
+ft or more above grade: B53, 2 coats") says nothing about coats; a bare "or
+more" that follows another figure directly bounds that figure ("2 coats on
+surfaces 10 ft or more above grade"), and "more than" followed directly by a
+figure and a unit is a comparison ("more than 10 ft above grade", "more than
+50% of the surface"; the inch counts only as "in.", "inch" or before a
+dimension word, since "in" is otherwise a preposition), while any other "more
+than" hedges the count ("may require more than two", "more than two coats",
+"more than two in exterior exposures", a floor); a ceiling ("up to two coats", "no more than two coats", "two coats maximum") is
+a range, as "1-2 coats" is; "apply more coats as needed", "additional paint as
+required", "recoat as required" and "a third coat where needed" add coats, and
+a bare number is an added coat only when it is small (one to six), stands
+where a second count can start (after punctuation, "and", "plus", "with",
+"but" or a cut word: "1 coat; 2 at patched areas", "1 coat, then 2 at patched
+areas") and is no measurement, so "Section 09 01 90 for", "Part 3 for", "9 in
+rollers", "2 in diameter" and "or 7005 for trim" are not; a floor word
+followed by a figure ("2 coats, minimum of 3 mils"), or set off by a comma or
+parenthesis and followed by a thickness word ("2 coats (min. 2.0 mils DFT per
+coat)", "2 coats, minimum DFT 2.0 mils"), is a film thickness, not a floor on
+the count, while "2 coats minimum WFT 6 mils", run together, may be read either
+way and stays a floor. Primer words are prime(r), sealer, conditioner, base coat, undercoat(er),
+filler and surfacer; finish words are finish, final, top(coat), intermediate,
+stripe, enamel, satin, semi-gloss, gloss, eggshell, flat, paint and coating,
+with their plurals; "priming" names a primer as a label or a coat ("Priming:
+one coat", "the first a priming coat", "two coats including priming"), not as a
+prior step ("after priming, B53, 2 coats"), and "primed" describes the
+substrate, not a primer. A clause naming no code settles a count only
+when no stretch names a product (a primer or finish word) the count could be
+for ("primer; finish coats: two coats" gives the primer nothing) and the
+stretches that state counts agree. A data-sheet row naming no product code is
+read as the clause's one code when every stretch names it or names no product;
+when a stretch names a product without a code, or the clause names several
+codes, it settles nothing for that sheet; a sheet row that names a second
+code (a recommended primer, a system) is read for neither; and a codeless
+clause that speaks of a primer only is read for a sheet that is a primer's
+alone, and one that speaks of a finish only, or of no role at all ("Walls: two
+coats", usually the finish's or the system's), is no such sheet's; a codeless
+primer-only sheet read as the clause's one code takes a count only where its
+stretch names a primer. A second count said
+without the word "coat", or an added coat ("one coat; two at patched areas",
+"1 coat; 2 at patched areas", "a second coat at repairs", "plus 1 coat at
+repairs", "double coat at repairs", "recoat patched areas"), is a second
+reading, so the clause settles nothing; a hyphenated count ("2-coat system")
+is a count. A count the clause settles is still a floor when another clause
+row in the ledger names no product and adds coats or sets a minimum across
+the spec ("Hide must be complete, with additional coats regardless of the
+number specified"): the order is written with no figure, flagged, naming
+that row (only wording about coats or paint counts, so "Through-bolts: 2 at
+each post" or "additional material" floors nothing). A customer row sets no count (it never overrides a spec clause). A
+recoat time ("between coats: 24 hours") or a coverage line ("finish coat: 400
+sq ft/gal") is no count: the "coats:" form counts only when "coats" is the label
+itself (the label starts a stretch, after punctuation or a cut word, and may
+be led by "number of" or one role word; "mils per coat: 4" and
+"between finish coats: 24" state none), and the number after the colon must
+end the clause or be followed by punctuation, "and" or "coat(s)"; "2/3 coats"
+is a range. A clause that
+states none, states several, states a range ("1-2 coats"), says the count is
+not stated or speaks of another product settles nothing, and the order is
+written without a figure saying so. Every row the figure rests on is named
+with it in the derivation (`1200 sq ft (X-TK-Q-01) x 2 coats (X-SP-010) /
+300-350 sq ft/gal (X-R-001) = ...`) and cited in the row's
+locator and tag, so the Auditor can see where the literal came from. Code checks that
+the quantity row's unit is what the rate covers (an area for a rate per gallon
+over square feet, a length for a rate per tube over linear feet) and that a part
+in `each` rests on a counted row in each, works the quantity out, `{AREA} *
+coats / {RATE}` for a coating and `{Q} / {RATE}` for a mortar, sealant or
+adhesive, at both ends of a rate stated as a range, and writes it as a `fetched`
+material row citing the sheet (URL, date, quote), the only method the access
+matrix lets Materials write (p.11). The row is named after the sheet's page (the
+page table's title), never in the model's words, and a product code the model
+writes must appear in the rows it cites. A count (anchors, bolts) cites its
+count row and says so (`count from NAN-Q-003 (counted)`); an open question or a
+flag on any row the order cites is carried onto the order. A product with no
+data-sheet row in the ledger gets no row, and the run says so; an order that
+waits on a FIELD row, a coat count no clause settles (none named, or one that
+leaves it open, see above) or a rate nobody stated is
+written with no figure, flagged unverified, naming what is missing; so is one
+whose page did not show the product (a fetched row with no quote). Items are
+compared across the valid runs by the rows they rest on and their unit, not the
+product's wording (a second wording of one order in a run is noted, not written);
+when the runs name different orders, or a run was discarded, one spare run is
+made (as the page reader does); an order not every valid run saw is written
+flagged unverified, never dropped or chosen. The step runs on the client Takeoff
+uses (Sonnet): it reconciles rows from the spec, Takeoff and the page reader,
+which the frugality rule puts on Sonnet, while the page reads stay on Haiku
+(p.13). A rate, a yield, a coat count, a waste factor or a spare count is never
+a number from the model: it is a row or it is nothing, and the schema and
+[`schema.py`](schema.py) (`MATERIAL_OK`) hold the model and the broker to it.
+
+Golden gate, live only, in `python -m pipeline web` after the pages: for every
+material row of the fixture that cites a fetched page, the run must have an order
+row in the fixture's unit (a tube is not a cartridge) citing a page the fixture
+holds for the job (that page first; a product has several pages and the hand bid
+cited one of them, so a row citing another is noted), with a figure exactly when
+the fixture has one and equal to it; a firm run row where the hand bid flags its
+order is noted; 80% of the compared orders must have a row. A fixture order that
+cites no page (the hand-made bid's angle footage, its bolts) is noted and left
+out: Materials writes fetched rows only.
+
+Not built yet: the cold-cache search, the 90-day cache for federal regulations,
 and the edition, effective-date, discontinuation and ESR-expiry comparisons
 between bids (p.8). The page hash is in the fetch log, not on the row. An agreed
 figure with no unit in the table (a date) is checked by code but stored only in
-the row's sentence, not in `value`.
+the row's sentence, not in `value`. The order step runs once per bid over
+every division's rows, as Takeoff does, not once per division (p.6), and its
+schema takes at most 40 orders per run, so a large multi-division job could
+have orders cut off; splitting the unit by division is the fix when one does.

@@ -278,7 +278,23 @@ class ClaimCase(unittest.TestCase):
         self.assertEqual(c.derivation, "1200 sq ft x 2 / 320-400 sq ft/gal = 6-7.5 gal; uses flagged X-TK-Q-01")
         # the precedence rule flags nothing: a spec rate over a sheet rate, both firm, is a firm order
         c = materials.order_claim("X-MT-01", item(), 2, 2, BY_ID)
-        self.assertEqual(c.flag, "")
+        self.assertEqual((c.flag, c.confidence), ("", "exact"))
+
+    def test_an_order_is_no_firmer_than_its_inputs(self):
+        # an inferred rate (a legacy sheet) makes an inferred order, unflagged: confidence is not doubt
+        old = dict(BY_ID, **{"X-WEB-003": row("X-WEB-003", X100.statement, method="fetched", role="code", value="320-400",
+                                              unit="sq ft/gal", source="WEB", tag="X100 data sheet", url=SHEET,
+                                              retrieved="2026-10-09", quote="320-400 sq. ft. per gallon",
+                                              confidence="inferred")})
+        c = materials.order_claim("X-MT-01", item(spec_rate=""), 2, 2, old)
+        self.assertEqual((c.value, c.confidence, c.flag), ("6-7.5", "inferred", ""))
+        self.assertEqual(schema.replay_calc(c, old), [])
+        # the spec's rate governs, so the sheet's confidence does not reach the order
+        self.assertEqual(materials.order_claim("X-MT-01", item(), 2, 2, old).confidence, "exact")
+        # a scaled count makes a scaled order
+        scaled = dict(BY_ID, **{"X-TK-Q-02": row("X-TK-Q-02", COUNT.statement, method="counted", role="quantity", value="18",
+                                                 unit="each", source="S-1", confidence="scaled")})
+        self.assertEqual(materials.order_claim("X-MT-02", ANCHORS, 2, 2, scaled).confidence, "scaled")
 
 
 class RunCase(unittest.TestCase):
@@ -477,3 +493,51 @@ class GateCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CliCase(unittest.TestCase):
+    def test_the_web_command_binds_the_order_client_to_the_broker(self):
+        # live run 8 (2026-10-10): the order client had no key, since only the page reader's client was bound
+        import contextlib
+        import io
+        from types import SimpleNamespace
+        from unittest import mock
+        from pipeline import cli, fixtures, webread
+        from pipeline.readers import live
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        out = Path(tmp.name) / "out"
+        made, root = [], Path(__file__).resolve().parent.parent
+
+        class Bound(Fake):
+            bound = None
+
+            def bind(self, broker):
+                self.bound = (broker.principal.name, len(self.calls))
+
+        def golden(job_dir, ledger_path, client, fetcher, *, repeats, table):
+            Path(ledger_path).unlink(missing_ok=True)
+            broker, _ = fixtures.load(Path(job_dir), Path(ledger_path))
+            return broker, SimpleNamespace(text=lambda: "pages"), SimpleNamespace(text=lambda: "page gate", ok=True)
+
+        with mock.patch.object(live, "LiveClient", lambda **kw: made.append(Bound([{"items": []}] * 3, kw["model"]))
+                               or made[-1]), \
+                mock.patch.object(webread, "golden", golden), \
+                contextlib.redirect_stdout(io.StringIO()) as log:
+            rc = cli.main(["web", str(root / "fixtures" / "nantucket"), "--out", str(out)])
+        self.assertEqual([c.model_id for c in made], ["claude-haiku-5-5", "claude-sonnet-5-5"])
+        self.assertEqual(made[1].bound, ("auditor", 0))     # bound (the fixture loader opens the ledger as the auditor), before its first call
+        self.assertEqual(len(made[1].calls), 2)
+        self.assertEqual(rc, 1)                             # no order rows: the order gate fails
+        self.assertIn("materials: 1 units, 2 calls, 0 order rows", log.getvalue())
+        self.assertTrue((out / "gate.txt").exists())
+        # a client the broker cannot give a key to stops the run before any call, as for the page reader
+        class Keyless(Bound):
+            def bind(self, broker):
+                raise live.LiveRunError("no key")
+
+        made.clear()
+        with mock.patch.object(live, "LiveClient", lambda **kw: made.append(Keyless([], kw["model"])) or made[-1]), \
+                mock.patch.object(webread, "golden", golden), contextlib.redirect_stderr(io.StringIO()) as err:
+            rc = cli.main(["web", str(root / "fixtures" / "nantucket"), "--out", str(out)])
+        self.assertEqual((rc, err.getvalue().strip(), [c.calls for c in made]), (3, "NOT RUN: no key", [[], []]))

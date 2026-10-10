@@ -206,6 +206,12 @@ def cmd_web(a) -> int:
     # the Materials agent's second job: order rows over the sheets it just read and the fixture's figures
     data, _ = fixtures.read_fixture(Path(a.fixture))
     order_client = live.LiveClient(model=a.order_model, effort=a.effort or None, record=out / "recordings")
+    try:
+        order_client.bind(broker)   # the key comes from the broker alone (p.12), as for the page reader
+    except live.LiveRunError as e:
+        broker.close()
+        print(f"NOT RUN: {e}", file=sys.stderr)
+        return 3
     orders = materials.run(broker, data["job"], order_client, repeats=a.repeats)
     order_gate = materials.gate(orders, data["rows"])
     report = "\n".join([result.text(), gate.text(), orders.text(), order_gate.text()])

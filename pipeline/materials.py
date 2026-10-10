@@ -345,9 +345,13 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
             notes.append("no row states a rate")
         if q is not None and q.method != "FIELD" and rate is not None and (coats or not per_coat):
             calc = f"{{{q.claim_id}}} * {coats} / {{{rate.claim_id}}}" if per_coat else f"{{{q.claim_id}}} / {{{rate.claim_id}}}"
+    confidence = "missing"
     if calc:
         lo, hi = schema.evaluate(calc, by_id)     # CalcError reaches run(), which refuses the item
         value, value_num = schema.value_of(lo, hi)
+        # no firmer than its weakest input: an inferred rate (an old sheet) makes an inferred order
+        confidence = max((c.confidence for c in (q, rate) if c is not None and f"{{{c.claim_id}}}" in calc),
+                         key=lambda k: schema.CONFIDENCE_RANK.get(k, 0))
         if item["unit"] == "each":
             how = f"{_fig(q)} ({q.claim_id}, {q.method})"
         else:
@@ -365,7 +369,7 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
         claim_id=claim_id, statement=f"{name}: {derivation}",
         source_id=" + ".join(sources + ["WEB"]), locator=" and ".join(_join(c.locator for c in [*basis, spec] if c)),
         tag=" + ".join(_join([*(c.tag for c in basis), sheet.tag])), method="fetched", role="material",
-        confidence="exact" if calc else "missing", value=value, value_num=value_num, unit=item["unit"],
+        confidence=confidence, value=value, value_num=value_num, unit=item["unit"],
         calc=calc, derivation=derivation, division=next((c.division for c in [*basis, q] if c and c.division), ""),
         flag="unverified" if notes else "", question=questions[0] if questions else "",
         url=sheet.url, retrieved=sheet.retrieved, quote=sheet.quote,

@@ -106,8 +106,9 @@ STRETCH = re.compile(r";|\.(?=\s|$)|\bor\b(?!\s+(?:an\s+)?(?:approved\s+)?(?:equ
 # naming none. A stretch naming neither and no code ("Walls", "back-roll the first") is
 # about no product.
 # "primed" describes the substrate, not a primer in the system ("previously primed surfaces: B53, 2
-# coats" is the finish's count), and "priming" names one only as a label ("Priming: one coat").
-PRIME_WORD = re.compile(r"\b(?:prim(?:e|ers?)|priming(?=\s*:)|sealers?|conditioners?|base coats?|undercoats?|undercoaters?|block fillers?|fillers?|surfacers?)\b", re.I)
+# coats" is the finish's count), and "priming" names one as a label or a coat ("Priming: one coat",
+# "Priming (one coat)", "the first a priming coat"), not as a prior step ("after priming, B53, 2 coats").
+PRIME_WORD = re.compile(r"\b(?:prim(?:e|ers?)|priming(?=\s*(?::|\(|coats?\b))|sealers?|conditioners?|base coats?|undercoats?|undercoaters?|block fillers?|fillers?|surfacers?)\b", re.I)
 FINISH_WORD = re.compile(r"\b(?:finish(?:es)?|final|top|topcoats?|intermediate|stripe|enamels?|satin|semi-gloss|gloss|eggshell|flat|paints?|coatings?)\b", re.I)
 # A second count said without the word "coat", or an added coat ("one coat; two at patched
 # areas", "1 coat; 2 at patched areas", "a second coat at repairs", "plus 1 coat at repairs",
@@ -119,22 +120,29 @@ MORE = re.compile(rf"\b(?:second|additional|extra|another|plus|further|double)[\
                   rf"|(?<![\w./-])([1-9]\d*|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)
 # A count split across products, or a system's count ("2-coat system including primer", "two
 # coats (one primer, one finish)", "2-coat system"): whose coats they are is not settled.
-SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:prime|primer|finish|topcoat|coats?)\b"
+SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:prime|primer|priming|finish|topcoat|coats?)\b"
                    rf"|\bcoats?[\s-]+system\b"
                    rf"|\b(?:[1-9]\d*|one|two|three|four|five|six)\s+(?:{ROLE_WORDS})\b(?![\s-]*coats?\b)", re.I)
 # A floor, not a count ("two coats, or more as required for full hide", "at least two (2) coats",
 # "minimum of 2 coats", "no less than two coats", "2 coats minimum", "two coats (minimum)", "2 coats
 # min.", "two coats or as required to achieve full hide"): the count is not fixed, so no figure is written.
-# "Or more" and "or as required" are floors only after a count ("two coats, or more", "two or more
-# coats", "2 coats or as required", whatever follows): "10 ft or more above grade" and "scrape, or as
-# required by the Architect" say nothing about coats. A trailing floor word followed by a figure or a
-# thickness word ("2 coats (min. 2.0 mils DFT per coat)", "2 coats, minimum DFT 2.0 mils") is a film
-# thickness, not a floor on the count.
-FLOOR = re.compile(rf"\b{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?[\s,]*(?:or more|or\s+as\s+(?:required|needed|necessary))\b"
-                   rf"|\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b"
-                   rf"|\bcoats?[\s,]*(?:or\s+)?as (?:required|needed|necessary) (?:for|to achieve|to obtain|to get) (?:a )?(?:full |complete |uniform )?(?:hide|coverage|hiding)\b"
+# A trailing floor word followed by a figure ("2 coats, minimum of 3 mils") is a film thickness, not
+# a floor on the count, and so is one set off by a comma or a parenthesis and followed by a thickness
+# word ("2 coats (min. 2.0 mils DFT per coat)", "2 coats, minimum DFT 2.0 mils"); run together, "2
+# coats minimum WFT 6 mils" may be read either way, so it stays a floor and no figure is written.
+FIGURE = r"\d|one\b|two\b|three\b|four\b|five\b|six\b|of\b|an?\b"
+THICKNESS = r"DFT\b|WFT\b|dry\b|wet\b|film\b|mils?\b|thickness\b"
+FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b"
+                   rf"|\bcoats?[\s,]*as (?:required|needed|necessary) (?:for|to achieve|to obtain|to get) (?:a )?(?:full |complete |uniform )?(?:hide|coverage|hiding)\b"
                    rf"|\b(?:at least|a minimum of|minimum(?: of)?|not less than|no less than|no fewer than)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
-                   rf"|\bcoats?[\s,(]*(?:minimum|min|at least|or more)\b(?!\.?\s*(?:\d|one\b|two\b|three\b|four\b|five\b|six\b|of\b|an?\b|DFT\b|WFT\b|dry\b|wet\b|film\b|mils?\b|thickness\b))", re.I)
+                   rf"|\bcoats?\s*[,(]\s*(?:minimum|min|at least)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
+                   rf"|\bcoats?\s+(?:minimum|min|at least)\b(?!\.?\s*(?:{FIGURE}))", re.I)
+# "Or more" and "or as required", whatever follows, are floors on the count that comes before them in
+# the same stretch ("two coats of B53, or more as required for full hide", "two coats (or as
+# required)"), or that ends the stretch before when nothing else opens theirs ("two coats; or more as
+# required"); elsewhere ("10 ft or more above grade: B53, 2 coats", "scrape, or as required by the
+# Architect; B53, 2 coats") they say nothing about coats. coat_mentions settles which.
+FLOOR_TAIL = re.compile(r"\bor more\b|\bor\s+as\s+(?:required|needed|necessary)\b", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
 # (a product, "Base coat as needed", or a step, "Scrape"), and one opened by "and" continues
 # a product named before it; so a count written after its code there ("B53 over B66 primer,
@@ -281,10 +289,13 @@ def product_codes(*texts: str) -> list[str]:
     return list(dict.fromkeys(k for t in texts for k in PRODUCT_CODE.findall(t)))
 
 
-def coat_mentions(text: str) -> list[tuple[int, int | str | None]]:
+def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = None) -> list[tuple[int, int | str | None]]:
     """Where the text speaks of coats: (position, count) for each count it states,
     (position, None) where it says the count is not stated, (position, "range")
-    where it states a range or a choice of counts."""
+    where it states a range or a choice of counts, and "more", "split" and "floor"
+    where it adds coats, splits a count or sets a minimum (see MORE, SPLIT, FLOOR
+    and FLOOR_TAIL). `spans` are the text's stretches, from `stretches`; without
+    them the whole text is one."""
     # a mention's position is its first word's, never the blank a label may begin with,
     # so it falls inside the stretch that holds it
     ranges = [(m.end() - len(m.group().lstrip()), m.end()) for m in COAT_RANGE.finditer(text)]
@@ -299,6 +310,19 @@ def coat_mentions(text: str) -> list[tuple[int, int | str | None]]:
             continue
         for word in (w for w in (m.group(1), m.group(2), m.group(3)) if w):
             found.append((pos, COAT_WORDS.get(word.lower()) or int(word)))   # "two (2)" twice, the same count
+    spans = spans or [(0, len(text), "", 0)]
+    counted = [pos for pos, n in found if isinstance(n, int)]
+    for m in FLOOR_TAIL.finditer(text):
+        i = next((i for i, (a, b, *_) in enumerate(spans) if a <= m.start() < b), None)
+        if i is None:
+            continue
+        a, b, opener, _ = spans[i]
+        if any(a <= p < m.start() for p in counted):
+            found.append((m.start(), "floor"))
+        elif opener and not text[a:m.start()].strip(" ,;:.()-\u2013"):
+            before = [p for p in counted if spans[i - 1][0] <= p < spans[i - 1][1]]
+            if before:   # the floor is placed with the count it bounds, in the stretch before
+                found.append((before[-1], "floor"))
     return sorted(found, key=lambda f: f[0])
 
 
@@ -390,8 +414,8 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     parts = [c.statement, c.quote] if c.quote else [c.statement]
     text = SEP.join(parts)
     codes = product_codes(text)
-    mentions = coat_mentions(text)
     spans = stretches(*parts)
+    mentions = coat_mentions(text, spans)
     if not codes:
         if len(spans) > 1 and not any(n == "range" for _, n in mentions):   # a range ("one or two coats") is read whole
             each = [[n for pos, n in mentions if a <= pos < b] for a, b, *_ in spans]

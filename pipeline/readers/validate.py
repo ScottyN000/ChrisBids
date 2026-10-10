@@ -3,7 +3,7 @@
 "Output is the schema or nothing" (architecture p.14). The readers' schemas use
 only a handful of keywords, so this covers exactly those rather than adding a
 dependency: type (including null), enum, const, pattern, required, properties,
-additionalProperties, items, minItems, maxItems, minimum, maximum, maxLength.
+additionalProperties, items, minItems, maxItems, minimum, maxLength.
 A response that fails is discarded, never repaired.
 """
 from __future__ import annotations
@@ -41,8 +41,6 @@ def errors(value, schema: dict, path: str = "$") -> list[str]:
             out.append(f"{path}: longer than {schema['maxLength']} characters")
     if _is(value, "number") and "minimum" in schema and value < schema["minimum"]:
         out.append(f"{path}: below {schema['minimum']}")
-    if _is(value, "number") and "maximum" in schema and value > schema["maximum"]:
-        out.append(f"{path}: above {schema['maximum']}")
     if isinstance(value, dict):
         props = schema.get("properties", {})
         for key in schema.get("required", []):

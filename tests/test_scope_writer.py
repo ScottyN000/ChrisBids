@@ -812,8 +812,9 @@ class RendererCase(unittest.TestCase):
             "exist both are shown and the figure stays unverified.\n\n\n## Field takeoff (FIELD rows)\n\n"
             "Not in any source document. Each must be measured or answered before the allowance is priced.\n\n\n"
             "## Materials (no pricing)\n\nOrder quantities are printed only where the ledger has a dimensioned or "
-            "counted value; spares and stock-length rounding are Contractor Co. purchasing decisions and are not in the "
-            "sources.\n\n| Claim | Material | Qty | Unit | Source | Method |\n|---|---|---|---|---|---|\n"
+            "counted value, or a takeoff figure and a stated rate (the spec's own rate over the data sheet's, replayed "
+            "at both ends of a range); spares, pack sizes and stock-length rounding are Contractor Co. purchasing "
+            "decisions and are not in the sources.\n\n| Claim | Material | Qty | Unit | Source | Method |\n|---|---|---|---|---|---|\n"
             "| M1 | Sealant | 3 |  | S-1 | counted |\n\n## Codes, permits and standards\n\nEvery row was fetched on "
             "the date shown. Rows marked unverified did not open or did not show the quoted text and must not be "
             "relied on until re-fetched. \n\n| Claim | What applies | Evidence | Source |\n|---|---|---|---|\n"
@@ -835,6 +836,8 @@ class RendererCase(unittest.TestCase):
         self.assertEqual(proposal.fmt_value(1200), "1,200")
         self.assertEqual(proposal.fmt_value(1200.0), "1,200")
         self.assertEqual(proposal.fmt_value("3/4"), "3/4")
+        # a range is printed as the ledger holds it; a shorter figure would be one the ledger does not hold (p.5)
+        self.assertEqual(proposal.fmt_value("6.857142857142857-8"), "6.857142857142857-8")
 
     def test_tag_falls_back_to_source_and_locator(self):
         self.assertEqual(proposal.tag({"tag": "T", "source": "S"}), "T")

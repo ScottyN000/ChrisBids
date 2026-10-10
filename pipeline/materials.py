@@ -105,8 +105,8 @@ STRETCH = re.compile(r";|\.(?=\s|$)|\bor\b(?!\s+(?:an\s+)?(?:approved\s+)?(?:equ
 # count is tied to nothing; the whole stretch is judged, in a clause naming codes as in one
 # naming none. A stretch naming neither and no code ("Walls", "back-roll the first") is
 # about no product.
-PRIME_WORD = re.compile(r"\b(?:prime|primer|primers|sealer|conditioner|base coat|undercoat|undercoater|block filler|filler|surfacer)\b", re.I)
-FINISH_WORD = re.compile(r"\b(?:finish|final|top|topcoat|intermediate|stripe|enamel|satin|semi-gloss|gloss|eggshell|flat|paint|coating)\b", re.I)
+PRIME_WORD = re.compile(r"\b(?:prim(?:e|ed|ing|ers?)|sealers?|conditioners?|base coats?|undercoats?|undercoaters?|block fillers?|fillers?|surfacers?)\b", re.I)
+FINISH_WORD = re.compile(r"\b(?:finish(?:es)?|final|top|topcoats?|intermediate|stripe|enamels?|satin|semi-gloss|gloss|eggshell|flat|paints?|coatings?)\b", re.I)
 # A second count said without the word "coat", or an added coat ("one coat; two at patched
 # areas", "1 coat; 2 at patched areas", "a second coat at repairs", "plus 1 coat at repairs",
 # "double coat at repairs", "recoat patched areas"): a second reading, so the clause settles
@@ -123,9 +123,12 @@ SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:pr
 # A floor, not a count ("two coats, or more as required for full hide", "at least two (2) coats",
 # "minimum of 2 coats", "no less than two coats", "2 coats minimum", "two coats (minimum)", "2 coats
 # min.", "two coats or as required to achieve full hide"): the count is not fixed, so no figure is written.
-FLOOR = re.compile(rf"\bor more\b|\bas (?:required|needed|necessary) (?:for|to achieve|to obtain|to get) (?:a )?(?:full |complete |uniform )?(?:hide|coverage|hiding)\b"
+# "Or as required" after a count is a floor whatever follows it; a trailing floor word followed by a
+# figure ("2 coats (min. 2.0 mils DFT per coat)") is a film thickness, not a floor on the count.
+FLOOR = re.compile(rf"\bor more\b|\bor\s+as\s+(?:required|needed|necessary)\b"
+                   rf"|\bas (?:required|needed|necessary) (?:for|to achieve|to obtain|to get) (?:a )?(?:full |complete |uniform )?(?:hide|coverage|hiding)\b"
                    rf"|\b(?:at least|a minimum of|minimum(?: of)?|not less than|no less than|no fewer than)\s+(?:[1-9]\d*|one|two|three|four|five|six)(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
-                   rf"|\bcoats?[\s,(]*(?:minimum\b|min\b|at least\b|or more\b)", re.I)
+                   rf"|\bcoats?[\s,(]*(?:minimum|min|at least|or more)\b(?!\.?\s*(?:\d|one\b|two\b|three\b|four\b|five\b|six\b|of\b|an?\b))", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
 # (a product, "Base coat as needed", or a step, "Scrape"), and one opened by "and" continues
 # a product named before it; so a count written after its code there ("B53 over B66 primer,
@@ -372,8 +375,12 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     primer word is read only for a sheet that is a primer's alone (a primer word
     and no finish word), and one whose stretch names a finish word is no such
     sheet's ("B53 with primer, 2 coats" and "B53 with one coat of primer" may be
-    the primer's coats); a count for a system or split across products ("2-coat system including
-    primer") settles nothing, see SPLIT."""
+    the primer's coats), and a count whose stretch names no role is no primer-only
+    sheet's when the sheet names no code and takes the clause's one code on trust
+    ("B53, 2 coats" read for "the primer data sheet"; a bare count is usually the
+    finish's or the system's); a count for a system or split across products
+    ("2-coat system including primer") settles nothing, see SPLIT; a floor ("at
+    least two coats", "two coats or as required") is not a fixed count, see FLOOR."""
     parts = [c.statement, c.quote] if c.quote else [c.statement]
     text = SEP.join(parts)
     codes = product_codes(text)
@@ -430,8 +437,7 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
         part_start = max(st for st in (0, len(parts[0]) + len(SEP)) if st <= a)   # the text before the cut, in the same part
         before = text[part_start:cut] if opener else ""
         continued = (opener in SEQUENCE and before.strip(" ,;:.")) or (opener == "and" and names_product(before))
-        # the stretch up to the end of the count's own wording: what is said after it ("one coat of X100 where
-        # the primer shows") does not take the count
+        # the whole stretch is judged: a primer or finish word anywhere in it bears on whose count it is
         counted = isinstance(n, int) or n is None   # a count or an open count; a range, an added coat, a split or a floor refuses on its own
         if len(named) != 1 or (counted and two_roles(here)) or (continued and code_at < pos):
             return None, f"{c.claim_id} does not tie a coat count to one product; which is this product's is not settled"

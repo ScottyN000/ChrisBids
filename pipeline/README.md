@@ -327,16 +327,21 @@ judged. A count for a system ("2-coat system") or split across products ("two
 coats including primer", "two coats (one primer, one finish)") is nobody's
 count, and a floor ("two coats, or more as required for full hide", "at least
 two (2) coats", "no less than two coats", "2 coats minimum", "two coats or as
-required", whatever follows) is not a fixed count; "or more", "and more",
-"more if required" and "or as required" are floors on the count before them in
-their stretch, or in the stretch before when nothing before them in theirs
-names a product or a figure ("two coats of B53, or more as required for full
-hide", "two coats; or more as required", "2 coats; apply more as required for
-full hide", "two coats (more if needed)"), unless they follow another figure
-directly ("2 coats on surfaces 10 ft or more above grade" bounds the height,
-while "2 coats at 350 sq ft/gal, or more as required for full hide" may bound
-either and is a floor), and elsewhere ("10 ft or more above grade: B53, 2
-coats") say nothing about coats; "apply more coats as needed" adds coats; a floor word
+required", whatever follows) is not a fixed count; a floor tail ("or more",
+"and more", "as/if/where required", "more if needed") is a floor on the count
+before it in its stretch ("two coats of B53, or more as required for full
+hide", "two coats (or as required)", "2 coats at 350 sq ft/gal or as required
+for full hide"), or on the last count before it in the same part when its own
+stretch holds nothing but an application verb before it and no stretch between
+names a product ("two coats; or more as required", "2 coats; then apply more as
+required for full hide", "2 coats over sanded wood; apply more as required"),
+while a stretch with its own work keeps its tail ("2 coats; remove loose
+plaster, or as required by the Architect", "B66 as needed, then 1 coat B53"),
+a bare "or more" that follows another figure directly bounds that figure ("2
+coats on surfaces 10 ft or more above grade"), and a tail before any count
+("10 ft or more above grade: B53, 2 coats") says nothing about coats; "apply
+more coats as needed", "more paint as required", "recoat as required" and "a
+third coat where needed" add coats; a floor word
 followed by a figure ("2 coats, minimum of 3 mils"), or set off by a comma or
 parenthesis and followed by a thickness word ("2 coats (min. 2.0 mils DFT per
 coat)", "2 coats, minimum DFT 2.0 mils"), is a film thickness, not a floor on

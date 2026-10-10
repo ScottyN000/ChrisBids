@@ -115,8 +115,10 @@ FINISH_WORD = re.compile(r"\b(?:finish(?:es)?|final|top|topcoats?|intermediate|s
 # "double coat at repairs", "recoat patched areas"): a second reading, so the clause settles
 # nothing. A number counts only before at/on/over/for/where/in/more, so "1 coat (10 year)"
 # stays one coat.
-MORE = re.compile(rf"\b(?:second|additional|extra|another|plus|further|double|(?<!\bor )(?<!\band )more)[\s-]+(?:(?:[1-9]\d*|one|two|three|four|five|six)\s+)?{ROLE}coats?\b"
+MORE = re.compile(rf"\b(?:second|third|fourth|additional|extra|another|plus|further|double|(?<!\bor )(?<!\band )more)[\s-]+(?:(?:[1-9]\d*|one|two|three|four|five|six)\s+)?{ROLE}coats?\b"
+                  rf"|\bmore\s+(?:paint|material|product)\b"
                   rf"|\bre-?coat\b(?:\s+[A-Za-z]+){{0,3}}\s+(?:at|where|areas|repairs)\b"   # not "recoat after 4 hours at 77F", a time
+                  rf"|\bre-?coat\s+(?:as|if|where|when)\s+(?:required|needed|necessary)\b"
                   rf"|(?<![\w./-])([1-9]\d*|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)
 # A count split across products, or a system's count ("2-coat system including primer", "two
 # coats (one primer, one finish)", "2-coat system"): whose coats they are is not settled.
@@ -137,18 +139,22 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b"
                    rf"|\b(?:at least|a minimum of|minimum(?: of)?|not less than|no less than|no fewer than)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
                    rf"|\bcoats?\s*[,(]\s*(?:minimum|min|at least)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
                    rf"|\bcoats?\s+(?:minimum|min|at least)\b(?!\.?\s*(?:{FIGURE}))", re.I)
-# "Or more", "and more", "more if required" and "or as required", whatever follows, are floors on the
-# count that comes before them in the same stretch ("two coats of B53, or more as required for full
-# hide", "two coats (or as required)", "two coats (more if needed)"), or that ends the stretch before
-# when nothing before them in theirs names a product or a figure ("two coats; or more as required",
-# "2 coats; apply more as required for full hide"), unless they follow another figure directly ("2
-# coats on surfaces 10 ft or more above grade" bounds the height; "2 coats at 350 sq ft/gal, or more
-# as required for full hide" may bound either, so it is a floor); elsewhere ("10 ft or more above
-# grade: B53, 2 coats", "scrape, or as required by the Architect; B53, 2 coats") they say nothing
-# about coats. coat_mentions settles which.
-FLOOR_TAIL = re.compile(r"\b(?:or|and)\s+more\b|\bmore\s+(?:as|if|where)\s+(?:required|needed|necessary)\b|\b(?:or|and)\s+as\s+(?:required|needed|necessary)\b", re.I)
+# A floor tail ("or more", "and more", "as/if/where required/needed/necessary", "more as required",
+# whatever follows) is a floor on the count that comes before it in the same stretch ("two coats of
+# B53, or more as required for full hide", "two coats (or as required)", "2 coats at 350 sq ft/gal
+# or as required for full hide"), or on the last count before it in the same part when its own
+# stretch holds nothing but an application verb before it and no stretch between names a product
+# ("two coats; or more as required", "2 coats; apply more as required for full hide", "2 coats; then
+# apply more if needed", "2 coats over sanded wood; apply more as required"); a stretch of its own
+# ("2 coats; remove loose plaster, or as required by the Architect", "B66 as needed, then 1 coat
+# B53") speaks of its own work, not of coats. A bare "or more" that follows another figure directly
+# bounds that figure ("2 coats on surfaces 10 ft or more above grade"), while the "as required"
+# forms bound the work, whatever figure stands between. coat_mentions settles which.
+FLOOR_TAIL = re.compile(r"\b(?:or|and)\s+more\b|\b(?:more\s+(?:paint\s+|material\s+)?)?(?:as|if|where|when)\s+(?:required|needed|necessary)\b", re.I)
+BARE_MORE = re.compile(r"(?:or|and)\s+more", re.I)
+APPLY_LEAD = re.compile(r"[\s,;:.()\-\u2013]*(?:(?:apply|applying|add|adding|use|using|provide|providing|re-?coat)\s+)?", re.I)
 A_FIGURE = re.compile(r"\d|\b(?:one|two|three|four|five|six)\b", re.I)
-# text ending in a figure and at most its unit words, which a tail then follows directly
+# text ending in a figure and at most its unit words, which a bare "or more" then follows directly
 BOUNDED = re.compile(r"(?:\d+(?:[.,]\d+)*%?|\b(?:one|two|three|four|five|six)\b)(?:\s*(?:%|ft|feet|in|inches|mils?|DFT|WFT|sq\s*ft(?:/gal)?|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent)\b)*\s*$", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
 # (a product, "Base coat as needed", or a step, "Scrape"), and one opened by "and" continues
@@ -326,11 +332,17 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
             continue
         a, b, opener, _ = spans[i]
         before = [(p, e) for p, e in counted if a <= p < m.start()]
-        lead = PRODUCT_CODE.sub(" ", text[a:m.start()])
-        if not before and opener and not names_product(lead) and not A_FIGURE.search(lead):
-            before = [(p, e) for p, e in counted if spans[i - 1][0] <= p < spans[i - 1][1]]
-        if before and not BOUNDED.search(PRODUCT_CODE.sub(" ", text[before[-1][1]:m.start()])):
-            found.append((before[-1][0], "floor"))   # placed with the count it bounds
+        if not before and opener and APPLY_LEAD.fullmatch(text[a:m.start()]):
+            part_start = max(s[0] for s in spans[:i + 1] if not s[2])   # the part this stretch is in
+            before = [(p, e) for p, e in counted if part_start <= p < a]
+            if before and names_product(text[before[-1][1]:a]):
+                before = []   # a stretch between speaks of another product
+        if not before:
+            continue
+        between = PRODUCT_CODE.sub(" ", text[before[-1][1]:m.start()])
+        if BARE_MORE.fullmatch(m.group()) and BOUNDED.search(between):
+            continue   # "10 ft or more above grade" bounds the height
+        found.append((before[-1][0], "floor"))   # placed with the count it bounds
     return sorted(found, key=lambda f: f[0])
 
 

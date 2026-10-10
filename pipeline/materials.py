@@ -71,6 +71,13 @@ SHOWN_METHODS = ("clause", "customer", "fetched", "dimensioned", "counted", "FIE
 ROW_ID = r"^[A-Z0-9-]{1,40}$"
 # What a spec-wide floor or added-coat wording must speak of to bear on a coat count (spec_wide_floor).
 COATING = re.compile(r"coat|paint", re.I)
+# Building surfaces and substrates a clause heading can name, and the words that make
+# a headed clause speak across the spec anyway ("Walls: additional coats on all surfaces").
+SURFACE = re.compile(r"\b(wall|ceiling|floor|deck|door|frame|window|trim|fascia|soffit|gutter|downspout|railing|"
+                     r"handrail|stair|stucco|masonry|concrete|cmu|block|brick|siding|shutter|column|beam|pipe|"
+                     r"duct|roof|fence|gate|post|metal|steel|wood)(?:s|es)?\b", re.I)
+HEADING = re.compile(r"^\s*([^:.;]{1,60}):")
+SPEC_WIDE = re.compile(r"\b(?:regardless|throughout|all\s+surfaces|every\s+surface|each\s+surface)\b", re.I)
 
 SCHEMA = {
     "type": "object",
@@ -276,19 +283,34 @@ def vote(runs: list[list[dict]]) -> tuple[list[tuple[dict, int]], list[str]]:
     return [(seen[k][0], seen[k][1]) for k in order], dupes
 
 
+def surfaces(text: str) -> set[str]:
+    """The building surfaces a text names, singular ("Exterior trim" -> {"trim"})."""
+    return {m.group(1).lower() for m in SURFACE.finditer(text or "")}
+
+
 def spec_wide_floor(coat_row: Claim, by_id: dict[str, Claim]) -> str:
     """Why the count `coat_row` states is a floor: another clause row naming no
     product adds coats or sets a minimum across the spec ("Hide must be complete,
     with additional coats regardless of the number specified"), so the order waits
     on the estimator; "" when no such row is in the ledger. Only wording about
     coats or paint counts: a bare number ("Through-bolts: 2 at each post") or
-    "additional material" is about no coat."""
+    "additional material" is about no coat. A clause headed by a surface
+    ("Exterior trim: a second coat at repairs") is that surface's: it leaves a
+    count alone only when the coat row names its own surfaces and none of them is
+    the heading's; a coat row that names none, or spec-wide wording ("regardless",
+    "all surfaces"), keeps the floor, since code cannot tell the clause is not its."""
+    own = surfaces(" ".join((coat_row.statement, coat_row.quote, coat_row.locator)))
     for c in by_id.values():
         text = SEP.join([c.statement, c.quote] if c.quote else [c.statement])
         if c.method != "clause" or c.claim_id == coat_row.claim_id or product_codes(text):
             continue
-        if any(COATING.search(m.group()) for m in (*MORE.finditer(text), *FLOOR.finditer(text))):
-            return f"{c.claim_id} adds coats or sets a minimum across the spec, so {coat_row.claim_id}'s count is not a fixed one"
+        if not any(COATING.search(m.group()) for m in (*MORE.finditer(text), *FLOOR.finditer(text))):
+            continue
+        heading = HEADING.match(c.statement)
+        named = surfaces(heading.group(1)) if heading else set()
+        if named and own and not named & own and not SPEC_WIDE.search(text):
+            continue   # the trim's added coat says nothing about the walls
+        return f"{c.claim_id} adds coats or sets a minimum across the spec, so {coat_row.claim_id}'s count is not a fixed one"
     return ""
 
 

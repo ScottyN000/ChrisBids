@@ -351,17 +351,20 @@ ft or more above grade: B53, 2 coats") says nothing about coats; a bare "or
 more" that follows another figure directly bounds that figure ("2 coats on
 surfaces 10 ft or more above grade"), and "more than" followed directly by a
 figure and a unit is a comparison ("more than 10 ft above grade", "more than
-50% of the surface"; the inch counts only as "in.", "inch" or before a
-dimension word, since "in" is otherwise a preposition), while any other "more
+50% of the surface"; the inch counts only as "in.", "inch", a double quote
+after a digit, or "in" before a tool word ("3 in rollers", "2 in diameter"),
+since "in" is otherwise a preposition), while any other "more
 than" hedges the count ("may require more than two", "more than two coats",
 "more than two in exterior exposures", a floor); a ceiling ("up to two coats", "no more than two coats", "two coats maximum") is
 a range, as "1-2 coats" is; "apply more coats as needed", "additional paint as
 required", "recoat as required" and "a third coat where needed" add coats, and
-a bare number is an added coat only when it is small (one to six), stands
-where a second count can start (after punctuation, "and", "plus", "with",
-"but" or a cut word: "1 coat; 2 at patched areas", "1 coat, then 2 at patched
-areas") and is no measurement, so "Section 09 01 90 for", "Part 3 for", "9 in
-rollers", "2 in diameter" and "or 7005 for trim" are not; a floor word
+a small bare number (one to six) before at, on, over, for, where, in or more is
+an added coat ("1 coat; 2 at patched areas", "apply two at patched areas",
+"high-traffic area 2 at walls") unless it is a document reference's (after
+Part, Section, Sheet, Detail, No., Fig., View, Page and the like, or after
+another number), a tool size ("9 in rollers", "2 in diameter", "4 in.") or part
+of a longer number ("or 7005 for trim"); a place or thing a count can follow
+("Level 2 at", "color 2 at") is no reference, so the count refuses; a floor word
 followed by a figure ("2 coats, minimum of 3 mils"), or set off by a comma or
 parenthesis and followed by a thickness word ("2 coats (min. 2.0 mils DFT per
 coat)", "2 coats, minimum DFT 2.0 mils"), is a film thickness, not a floor on
@@ -394,7 +397,12 @@ row in the ledger names no product and adds coats or sets a minimum across
 the spec ("Hide must be complete, with additional coats regardless of the
 number specified"): the order is written with no figure, flagged, naming
 that row (only wording about coats or paint counts, so "Through-bolts: 2 at
-each post" or "additional material" floors nothing). A customer row sets no count (it never overrides a spec clause). A
+each post" or "additional material" floors nothing). A clause headed by a
+surface ("Exterior trim: a second coat at repairs") floors only counts for
+that surface: a count whose row names other surfaces ("Walls: ...", or a
+locator such as "Masonry/Stucco B") stays fixed, while a count whose row names
+no surface, or a headed clause with spec-wide words ("regardless", "all
+surfaces"), is still floored. A customer row sets no count (it never overrides a spec clause). A
 recoat time ("between coats: 24 hours") or a coverage line ("finish coat: 400
 sq ft/gal") is no count: the "coats:" form counts only when "coats" is the label
 itself (the label starts a stretch, after punctuation or a cut word, and may

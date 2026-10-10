@@ -71,6 +71,48 @@ class ChangedMutantsCase(unittest.TestCase):
             self.assertEqual(changed_mutants.patterns(["tests/test_broker.py"], root),
                              ["pipeline.ledger.*", "pipeline.readers.live.*"])
 
+    def test_changed_lines_narrow_a_module_to_its_functions(self):
+        src = ('"""Doc."""\nimport re\n\nX = 1\n\n\ndef f():\n    return X\n\n\n@dec\ndef g():\n    return 2\n\n\n'
+               'class A:\n    """Doc."""\n    def m(self):\n        return 3\n    Y = 4\n')
+        self.assertEqual(changed_mutants.functions(src, {7, 8}), ["x_f"])
+        self.assertEqual(changed_mutants.functions(src, {11}), ["x_g"])          # a decorator is its function's
+        self.assertEqual(changed_mutants.functions(src, {12, 18, 19}), ["x_g", "x\u01c1A\u01c1m"])
+        self.assertEqual(changed_mutants.functions(src, {1, 2, 5, 17}), [])     # docstrings, an import, a blank line
+        self.assertIsNone(changed_mutants.functions(src, {4}))                  # a constant a function reads
+        self.assertIsNone(changed_mutants.functions(src, {20}))                 # a class attribute
+        self.assertIsNone(changed_mutants.functions(src, {16}))                 # the class line (its bases)
+        with tempfile.TemporaryDirectory() as d:
+            root = make_root(d)
+            (root / "pipeline" / "web.py").write_text("X = 1\n\n\ndef f():\n    return X\n\n\ndef h():\n    return 2\n")
+            self.assertEqual(changed_mutants.patterns(["pipeline/web.py"], root, lines={"pipeline/web.py": {9}}),
+                             ["pipeline.web.x_h__mutmut_*"])
+            self.assertEqual(changed_mutants.patterns(["pipeline/web.py"], root, lines={"pipeline/web.py": {1}}),
+                             ["pipeline.web.*"])
+            self.assertEqual(changed_mutants.patterns(["pipeline/web.py", "pipeline/ledger.py"], root,
+                                                      lines={"pipeline/web.py": {9}}),
+                             ["pipeline.ledger.*", "pipeline.web.x_h__mutmut_*"])   # no line numbers: the whole module
+            # a tooling change still picks every module whole
+            self.assertEqual(changed_mutants.patterns(["pipeline/web.py", "pyproject.toml"], root,
+                                                      lines={"pipeline/web.py": {9}}),
+                             ["pipeline.ledger.*", "pipeline.readers.live.*", "pipeline.web.*"])
+
+    def test_only_a_weakened_test_in_a_test_only_pr_widens_the_pick(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = make_root(d)
+            (root / "tests" / "test_web.py").write_text("from pipeline import web, ledger\n")
+            self.assertEqual(changed_mutants.patterns(["tests/test_web.py"], root, weakened={"tests/test_web.py"}),
+                             ["pipeline.ledger.*", "pipeline.web.*"])
+            self.assertEqual(changed_mutants.patterns(["tests/test_web.py"], root, weakened=set()), [])   # only added to
+            self.assertEqual(changed_mutants.patterns(["tests/test_web.py", "pipeline/web.py"], root,
+                                                      lines={"pipeline/web.py": {1}}, weakened={"tests/test_web.py"}),
+                             ["pipeline.web.x_f__mutmut_*"])   # the PR changes code: the weekly run covers the test
+
+    def test_changed_lines_from_a_zero_context_diff(self):
+        diff = ("diff --git a/pipeline/web.py b/pipeline/web.py\n--- a/pipeline/web.py\n+++ b/pipeline/web.py\n"
+                "@@ -3,2 +3,3 @@ def f():\n-a\n+b\n@@ -10 +11 @@\n-c\n+d\n@@ -20,2 +21,0 @@\n-e\n-f\n"
+                "--- a/gone.py\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n")
+        self.assertEqual(changed_mutants.changed_lines(diff), {"pipeline/web.py": {3, 4, 5, 11, 21, 22}})
+
     def test_nothing_is_printed_when_there_is_no_pattern(self):
         self.assertEqual(changed_mutants.render([]), "")
         self.assertEqual(changed_mutants.render(["pipeline.web.*"]), "pipeline.web.*\n")

@@ -36,15 +36,16 @@ docker compose run --rm pipeline verify-fixtures --out /runs/verify
 CHRISBIDS_PACKET=/mnt/project-files docker compose run --rm tests
 ```
 
-Mutation testing ([`.github/workflows/mutation.yml`](.github/workflows/mutation.yml)). On a
-PR, CI runs only the mutants in the `pipeline/` modules the PR changes, and in the modules
-its changed test files import, and gates on their combined score; a weekly run on main
+Mutation testing. A PR's mutants are run locally, not in Actions: only those in the
+`pipeline/` functions the PR changes (a whole module when it changes module-level code,
+such as a constant), named in the PR description with the head sha they ran on. The
+weekly run on main ([`.github/workflows/mutation.yml`](.github/workflows/mutation.yml))
 runs them all:
 
 ```
 pip install pytest mutmut
 python3 -m mutmut run                     # small edits to pipeline/, the tests run against each
-python3 tools/changed_mutants.py origin/main | grep -q . && python3 -m mutmut run $(python3 tools/changed_mutants.py origin/main)   # this branch's modules; nothing printed means nothing to run (bare `mutmut run` is everything)
+python3 tools/changed_mutants.py origin/main | grep -q . && python3 -m mutmut run $(python3 tools/changed_mutants.py origin/main)   # this branch's functions; nothing printed means nothing to run (bare `mutmut run` is everything)
 python3 -m mutmut results                 # the mutants no test caught
 python3 -m mutmut export-cicd-stats && python3 tools/mutation_gate.py
 ```

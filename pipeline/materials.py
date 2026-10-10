@@ -137,12 +137,15 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b"
                    rf"|\b(?:at least|a minimum of|minimum(?: of)?|not less than|no less than|no fewer than)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
                    rf"|\bcoats?\s*[,(]\s*(?:minimum|min|at least)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
                    rf"|\bcoats?\s+(?:minimum|min|at least)\b(?!\.?\s*(?:{FIGURE}))", re.I)
-# "Or more" and "or as required", whatever follows, are floors on the count that comes before them in
-# the same stretch ("two coats of B53, or more as required for full hide", "two coats (or as
-# required)"), or that ends the stretch before when nothing else opens theirs ("two coats; or more as
-# required"); elsewhere ("10 ft or more above grade: B53, 2 coats", "scrape, or as required by the
-# Architect; B53, 2 coats") they say nothing about coats. coat_mentions settles which.
-FLOOR_TAIL = re.compile(r"\bor more\b|\bor\s+as\s+(?:required|needed|necessary)\b", re.I)
+# "Or more", "and more", "more if required" and "or as required", whatever follows, are floors on the
+# count that comes before them in the same stretch ("two coats of B53, or more as required for full
+# hide", "two coats (or as required)", "two coats (more if needed)"), or that ends the stretch before
+# when nothing else opens theirs ("two coats; or more as required"), unless another figure stands
+# between the count and them ("2 coats on surfaces 10 ft or more above grade" bounds the height);
+# elsewhere ("10 ft or more above grade: B53, 2 coats", "scrape, or as required by the Architect;
+# B53, 2 coats") they say nothing about coats. coat_mentions settles which.
+FLOOR_TAIL = re.compile(r"\b(?:or|and)\s+more\b|\bmore\s+(?:as|if|where)\s+(?:required|needed|necessary)\b|\b(?:or|and)\s+as\s+(?:required|needed|necessary)\b", re.I)
+A_FIGURE = re.compile(r"\d|\b(?:one|two|three|four|five|six)\b", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
 # (a product, "Base coat as needed", or a step, "Scrape"), and one opened by "and" continues
 # a product named before it; so a count written after its code there ("B53 over B66 primer,
@@ -304,25 +307,25 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
     found += [(m.start(), "more") for m in MORE.finditer(text)]
     found += [(m.start(), "split") for m in SPLIT.finditer(text)]
     found += [(m.start(), "floor") for m in FLOOR.finditer(text)]
+    counted: list[tuple[int, int]] = []   # each count's number position and where its wording ends
     for m in COATS.finditer(text):
         pos = m.start(1) if m.group(1) else m.start(3)   # the number's position
         if any(a <= pos < b for a, b in ranges):
             continue
+        counted.append((pos, m.end()))
         for word in (w for w in (m.group(1), m.group(2), m.group(3)) if w):
             found.append((pos, COAT_WORDS.get(word.lower()) or int(word)))   # "two (2)" twice, the same count
     spans = spans or [(0, len(text), "", 0)]
-    counted = [pos for pos, n in found if isinstance(n, int)]
     for m in FLOOR_TAIL.finditer(text):
         i = next((i for i, (a, b, *_) in enumerate(spans) if a <= m.start() < b), None)
         if i is None:
             continue
         a, b, opener, _ = spans[i]
-        if any(a <= p < m.start() for p in counted):
-            found.append((m.start(), "floor"))
-        elif opener and not text[a:m.start()].strip(" ,;:.()-\u2013"):
-            before = [p for p in counted if spans[i - 1][0] <= p < spans[i - 1][1]]
-            if before:   # the floor is placed with the count it bounds, in the stretch before
-                found.append((before[-1], "floor"))
+        before = [(p, e) for p, e in counted if a <= p < m.start()]
+        if not before and opener and not text[a:m.start()].strip(" ,;:.()-\u2013"):
+            before = [(p, e) for p, e in counted if spans[i - 1][0] <= p < spans[i - 1][1]]
+        if before and not A_FIGURE.search(PRODUCT_CODE.sub(" ", text[before[-1][1]:m.start()])):
+            found.append((before[-1][0], "floor"))   # placed with the count it bounds
     return sorted(found, key=lambda f: f[0])
 
 

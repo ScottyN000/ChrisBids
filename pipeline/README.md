@@ -327,11 +327,13 @@ judged. A count for a system ("2-coat system") or split across products ("two
 coats including primer", "two coats (one primer, one finish)") is nobody's
 count, and a floor ("two coats, or more as required for full hide", "at least
 two (2) coats", "no less than two coats", "2 coats minimum", "two coats or as
-required", whatever follows) is not a fixed count; "or more" and "or as
-required" are floors on the count before them in their stretch, or in the
-stretch before when nothing else opens theirs ("two coats of B53, or more as
-required for full hide", "two coats; or more as required"), and elsewhere ("10
-ft or more above grade: B53, 2 coats") say nothing about coats; a floor word
+required", whatever follows) is not a fixed count; "or more", "and more",
+"more if required" and "or as required" are floors on the count before them in
+their stretch, or in the stretch before when nothing else opens theirs ("two
+coats of B53, or more as required for full hide", "two coats; or more as
+required", "two coats (more if needed)"), unless another figure stands between
+("2 coats on surfaces 10 ft or more above grade" bounds the height), and
+elsewhere ("10 ft or more above grade: B53, 2 coats") say nothing about coats; a floor word
 followed by a figure ("2 coats, minimum of 3 mils"), or set off by a comma or
 parenthesis and followed by a thickness word ("2 coats (min. 2.0 mils DFT per
 coat)", "2 coats, minimum DFT 2.0 mils"), is a film thickness, not a floor on

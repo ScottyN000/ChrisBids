@@ -276,7 +276,8 @@ class ItemCase(unittest.TestCase):
                      "Example Flat B53, two coats or as required to achieve full hide", "Example Flat B53, 2 coats or as necessary to obtain a uniform hide",
                      "Example Flat B53, two coats, or as required to provide full hide", "Example Flat B53, two coats or as required", "Example Flat B53, 2 coats or as needed to cover",
                      "Apply two coats of Example Flat B53, or more as required for full hide", "Example Flat B53, two coats (or as required)",
-                     "Example Flat B53, two coats; or more as required for full hide", "Example Flat B53, 2 coats minimum WFT 6 mils", "Example Flat B53, two or more coats"):
+                     "Example Flat B53, two coats; or more as required for full hide", "Example Flat B53, 2 coats minimum WFT 6 mils", "Example Flat B53, two or more coats",
+                     "Example Flat B53, two coats, and more as required for full hide", "Example Flat B53, two coats, more if required for full hide", "Example Flat B53, two coats (more if needed)"):
             self.assertEqual(materials.coat_count(row("C", text), b53),
                              (None, "C states a minimum coat count for B53, not a fixed one; it does not settle this product's"), text)
         self.assertEqual(materials.coat_count(row("C", "Two coats, or more as required for full hide")),
@@ -286,6 +287,7 @@ class ItemCase(unittest.TestCase):
                      "Example Flat B53, 2 coats, minimum DFT 2.0 mils per coat", "Example Flat B53, 2 coats, min. dry film thickness 4 mils",
                      # "or more" and "or as required" are floors only after a count
                      "Surfaces 10 ft or more above grade: Example Flat B53, 2 coats", "Scrape loose paint, or as required by the Architect; Example Flat B53, 2 coats.",
+                     "Example Flat B53, 2 coats on surfaces 10 ft or more above grade", "Example Flat B53, 2 coats where 50% or more of the surface is bare",
                      # a primed substrate names no primer, and "priming" does only as a label
                      "Previously primed surfaces: Example B53, 2 coats", "Shop-primed steel: Example B53, two coats", "After priming, apply Example B53, 2 coats"):
             self.assertEqual(materials.coat_count(row("C", text), b53), (2, ""), text)

@@ -172,7 +172,7 @@ def value_range(value: str) -> tuple[float, float] | None:
 
 def format_range(lo: float, hi: float) -> str:
     """A replayed range as a ledger value: "40-50", whole numbers without a point."""
-    return "-".join(str(int(x)) if float(x).is_integer() else repr(x) for x in (lo, hi))
+    return "-".join(format_value(x)[0] for x in (lo, hi))
 
 
 def sources_of(source_id: str) -> list[str]:
@@ -233,7 +233,9 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
     round). The
     ends bound a bid's formulas, which are sums, products and quotients of
     positive figures, each range input named once; a calc rests on at most
-    MAX_RANGES ranges, and every corner must come out positive. A row whose input
+    MAX_RANGES ranges, and every corner must come out positive (the guard catches a
+    sign change, not a pole a constant offsets: `10 + 1 / ({B} - 5)` over B = 4-6
+    passes with corners 9 and 11; no bid formula divides by a difference). A row whose input
     is flagged (unverified or conflict) must carry a flag itself, and a derived row
     claims no firmer confidence than its weakest input. An allowance or order
     quantity is held to its method rule down the whole chain of calcs it rests on
@@ -272,8 +274,9 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
                 if method not in ok:
                     via = "" if deep == ref else f" rests on {deep}, which"
                     errors.append(f"{c.claim_id}: calc input {ref}{via} is {method}; it cannot feed {what}")
-        elif c.method in EXACT_METHODS and src.method not in EXACT_METHODS:
-            # A scaled or observed figure never becomes a dimensioned or counted one (p.6).
+        if c.method in EXACT_METHODS and src.method not in EXACT_METHODS:
+            # A scaled or observed figure never becomes a dimensioned or counted one (p.6),
+            # whatever the row's role: a counted allowance rests on counts, not on a clause.
             errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; a {c.method} row rests on "
                           f"dimensioned and counted rows only")
     if sum(1 for span in ends.values() if len(span) > 1) > MAX_RANGES:
@@ -291,8 +294,9 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
             return errors + [f"{c.claim_id}: calc {c.calc!r} does not evaluate: {e}"]
     lo, hi = min(got), max(got)
     if any(len(span) > 1 for span in ends.values()) and lo <= 0:
-        # The corner replay bounds sums, products and quotients of positive
-        # figures; a corner at or below zero means the formula is not one of those.
+        # The corner replay bounds sums, products and quotients of positive figures;
+        # a corner at or below zero means the formula is not one of those (a pole a
+        # constant offsets would pass: the docstring says so, and no bid formula has one).
         return errors + [f"{c.claim_id}: calc {c.calc!r} gives {lo} at a corner; a calc over a range must stay positive"]
     if hi - lo <= 1e-9:
         if c.value_num is None or abs(lo - c.value_num) > 1e-9:

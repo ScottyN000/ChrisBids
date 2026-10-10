@@ -99,8 +99,17 @@ class RangeCase(unittest.TestCase):
                                                                            confidence="scaled", value="40", value_num=40.0)}
         # a fetched rate may feed an order quantity (p.4), never an allowance; scaled feeds neither (p.6)
         self.assertEqual(schema.replay_calc(order(), by_id), [])
+        # a counted allowance over a fetched rate breaks two rules, and both are said
         self.assertEqual(schema.replay_calc(order(role="allowance", method="counted"), by_id),
-                         ["T-M-001: calc input T-WEB-001 is fetched; it cannot feed an allowance"])
+                         ["T-M-001: calc input T-WEB-001 is fetched; it cannot feed an allowance",
+                          "T-M-001: calc input T-WEB-001 is fetched; a counted row rests on dimensioned and counted rows only"])
+        # a counted allowance over a clause row is a clean allowance but not a count; a counted order over a rate
+        # is an order but not a count (the two rules are independent, whatever the row's role)
+        by_id["T-CL-001"] = claim(claim_id="T-CL-001", method="clause", role="quantity", value="10", value_num=10.0)
+        self.assertEqual(schema.replay_calc(order(role="allowance", method="counted", calc="{T-CL-001} * 2", value="20",
+                                                  value_num=20.0), by_id),
+                         ["T-M-001: calc input T-CL-001 is clause; a counted row rests on dimensioned and counted rows only"])
+        self.assertEqual(schema.replay_calc(order(method="counted"), by_id), ["T-M-001: calc input T-WEB-001 is fetched; a counted row rests on dimensioned and counted rows only"])
         self.assertEqual(schema.replay_calc(order(calc="{T-S-001} * 2 / {T-WEB-001}", value="0.2-0.25",
                                                   confidence="scaled"), by_id),
                          ["T-M-001: calc input T-S-001 is scaled; it cannot feed an order quantity"])
@@ -116,7 +125,8 @@ class RangeCase(unittest.TestCase):
         self.assertEqual(schema.replay_calc(order(role="allowance", method="counted", calc="{T-C-001} / 2", value="40",
                                                   value_num=40.0, confidence="scaled"), by_id),
                          ["T-M-001: calc input T-C-001 rests on T-WEB-002, which is fetched; it cannot feed an allowance",
-                          "T-M-001: calc input T-C-001 rests on T-S-001, which is scaled; it cannot feed an allowance"])
+                          "T-M-001: calc input T-C-001 rests on T-S-001, which is scaled; it cannot feed an allowance",
+                          "T-M-001: calc input T-C-001 is clause; a counted row rests on dimensioned and counted rows only"])
         self.assertEqual(schema.rests_on("nowhere", by_id), [])
         loop = {"A": claim(claim_id="A", calc="{B}"), "B": claim(claim_id="B", calc="{A}")}
         self.assertEqual(schema.rests_on("A", loop), [("A", "dimensioned"), ("B", "dimensioned")])
@@ -125,6 +135,7 @@ class RangeCase(unittest.TestCase):
         self.assertEqual(schema.replay_calc(order(role="allowance", method="counted", calc="{T-WEB-001} + {T-WEB-001}",
                                                   value="640-800"), by_id),
                          ["T-M-001: calc input T-WEB-001 is fetched; it cannot feed an allowance",
+                          "T-M-001: calc input T-WEB-001 is fetched; a counted row rests on dimensioned and counted rows only",
                           "T-M-001: calc names range input T-WEB-001 more than once; write it once (2 * {T-WEB-001})"])
         self.assertEqual(schema.replay_calc(claim(claim_id="Q", method="counted", role="quantity", value="16",
                                                   value_num=16.0, calc="{T-A-001} * (10 - {T-A-001})"),

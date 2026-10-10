@@ -6,8 +6,10 @@ is fetched when the job's ledger rows name its place, product or hazard. A
 cold-cache search for a jurisdiction the table does not know is not built yet,
 so such a job gets no rows from these agents, and the run says so.
 
-Every page is fetched fresh on every bid. A cached row is evidence, never a
-conclusion (p.7-8). Code fetches the page and turns it into text. A model (Haiku,
+Every page is fetched on every bid. A cached row is evidence, never a
+conclusion (p.7-8): when a page's bytes are unchanged since the last read, with
+every cached quote still on them, its answers stand without a model call
+(`pagecache`). Code fetches the page and turns it into text. A model (Haiku,
 p.13) is shown the text and the page's asks, and answers each ask with a
 verbatim quote and one sentence. Code keeps an answer only if:
 
@@ -35,6 +37,7 @@ from __future__ import annotations
 
 import copy
 import difflib
+import hashlib
 import json
 import re
 from dataclasses import dataclass, field
@@ -42,8 +45,9 @@ from pathlib import Path
 
 import yaml
 
-from . import fixtures, web
+from . import fixtures, pagecache, web
 from .broker import Broker
+from .pagecache import Entry, PageCache
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
 from .readers.rows import Unit
@@ -63,6 +67,10 @@ OVERLAP = 0.6
 ANSWERED = 0.8
 # Most spare runs a page gets when answers are refused (see run()).
 SPARES = 2
+# The code that decides what a reading keeps (this module, the fetcher, the row
+# schema, the answer checks, the cache format): a cached answer stands only under the same rules it was kept under.
+RULES = hashlib.sha256(b"".join((Path(__file__).parent / f).read_bytes() for f in (
+    "webread.py", "web.py", "schema.py", "pagecache.py", "readers/validate.py"))).hexdigest()[:16]
 # The choice for a closed ask whose page says something none of its options fit.
 OTHER = "other"
 # A figure, with a range ("2-4", "350 – 400") as one figure, so a statement
@@ -393,13 +401,15 @@ class WebResult:
     unread: list[str] = field(default_factory=list)      # pages that opened but gave no valid run
     blocked: list[str] = field(default_factory=list)     # URLs the broker refused to fetch: each is an unverified row
     refused: list[str] = field(default_factory=list)     # rows the broker refused
+    cached: list[str] = field(default_factory=list)      # pages whose answers came from the page cache, and why
     notes: list[str] = field(default_factory=list)
 
     def text(self) -> str:
         opened = sum(1 for p in self.fetched if p.ok)
         lines = [f"{NAME}: {self.pages} pages ({opened} opened), {self.calls} calls, {len(self.rows)} rows, "
                  f"{len(self.unanswered)} asks unanswered, {len(self.discarded)} answers or runs discarded"]
-        for name, items in (("note", self.notes), ("unopened", self.unopened), ("blocked", self.blocked),
+        for name, items in (("note", self.notes), ("cached", self.cached), ("unopened", self.unopened),
+                            ("blocked", self.blocked),
                             ("unread", self.unread),
                             ("unanswered", self.unanswered), ("reading", self.readings),
                             ("discarded", self.discarded), ("refused", self.refused)):
@@ -413,6 +423,11 @@ def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
     # which the Materials order step writes, not the reader.
     return Claim(claim_id=f"{job}-WEB-{n:03d}", source_id=SOURCE_ID, method="fetched", role="code",
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
+
+
+def _answer(job: str, n: int, source: Source, page: web.Page, ask: Ask, fields: dict) -> Claim:
+    """The row for an agreed answer: its quote, statement and figure (cached as `fields`)."""
+    return _row(job, n, source, page, confidence="exact", locator=f"ask {ask.id}", **fields)
 
 
 def _gap(job: str, n: int, source: Source, page: web.Page, ask: Ask, why: str) -> Claim:
@@ -492,8 +507,9 @@ def from_packet(c: Claim) -> bool:
 
 
 def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, table: Table | None = None,
-        agents: tuple[str, ...] = AGENTS, repeats: int = 2) -> WebResult:
+        agents: tuple[str, ...] = AGENTS, repeats: int = 2, cache: PageCache | None = None) -> WebResult:
     table = table or load()
+    cache = cache if cache is not None else PageCache()
     gone = broker.ledger.superseded()
     claims = [c for c in broker.ledger.claims() if c.claim_id not in gone]
     # Matched on what the readers and Takeoff wrote from the packet: not on
@@ -503,6 +519,8 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
     # that research found).
     sources = pick(table, [c for c in claims if c.method != "fetched" and from_packet(c)], agents)
     result = WebResult(pages=len(sources))
+    if cache.skipped:
+        result.notes.append(f"page cache: {cache.skipped} lines did not load; their pages are read anew")
     if not sources:
         result.notes.append("no page in the table matches this job's rows (a cold-cache search is not built)")
         return result
@@ -550,6 +568,18 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
         ids = on_page(source.ids, unit.text)
         if cut:
             result.notes.append(f"{source.url}: page cut to its first {MAX_CHARS} characters")
+        k = pagecache.key(source, prompt_version(NAME), client.model_id, repeats, RULES)
+        entry = writer.cache_lookup(cache, source.url, k)
+        if (entry is not None and entry.sha256 == page.sha256 and set(entry.answers) == {a.id for a in source.asks}
+                and all(web.quote_in(a["quote"], unit.text) for a in entry.answers.values())):
+            # the same bytes as the last read, and every quote still on them: the answers stand
+            why = f"unchanged since {entry.retrieved} (same sha256); not read again"
+            entry = Entry(source.url, k, page.retrieved, page.sha256, entry.answers)
+            writer.cache_append(cache, entry, why)
+            result.cached.append(f"{source.url}: {why}")
+            for ask in source.asks:
+                write(_answer(job, next_id(), source, page, ask, entry.answers[ask.id]), source.agent)
+            continue
         schema = schema_for(source)
         runs = []
         # Spare runs (up to SPARES), made only while a run was discarded or an
@@ -586,6 +616,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             for ask in source.asks:
                 write(_gap(job, next_id(), source, page, ask, why), source.agent)
             continue
+        answers = {}
         for ask in source.asks:
             agreed, why, readings = _agree(runs, ask, repeats, ids)
             if agreed is None:
@@ -607,10 +638,12 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             # the same canonical value and numeric reading the fixture loader gives the row, so a
             # single figure (400 sq ft/gal, 6 ft) can feed a calc; a range or a choice has no number
             value, value_num = format_value(agreed.get("choice", "") or value)
-            write(_row(job, next_id(), source, page, confidence="exact", quote=agreed["quote"].strip(),
-                       statement=agreed["statement"].strip(), value=value, value_num=value_num,
-                       unit=figure_unit, locator=f"ask {ask.id}"),
-                  source.agent)
+            answers[ask.id] = dict(quote=agreed["quote"].strip(), statement=agreed["statement"].strip(),
+                                   value=value, value_num=value_num, unit=figure_unit)
+            write(_answer(job, next_id(), source, page, ask, answers[ask.id]), source.agent)
+        if len(answers) == len(source.asks):    # a gap or a split reading is read again next time
+            writer.cache_append(cache, Entry(source.url, k, page.retrieved, page.sha256, answers),
+                                f"read; {len(answers)} answers cached")
     return result
 
 

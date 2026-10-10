@@ -252,6 +252,20 @@ class Broker:
         self._log("fetch", url[:500], detail)
         self.ledger.db.commit()
 
+    def cache_lookup(self, cache, url: str, key: str):
+        """Read the code and product cache (p.11: Codes & Regs, Materials and the Auditor)."""
+        if not self.principal.egress:
+            self._deny("read the page cache")
+        return cache.get(url, key)
+
+    def cache_append(self, cache, entry, detail: str) -> None:
+        """Append a reading or a revalidation to the code and product cache (p.11: Codes & Regs and Materials)."""
+        if "fetched" not in self.principal.methods:
+            self._deny("append to the page cache")
+        cache.append(entry)
+        self._log("cached", entry.url[:500], detail)
+        self.ledger.db.commit()
+
     def secret(self, name: str) -> str:
         """Secrets come from the broker's environment, never from a prompt."""
         if name not in SECRET_ENV:

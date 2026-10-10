@@ -55,7 +55,7 @@ NODES: tuple[Node, ...] = (
          principal="correspondence_reader", module="pipeline/readers/prompts/correspondence.md", phase=2),
     Node("takeoff", "Takeoff", "derivation or FIELD", BUILT, principal="takeoff",
          module="pipeline/takeoff.py", phase=3),
-    Node("codes", "Codes & Regs", "fetched, URL + section", BUILT, principal="codes",
+    Node("codes", "Codes & Regs", "fetched, URL + section; unchanged pages not re-read", BUILT, principal="codes",
          module="pipeline/webread.py", phase=4),
     Node("materials", "Materials", "data sheet rates and order quantities, cited", BUILT, principal="materials",
          module="pipeline/materials.py", phase=4),

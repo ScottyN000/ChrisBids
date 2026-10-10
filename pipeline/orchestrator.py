@@ -26,6 +26,7 @@ from pathlib import Path
 
 from . import auditor, fixtures, intake, materials, scope_writer, takeoff, web, webread
 from .broker import Broker
+from .pagecache import PageCache
 from .readers import live, run as reader_run
 from .readers import tiles
 from .readers.clients import ModelClient
@@ -184,8 +185,10 @@ class BidResult:
 
 def bid(packet: Path, job: str, out: Path, *, reader_client: ModelClient, takeoff_client: ModelClient,
         scope_client: ModelClient, repeats: int = 2, phrase_library: Path = fixtures.PHRASE_LIBRARY,
-        fetcher: web.Fetcher | None = None, web_table: webread.Table | None = None) -> BidResult:
-    """Run a bid end to end on a packet folder. Everything lands in `out`."""
+        fetcher: web.Fetcher | None = None, web_table: webread.Table | None = None,
+        page_cache: Path | None = None) -> BidResult:
+    """Run a bid end to end on a packet folder. Everything lands in `out`, but
+    for `page_cache`: what each code and product page said, kept between bids."""
     packet, out = Path(packet).resolve(), Path(out)
     out.mkdir(parents=True, exist_ok=True)
     db = out / "ledger.db"
@@ -210,7 +213,7 @@ def bid(packet: Path, job: str, out: Path, *, reader_client: ModelClient, takeof
         result.results["takeoff"] = takeoff.run(broker, job, takeoff_client, repeats=repeats)
         if fetcher is not None:
             result.results["web"] = webread.run(broker, job, reader_client, fetcher, table=web_table,
-                                                    repeats=repeats)
+                                                    repeats=repeats, cache=PageCache(page_cache))
             # the order step reconciles rows from three agents, so it runs on the client Takeoff uses (Sonnet)
             result.results["materials"] = materials.run(broker, job, takeoff_client, repeats=repeats)
         result.scope = scope_writer.run(broker, job, scope_client, phrase_library, repeats=repeats)

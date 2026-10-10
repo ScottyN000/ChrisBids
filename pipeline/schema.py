@@ -39,6 +39,8 @@ MAX_RANGES = 3
 # Methods that carry an exact figure. A row of either kind may only be worked
 # out from rows of these kinds.
 EXACT_METHODS = ("dimensioned", "counted")
+# How firm a figure is, firmest first; a derived row is never firmer than its inputs.
+CONFIDENCE_RANK = {"exact": 0, "scaled": 1, "inferred": 1, "missing": 2}
 
 # The flat ledger field order, as the architecture doc lists it plus the
 # bookkeeping columns the fixtures already carry.
@@ -231,8 +233,11 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
     round). The
     ends bound a bid's formulas, which are sums, products and quotients of
     positive figures, each range input named once; a calc rests on at most
-    MAX_RANGES ranges. A row whose input is flagged (unverified or conflict) must
-    carry a flag itself.
+    MAX_RANGES ranges, and every corner must come out positive. A row whose input
+    is flagged (unverified or conflict) must carry a flag itself, and a derived row
+    claims no firmer confidence than its weakest input. An allowance or order
+    quantity is held to its method rule down the whole chain of calcs it rests on
+    (p.6: scaled "never becomes an order quantity"), not only its direct inputs.
     """
     if not c.calc:
         return []
@@ -255,10 +260,18 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
             # Arithmetic on a reading nobody has settled is itself unsettled (p.9):
             # the derived row carries a flag, so the bid never shows it as firm.
             errors.append(f"{c.claim_id}: calc input {ref} is flagged {src.flag}; the row must be flagged")
-        if c.role == "allowance" and src.method not in ALLOWANCE_OK:
-            errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; it cannot feed an allowance")
-        elif c.role == "material" and src.method not in MATERIAL_OK:
-            errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; it cannot feed an order quantity")
+        if CONFIDENCE_RANK.get(src.confidence, 0) > CONFIDENCE_RANK.get(c.confidence, 0):
+            errors.append(f"{c.claim_id}: calc input {ref} is {src.confidence}; the row claims {c.confidence}")
+        feeds = ("an allowance", ALLOWANCE_OK) if c.role == "allowance" else \
+                ("an order quantity", MATERIAL_OK) if c.role == "material" else None
+        if feeds:
+            # The rule holds down the chain: a scaled area that passes through a
+            # fetched or clause row with its own calc is still a scaled area.
+            what, ok = feeds
+            for deep, method in rests_on(ref, by_id):
+                if method not in ok:
+                    via = "" if deep == ref else f" rests on {deep}, which"
+                    errors.append(f"{c.claim_id}: calc input {ref}{via} is {method}; it cannot feed {what}")
         elif c.method in EXACT_METHODS and src.method not in EXACT_METHODS:
             # A scaled or observed figure never becomes a dimensioned or counted one (p.6).
             errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; a {c.method} row rests on "
@@ -277,6 +290,10 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
         except (ValueError, ZeroDivisionError) as e:
             return errors + [f"{c.claim_id}: calc {c.calc!r} does not evaluate: {e}"]
     lo, hi = min(got), max(got)
+    if any(len(span) > 1 for span in ends.values()) and lo <= 0:
+        # The corner replay bounds sums, products and quotients of positive
+        # figures; a corner at or below zero means the formula is not one of those.
+        return errors + [f"{c.claim_id}: calc {c.calc!r} gives {lo} at a corner; a calc over a range must stay positive"]
     if hi - lo <= 1e-9:
         if c.value_num is None or abs(lo - c.value_num) > 1e-9:
             errors.append(f"{c.claim_id}: calc {c.calc} = {lo}, ledger says {c.value or '(blank)'}")
@@ -285,6 +302,18 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
         if own is None or abs(own[0] - lo) > 1e-9 or abs(own[1] - hi) > 1e-9:
             errors.append(f"{c.claim_id}: calc {c.calc} = {format_range(lo, hi)}, ledger says {c.value or '(blank)'}")
     return errors
+
+
+def rests_on(ref: str, by_id: dict[str, Claim], _seen: frozenset = frozenset()) -> list[tuple[str, str]]:
+    """Every row a calc input stands on, as (claim_id, method): the row itself,
+    then the rows its own calc names, followed all the way down."""
+    src = by_id.get(ref)
+    if src is None or ref in _seen:
+        return []
+    out = [(ref, src.method)]
+    for r in dict.fromkeys(CALC_REF.findall(src.calc or "")):
+        out += rests_on(r, by_id, _seen | {ref})
+    return out
 
 
 def arith(expr: str) -> float:

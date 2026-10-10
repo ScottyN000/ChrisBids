@@ -173,11 +173,13 @@ class BrokerCase(unittest.TestCase):
             self.who("takeoff").append(claim(claim_id="Q-001", method="counted", value="18",
                                              value_num=18.0, unit="each", calc="{D-001} * 3"))
         self.assertIn("calc input D-001 is flagged unverified; the row must be flagged", str(e.exception))
+        # nor firmer than its input: an inferred count makes an inferred total
+        self.assertIn("calc input D-001 is inferred; the row claims exact", str(e.exception))
         self.who("takeoff").append(claim(claim_id="Q-001", method="counted", value="18", value_num=18.0,
-                                         unit="each", calc="{D-001} * 3", flag="unverified"))
+                                         unit="each", calc="{D-001} * 3", flag="unverified", confidence="inferred"))
         # a conflict flag is a flag too: the row is already not firm
-        self.who("takeoff").append(claim(claim_id="Q-002", method="counted", value="18", value_num=18.0,
-                                         unit="each", calc="{D-001} * 3", flag="conflict", question="OQ-1"))
+        self.who("takeoff").append(claim(claim_id="Q-002", method="counted", value="18", value_num=18.0, unit="each",
+                                         calc="{D-001} * 3", flag="conflict", question="OQ-1", confidence="inferred"))
 
     def test_calc_is_arithmetic_only(self):
         with self.assertRaises(LedgerError):

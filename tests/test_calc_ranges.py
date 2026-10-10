@@ -101,8 +101,25 @@ class RangeCase(unittest.TestCase):
         self.assertEqual(schema.replay_calc(order(), by_id), [])
         self.assertEqual(schema.replay_calc(order(role="allowance", method="counted"), by_id),
                          ["T-M-001: calc input T-WEB-001 is fetched; it cannot feed an allowance"])
-        self.assertEqual(schema.replay_calc(order(calc="{T-S-001} * 2 / {T-WEB-001}", value="0.2-0.25"), by_id),
+        self.assertEqual(schema.replay_calc(order(calc="{T-S-001} * 2 / {T-WEB-001}", value="0.2-0.25",
+                                                  confidence="scaled"), by_id),
                          ["T-M-001: calc input T-S-001 is scaled; it cannot feed an order quantity"])
+        # the rule follows the chain: a scaled area through a fetched or clause row with its own calc is still scaled
+        by_id["T-WEB-002"] = rate(claim_id="T-WEB-002", value="40", value_num=40.0, calc="{T-S-001}", confidence="scaled")
+        by_id["T-C-001"] = claim(claim_id="T-C-001", method="clause", value="80", value_num=80.0, calc="{T-WEB-002} * 2",
+                                 confidence="scaled")
+        self.assertEqual(schema.rests_on("T-C-001", by_id),
+                         [("T-C-001", "clause"), ("T-WEB-002", "fetched"), ("T-S-001", "scaled")])
+        self.assertEqual(schema.replay_calc(order(calc="{T-WEB-002} * 2 / {T-WEB-001}", value="0.2-0.25",
+                                                  confidence="scaled"), by_id),
+                         ["T-M-001: calc input T-WEB-002 rests on T-S-001, which is scaled; it cannot feed an order quantity"])
+        self.assertEqual(schema.replay_calc(order(role="allowance", method="counted", calc="{T-C-001} / 2", value="40",
+                                                  value_num=40.0, confidence="scaled"), by_id),
+                         ["T-M-001: calc input T-C-001 rests on T-WEB-002, which is fetched; it cannot feed an allowance",
+                          "T-M-001: calc input T-C-001 rests on T-S-001, which is scaled; it cannot feed an allowance"])
+        self.assertEqual(schema.rests_on("nowhere", by_id), [])
+        loop = {"A": claim(claim_id="A", calc="{B}"), "B": claim(claim_id="B", calc="{A}")}
+        self.assertEqual(schema.rests_on("A", loop), [("A", "dimensioned"), ("B", "dimensioned")])
         # one method note per row used, however often the formula names it; a range named twice is refused
         # (the corner replay bounds a formula that uses each range once), a single figure may repeat
         self.assertEqual(schema.replay_calc(order(role="allowance", method="counted", calc="{T-WEB-001} + {T-WEB-001}",
@@ -117,6 +134,25 @@ class RangeCase(unittest.TestCase):
                                                   value_num=None, calc="{T-WEB-001} * 2"), by_id),
                          ["Q: calc input T-WEB-001 is fetched; a counted row rests on dimensioned and counted rows only"])
 
+
+    def test_a_derived_row_is_no_firmer_than_its_inputs(self):
+        by_id = {"T-A-001": claim(), "T-WEB-001": rate(confidence="inferred")}
+        self.assertEqual(schema.replay_calc(order(), by_id), ["T-M-001: calc input T-WEB-001 is inferred; the row claims exact"])
+        self.assertEqual(schema.replay_calc(order(confidence="inferred"), by_id), [])
+        self.assertEqual(schema.replay_calc(order(confidence="scaled"), by_id), [])   # scaled and inferred rank alike
+        by_id["T-WEB-001"] = rate(confidence="missing")
+        self.assertEqual(schema.replay_calc(order(confidence="inferred"), by_id),
+                         ["T-M-001: calc input T-WEB-001 is missing; the row claims inferred"])
+        self.assertEqual(schema.CONFIDENCE_RANK, {"exact": 0, "scaled": 1, "inferred": 1, "missing": 2})
+
+    def test_a_calc_over_a_range_must_stay_positive(self):
+        by_id = {"T-A-001": claim(), "T-WEB-001": rate(value="300-400")}
+        self.assertEqual(schema.replay_calc(order(calc="{T-WEB-001} - {T-A-001}", value="-900--800"), by_id),
+                         ["T-M-001: calc '{T-WEB-001} - {T-A-001}' gives -900.0 at a corner; a calc over a range must stay positive"])
+        self.assertEqual(schema.replay_calc(order(calc="{T-WEB-001} - 300", value="0-100"), by_id),
+                         ["T-M-001: calc '{T-WEB-001} - 300' gives 0.0 at a corner; a calc over a range must stay positive"])
+        # single figures may still come out at zero
+        self.assertEqual(schema.replay_calc(order(calc="{T-A-001} - 1200", value="0", value_num=0.0), by_id), [])
     def test_the_method_rules_for_material_and_allowance_rows(self):
         self.assertEqual(schema.check_method_rules(order()), [])
         self.assertEqual(schema.check_method_rules(order(role="allowance")),

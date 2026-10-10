@@ -179,6 +179,29 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.coat_count(row("C", "Topcoat K62: 2 coats", quote="Topcoat K62: 2 coats"), plain), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "Topcoat K62: 2 coats", quote="A89 primer as needed"), plain),
                          (None, "C names K62, A89; which is this product's is not settled"))
+        # ... but only when every stretch names that code: a stretch naming none may be the codeless sheet's own product
+        for text in ("Masonry conditioner as needed; Example Flat B53, 2 coats", "Example Flat B53, 2 coats; see the primer's data sheet"):
+            self.assertEqual(materials.coat_count(row("C", text), plain),
+                             (None, "C names B53 in one stretch and no code in another; whether the other is this product's is not settled"), text)
+        self.assertEqual(materials.coat_count(row("C", "Topcoat K62: 2 coats", quote="Finish: 2 coats"), plain),
+                         (None, "C names K62 in one stretch and no code in another; whether the other is this product's is not settled"))
+        # a clause naming no code settles a count only when every stretch states the same one
+        for text in ("Prime coat: exterior latex primer; Finish coats: two coats exterior latex satin", "Apply two coats and back-roll",
+                     "Coats: 2 and back-roll the first", "2 coats of finish; primer as needed"):
+            for who in (plain, None):
+                self.assertEqual(materials.coat_count(row("C", text), who),
+                                 (None, "C names no product code and speaks of coats in one stretch but not another; which product each stretch is for is not settled"), text)
+        self.assertEqual(materials.coat_count(row("C", "2 coats of primer and 3 coats of finish"), plain),
+                         (None, "C names no product code and states different coat counts in its stretches; which is this product's is not settled"))
+        self.assertEqual(materials.coat_count(row("C", "2 coats of primer and 2 coats of finish"), plain), (2, ""))
+        # a count at the head of the quote, or of a stretch opened by "then", is read from where it stands
+        self.assertEqual(materials.coat_count(row("C", "Finish: Example Flat B53", quote="Coats: 2, Example Flat B53"), b53), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Example Primer B66 as needed, then coats: 2, Example Flat B53"), b53), (2, ""))
+        # the repo's own wording of an open count is seen beside a count
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 2 coats on new work; the B53 coat count on repaint is not stated"), b53),
+                         (None, "C states a coat count for B53 and says one is not stated; it does not settle this product's"))
+        self.assertEqual(materials.coat_count(row("C", "The B53 coat count is not stated"), b53), (None, "C says the coat count for B53 is not stated"))
+        self.assertEqual(materials.coat_count(row("C", "Number of coats on repaint not specified")), (None, "C says the coat count is not stated"))
         # a sheet carrying two of the clause's codes settles nothing
         system = row("X-WEB-012", "Example Flat B53 over Example Primer B66 system", method="fetched", role="code", source="WEB", tag="B53 system")
         self.assertEqual(materials.coat_count(two, system),
@@ -191,28 +214,31 @@ class ItemCase(unittest.TestCase):
         for text in ("Dry time between coats: 4 hours", "Dry time between coats: 1.5 hours", "Dry time between coats: 24 hours",
                      "coats: 16 hrs", "coats: 10 mils", "Finish coat: 400 sq ft/gal", "Apply a 15 mil coat of Example Elastomeric A100",
                      "Coats: 2 - 3", "Coats: 2 \u2013 3", "Coats: 2 to 3", "between two and three coats", "0 coats", "Coats: 0", "Two (0) coats",
-                     "Mils per coat: 4", "WFT/coat: 4", "Dry time between coats: 24.", "Spread rate per coat: 350", "Recoat interval between coats: 24;"):
+                     "Mils per coat: 4", "WFT/coat: 4", "Dry time between coats: 24.", "Spread rate per coat: 350", "Recoat interval between coats: 24;",
+                     "Dry time between finish coats: 24.", "mils per top coat: 4", "DFT per prime coat: 3.", "1/2 coat", "Apply 2/3 coats"):
             self.assertEqual(materials.coat_count(row("C", text))[0], None, text)
         self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 24 hours")), (None, "C states no coat count"))
         # the "coats:" form counts only when "coats" is the label itself, not the tail of one ("mils per coat: 4")
         self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 24.")), (None, "C states no coat count"))
         b53 = row("X-WEB-010", "B53 data sheet", method="fetched", role="code", source="WEB", tag="B53 enamel")
         self.assertEqual(materials.coat_count(row("C", "Example Flat B53, mils per coat: 4"), b53), (None, "C states no coat count for B53"))
-        for text in ("Finish coats: 2", "Number of coats: 2", "Topcoat; coats: 2", "Prime coats: 2 and finish coats: 2"):
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, wet mils per finish coat: 4"), b53), (None, "C states no coat count for B53"))
+        self.assertEqual(materials.coat_count(row("C", "Apply 2/3 coats")), (None, "C states a range of coats; it does not settle this product's"))
+        for text in ("Finish coats: 2", "Number of coats: 2", "Topcoat, coats: 2", "(coats: 2)", "Prime coats: 2 and finish coats: 2"):
             self.assertEqual(materials.coat_count(row("C", text)), (2, ""), text)
         # "coats: 2 and ..." is a range only when a second number follows
-        self.assertEqual(materials.coat_count(row("C", "Coats: 2 and back-roll the first")), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "Coats: 2 and 3")), (None, "C states a range of coats; it does not settle this product's"))
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53: coats: 2 and back-roll the first"), b53), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "between two and three coats")), (None, "C states a range of coats; it does not settle this product's"))
         # after "coats:" the number ends the clause or is followed by punctuation or "coat(s)"
-        for text in ("Coats: 2", "Coats: 2.", "Coats: 2; recoat: 4 hours", "(coats: 2)", "coats: 12"):
+        for text in ("Coats: 2", "Coats: 2.", "Coats: 2, recoat: 4 hours", "(coats: 2)", "coats: 12"):
             self.assertEqual(materials.coat_count(row("C", text))[0], 12 if "12" in text else 2, text)
         self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 1.5 hours")), (None, "C states no coat count"))
         self.assertEqual(materials.coat_count(row("C", "Coats: 2 - 3")), (None, "C states a range of coats; it does not settle this product's"))
         # "two (2) coats" is one count said twice; "two (3)" is two
         self.assertEqual(materials.coat_count(row("C", "Two (2) coats of Example Flat B53")), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "Two (3) coats")), (None, "C states 2 coat counts; it does not settle this product's"))
-        self.assertEqual(materials.coat_count(row("C", "Coats: 2; recoat: 4 hours")), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Coats: 2, recoat: 4 hours")), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 1-2 coats; Example Primer B66, 1 coat"),
                                               row("W", "Example Flat B53 sheet", method="fetched", role="code", source="WEB")),
                          (None, "C states a range of coats for B53; it does not settle this product's"))

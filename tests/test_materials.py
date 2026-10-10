@@ -253,17 +253,28 @@ class RunCase(unittest.TestCase):
                          "materials: 1 units, 2 calls, 2 order rows (2 with a figure), 0 items discarded, 0 units unread")
 
     def test_a_bad_run_and_bad_items_are_discarded(self):
-        client = Fake(["not json", {"items": [item(sheet="X-NO"), ANCHORS]}])
+        # a discarded run earns one spare run; the anchors are then seen in 2 of 3
+        client = Fake(["not json", {"items": [item(sheet="X-NO"), ANCHORS]}, {"items": [ANCHORS]}])
         res = materials.run(self.broker, "X", client)
         self.assertEqual(res.discarded, ["X#materials run 1: not JSON: Expecting value: line 1 column 1 (char 0)",
                                          "X#materials run 2: items[0] names X-NO, which is not a row it was shown"])
         self.assertEqual([(c.claim_id, c.flag, c.derivation) for c in res.rows],
-                         [("X-MT-01", "unverified", "18 each (X-TK-Q-02); seen in 1 of 2 runs")])
+                         [("X-MT-01", "unverified", "18 each (X-TK-Q-02); seen in 2 of 3 runs")])
+        self.assertEqual(res.calls, 3)
         self.assertIn("  discarded " + res.discarded[0], res.text())
         self.assertTrue(any(line.startswith(f"  row {res.rows[0].claim_id} | ") and res.rows[0].url in line
                             for line in res.text().splitlines()), res.text())
-        res = materials.run(self.broker, "X", Fake(["no", "no"]))
-        self.assertEqual((res.unread, res.rows), (["X#materials"], []))
+        res = materials.run(self.broker, "X", Fake(["no", "no", "no"]))
+        self.assertEqual((res.unread, res.rows, res.calls), (["X#materials"], [], 3))
+
+    def test_runs_that_name_different_orders_earn_a_spare_run(self):
+        worded = dict(ANCHORS, product="A7 anchors, 1/2 in")     # the same order in other words
+        client = Fake([{"items": [item()]}, {"items": [worded]}, {"items": [item(), ANCHORS]}])
+        res = materials.run(self.broker, "X", client)
+        self.assertEqual(res.calls, 3)
+        self.assertEqual([(c.claim_id, c.flag, "seen in 2 of 3 runs" in c.derivation) for c in res.rows],
+                         [("X-MT-01", "unverified", True), ("X-MT-02", "unverified", True)])
+        self.assertIn("A7 anchors, 1/2 in", res.rows[1].statement)      # the first wording is kept
 
     def test_a_ledger_with_no_sheet_gets_no_call(self):
         broker = Broker.open_job(Path(self.tmp.name) / "m.db", "intake", job="Y", run_id="Y-RUN", create=True)
@@ -328,6 +339,9 @@ class GateCase(unittest.TestCase):
         self.assertEqual(g.failures, ["OBV-M-002: gives 20 each, the fixture 18"])
         g = self.gate([order_row(value="18", unit="each"), order_row(value="", unit="each")], (FIX_C, counted))
         self.assertEqual((g.ok, g.failures), (True, []))
+        g = self.gate([order_row(value="", unit="each")], (FIX_C, counted))      # still waiting: incomplete, not wrong
+        self.assertEqual((g.ok, g.failures, g.misses),
+                         (False, [], ["OBV-M-002: the run's each rows carry no figure where the fixture gives 18"]))
         self.assertIn("  FAIL " + self.gate([order_row(value="6-7")]).failures[0], self.gate([order_row(value="6-7")]).text())
 
     def test_a_row_citing_another_of_the_products_pages_matches_with_a_note(self):

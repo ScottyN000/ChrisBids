@@ -311,8 +311,10 @@ cites its count row. A product with no data-sheet row in the ledger gets no row,
 and the run says so; an order that waits on a FIELD row, a coat count the spec
 does not give or a rate nobody stated is written with no figure, flagged
 unverified, naming what is missing; so is one whose page did not show the
-product (a fetched row with no quote). Items are compared across the two runs by
-the rows they rest on; one seen in one run only is written flagged unverified,
+product (a fetched row with no quote). Items are compared across the runs by
+the rows they rest on and their unit, not the product's wording; when the runs
+name different orders, or a run was discarded, one spare run is made (as the
+page reader does); an order not every run saw is written flagged unverified,
 never dropped or chosen. A rate, a yield, a waste factor or a spare count is
 never a number in a formula: it is a row or it is nothing, and the schema and
 [`schema.py`](schema.py) (`MATERIAL_OK`) hold the model and the broker to it.

@@ -43,6 +43,10 @@ UNITS = {"gal": "gal", "bags": "bag", "tubes": "tube", "cartridges": "cartridge"
 # One container under two names: a sealant's tube is an adhesive's cartridge. The
 # gate reads them as one unit (the repaint's hand bid says tubes, the run said cartridges).
 SAME_UNIT = {"cartridges": "tubes"}
+# One spare run, made only when a run was discarded or the runs name different
+# orders (the page reader does the same): an order one run saw is written flagged,
+# and the spare says whether a second run sees it too.
+SPARES = 1
 # Rows a product's quantity may rest on: a takeoff figure, the allowance the
 # product covers, or the FIELD row for either (the live run of 2026-10-09 named
 # the repaint's FIELD allowance rows, "exterior wall surfaces", and was right to).
@@ -295,8 +299,11 @@ def run(broker: Broker, job: str, client: ModelClient | None, *, repeats: int = 
     unit = unit_for(job, rows)
     by_id = {c.claim_id: c for c in rows}
     system = prompt(NAME)
-    valid = []
-    for r in range(repeats):
+    valid, made = [], 0
+    for r in range(repeats + SPARES):
+        if r >= repeats and len(valid) >= repeats and len({frozenset(item_key(i) for i in v) for v in valid}) == 1:
+            break
+        made += 1
         result.calls += 1
         raw = client.complete(NAME, unit, system, SCHEMA, r)
         try:
@@ -320,7 +327,7 @@ def run(broker: Broker, job: str, client: ModelClient | None, *, repeats: int = 
     if not valid:
         result.unread.append(unit.unit_id)
     for n, (item, seen) in enumerate(vote(valid), 1):
-        claim = order_claim(f"{job}-MT-{n:02d}", item, seen, repeats, by_id)
+        claim = order_claim(f"{job}-MT-{n:02d}", item, seen, made, by_id)
         try:
             result.rows.append(writer.append(claim))
         except LedgerError as e:
@@ -378,8 +385,11 @@ def gate(result: OrderResult, fixture_rows: list[dict]) -> Gate:
         if not want and all(c.value for c in rows):
             failures.append(f"{f['id']}: gives {rows[0].value} {unit} where the fixture waits on a FIELD measure")
         elif want and not any(c.value == want for c in rows):
-            failures.append(f"{f['id']}: gives {', '.join(_join(c.value or '(blank)' for c in rows))} {unit}, "
-                            f"the fixture {want}")
+            if any(c.value for c in rows):
+                failures.append(f"{f['id']}: gives {', '.join(_join(c.value for c in rows if c.value))} {unit}, "
+                                f"the fixture {want}")
+            else:   # a row still waiting on its figure is incomplete, never wrong
+                misses.append(f"{f['id']}: the run's {unit} rows carry no figure where the fixture gives {want}")
 
     # First pass: each fixture order against the rows citing its own page, in its unit.
     pending, used = [], set()
@@ -405,8 +415,11 @@ def gate(result: OrderResult, fixture_rows: list[dict]) -> Gate:
     # on another of the job's pages in the run; each such row answers one order.
     for f, urls, got in pending:
         unit = f.get("unit", "") or ""
-        other = next((c for c in result.rows if c.url in pages and c.url not in urls and same(c, unit)
-                      and c.claim_id not in used), None)
+        want = schema.format_value(f.get("value"))[0]
+        cands = [c for c in result.rows if c.url in pages and c.url not in urls and same(c, unit)
+                 and c.claim_id not in used]
+        # the row that agrees with the hand bid first: its figure, or no figure where the hand bid waits
+        other = next((c for c in cands if (c.value == want if want else not c.value)), cands[0] if cands else None)
         if other is None:
             how = f" in {unit} (the run orders {', '.join(_join(c.unit for c in got))} from it)" if got else ""
             misses.append(f"{f['id']}: no order row cites {urls[0]}{how}")

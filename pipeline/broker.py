@@ -252,6 +252,13 @@ class Broker:
         self._log("fetch", url[:500], detail)
         self.ledger.db.commit()
 
+    def log_cached(self, url: str, detail: str) -> None:
+        """Record a page whose answers came from the page cache: when it was read, and why it was not read again."""
+        if not self.principal.egress:
+            self._deny("use the page cache")
+        self._log("cached", url[:500], detail)
+        self.ledger.db.commit()
+
     def secret(self, name: str) -> str:
         """Secrets come from the broker's environment, never from a prompt."""
         if name not in SECRET_ENV:

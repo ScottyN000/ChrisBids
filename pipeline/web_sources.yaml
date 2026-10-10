@@ -309,6 +309,7 @@ pages:
     fixture: NAN-C-024
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-M/section-1926.501
   title: 29 CFR 1926.501
+  revalidate_days: 90
   ids:
   - 29 CFR 1926.501
   - '1926.501'
@@ -324,6 +325,7 @@ pages:
     fixture: NAN-C-025
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-Z/section-1926.1153
   title: 29 CFR 1926.1153 Table 1
+  revalidate_days: 90
   ids:
   - 29 CFR 1926.1153
   - '1926.1153'
@@ -342,6 +344,7 @@ pages:
     fixture: NAN-C-027
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-X/section-1926.1053
   title: 29 CFR 1926.1053
+  revalidate_days: 90
   ids:
   - 29 CFR 1926.1053
   - '1926.1053'
@@ -356,6 +359,7 @@ pages:
     fixture: NAN-C-028
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-P/section-1926.650
   title: 29 CFR 1926.650
+  revalidate_days: 90
   ids:
   - 29 CFR 1926.650
   - '1926.650'
@@ -525,6 +529,7 @@ pages:
     fixture: OBV-C-016
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.501
   title: 29 CFR 1926.501
+  revalidate_days: 90
   ids:
   - 29 CFR 1926.501
   - '1926.501'
@@ -540,6 +545,7 @@ pages:
     fixture: OBV-C-017
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.453
   title: 29 CFR 1926.453
+  revalidate_days: 90
   ids:
   - 29 CFR 1926.453
   - '1926.453'
@@ -553,6 +559,7 @@ pages:
     fixture: OBV-C-018
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.451
   title: 29 CFR 1926.451
+  revalidate_days: 90
   ids:
   - 29 CFR 1926.451
   - '1926.451'
@@ -566,6 +573,7 @@ pages:
     fixture: OBV-C-019
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.1153
   title: 29 CFR 1926.1153
+  revalidate_days: 90
   ids:
   - 29 CFR 1926.1153
   - '1926.1153'
@@ -577,6 +585,7 @@ pages:
     fixture: OBV-C-020
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.62
   title: 29 CFR 1926.62
+  revalidate_days: 90
   ids:
   - 29 CFR 1926.62
   - '1926.62'

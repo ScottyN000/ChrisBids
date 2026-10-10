@@ -6,8 +6,11 @@ is fetched when the job's ledger rows name its place, product or hazard. A
 cold-cache search for a jurisdiction the table does not know is not built yet,
 so such a job gets no rows from these agents, and the run says so.
 
-Every page is fetched fresh on every bid. A cached row is evidence, never a
-conclusion (p.7-8). Code fetches the page and turns it into text. A model (Haiku,
+A page is fetched on every bid, but for a federal regulation read within its
+`revalidate_days` (90); its bytes unchanged since the last read, with every
+cached quote still on them, its answers stand without a model call
+(`pagecache`). A cached row is evidence, never a conclusion (p.7-8). Code
+fetches the page and turns it into text. A model (Haiku,
 p.13) is shown the text and the page's asks, and answers each ask with a
 verbatim quote and one sentence. Code keeps an answer only if:
 
@@ -42,8 +45,9 @@ from pathlib import Path
 
 import yaml
 
-from . import fixtures, web
+from . import fixtures, pagecache, web
 from .broker import Broker
+from .pagecache import Entry, PageCache
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
 from .readers.rows import Unit
@@ -131,6 +135,9 @@ class Source:
     # statement may name one although the quote does not; its digits are not
     # figures read from the page.
     ids: tuple[str, ...] = ()
+    # Days a reading stands without a fetch (pagecache): 90 for a federal
+    # regulation (p.7-8); 0, every other page, is fetched on every bid.
+    revalidate_days: int = 0
 
 
 @dataclass
@@ -157,8 +164,12 @@ def load(path: Path = SOURCES) -> Table:
                 raise ValueError(f"{p['url']} {a.id}: a unit ask needs a # mark for its figure")
             if a.unit and 0 in id_marks(a.ask, ids):
                 raise ValueError(f"{p['url']} {a.id}: a unit ask's first # mark fills an identifier, not a figure")
+        days = p.get("revalidate_days", 0)
+        if type(days) is not int or days < 0:
+            raise ValueError(f"{p['url']}: revalidate_days must be a whole number of days, not {days!r}")
         pages.append(Source(url=p["url"], title=p["title"], agent=p["agent"],
-                            when=tuple(tuple(t.lower() for t in g) for g in p["when"]), asks=asks, ids=ids))
+                            when=tuple(tuple(t.lower() for t in g) for g in p["when"]), asks=asks, ids=ids,
+                            revalidate_days=days))
     return Table(named=frozenset(data["named_domains"]), pages=pages)
 
 
@@ -393,13 +404,15 @@ class WebResult:
     unread: list[str] = field(default_factory=list)      # pages that opened but gave no valid run
     blocked: list[str] = field(default_factory=list)     # URLs the broker refused to fetch: each is an unverified row
     refused: list[str] = field(default_factory=list)     # rows the broker refused
+    cached: list[str] = field(default_factory=list)      # pages whose answers came from the page cache, and why
     notes: list[str] = field(default_factory=list)
 
     def text(self) -> str:
         opened = sum(1 for p in self.fetched if p.ok)
         lines = [f"{NAME}: {self.pages} pages ({opened} opened), {self.calls} calls, {len(self.rows)} rows, "
                  f"{len(self.unanswered)} asks unanswered, {len(self.discarded)} answers or runs discarded"]
-        for name, items in (("note", self.notes), ("unopened", self.unopened), ("blocked", self.blocked),
+        for name, items in (("note", self.notes), ("cached", self.cached), ("unopened", self.unopened),
+                            ("blocked", self.blocked),
                             ("unread", self.unread),
                             ("unanswered", self.unanswered), ("reading", self.readings),
                             ("discarded", self.discarded), ("refused", self.refused)):
@@ -413,6 +426,11 @@ def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
     # which the Materials order step writes, not the reader.
     return Claim(claim_id=f"{job}-WEB-{n:03d}", source_id=SOURCE_ID, method="fetched", role="code",
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
+
+
+def _answer(job: str, n: int, source: Source, page: web.Page, ask: Ask, fields: dict) -> Claim:
+    """The row for an agreed answer: its quote, statement and figure (cached as `fields`)."""
+    return _row(job, n, source, page, confidence="exact", locator=f"ask {ask.id}", **fields)
 
 
 def _gap(job: str, n: int, source: Source, page: web.Page, ask: Ask, why: str) -> Claim:
@@ -492,8 +510,9 @@ def from_packet(c: Claim) -> bool:
 
 
 def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, table: Table | None = None,
-        agents: tuple[str, ...] = AGENTS, repeats: int = 2) -> WebResult:
+        agents: tuple[str, ...] = AGENTS, repeats: int = 2, cache: PageCache | None = None) -> WebResult:
     table = table or load()
+    cache = cache if cache is not None else PageCache()
     gone = broker.ledger.superseded()
     claims = [c for c in broker.ledger.claims() if c.claim_id not in gone]
     # Matched on what the readers and Takeoff wrote from the packet: not on
@@ -536,6 +555,17 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                        statement=f"{source.title}: the broker refused the fetch; nothing on it is verified"),
                   source.agent)
             continue
+        k = pagecache.key(source, prompt_version(NAME), client.model_id)
+        entry = cache.get(source.url, k)
+        if entry is not None and cache.fresh(entry, source.revalidate_days, fetcher.clock()):
+            # a federal regulation read within its window: no fetch, no call; the rows carry the date it was read
+            why = f"read {entry.retrieved}, within {source.revalidate_days} days; not fetched"
+            writer.log_cached(source.url, f"{why}; sha256 {entry.sha256}")
+            result.cached.append(f"{source.url}: {why}")
+            page = web.Page(url=source.url, retrieved=entry.retrieved, sha256=entry.sha256)
+            for ask in source.asks:
+                write(_answer(job, next_id(), source, page, ask, entry.answers[ask.id]), source.agent)
+            continue
         page = fetcher.fetch(source.url)
         result.fetched.append(page)
         served = f"; served by {page.final_url}" if page.final_url and page.final_url != source.url else ""
@@ -545,6 +575,17 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             write(_row(job, next_id(), source, page, flag="unverified", confidence="missing", quote="",
                        statement=f"{source.title}: the page did not open ({page.error}); nothing on it is verified"),
                   source.agent)
+            continue
+        if entry is not None and entry.sha256 == page.sha256 and all(
+                web.quote_in(a["quote"], page.text) for a in entry.answers.values()):
+            # the same bytes as the last read, and every quote still on them: the answers stand
+            why = f"unchanged since {entry.retrieved} (same sha256); not read again"
+            writer.log_cached(source.url, why)
+            result.cached.append(f"{source.url}: {why}")
+            entry.retrieved = page.retrieved
+            cache.put(entry)
+            for ask in source.asks:
+                write(_answer(job, next_id(), source, page, ask, entry.answers[ask.id]), source.agent)
             continue
         unit, cut = unit_for(job, i, source, page)
         ids = on_page(source.ids, unit.text)
@@ -586,6 +627,7 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             for ask in source.asks:
                 write(_gap(job, next_id(), source, page, ask, why), source.agent)
             continue
+        answers = {}
         for ask in source.asks:
             agreed, why, readings = _agree(runs, ask, repeats, ids)
             if agreed is None:
@@ -607,10 +649,11 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             # the same canonical value and numeric reading the fixture loader gives the row, so a
             # single figure (400 sq ft/gal, 6 ft) can feed a calc; a range or a choice has no number
             value, value_num = format_value(agreed.get("choice", "") or value)
-            write(_row(job, next_id(), source, page, confidence="exact", quote=agreed["quote"].strip(),
-                       statement=agreed["statement"].strip(), value=value, value_num=value_num,
-                       unit=figure_unit, locator=f"ask {ask.id}"),
-                  source.agent)
+            answers[ask.id] = dict(quote=agreed["quote"].strip(), statement=agreed["statement"].strip(),
+                                   value=value, value_num=value_num, unit=figure_unit)
+            write(_answer(job, next_id(), source, page, ask, answers[ask.id]), source.agent)
+        if len(answers) == len(source.asks):    # a gap or a split reading is read again next time
+            cache.put(Entry(url=source.url, key=k, retrieved=page.retrieved, sha256=page.sha256, answers=answers))
     return result
 
 

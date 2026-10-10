@@ -13,7 +13,7 @@
     python3 -m pipeline scope   fixtures/nantucket --out runs/nan-scope [--repeats 2]
                                 [--live [--model claude-haiku-5-5] [--effort high]]           (--live needs ANTHROPIC_API_KEY)
     python3 -m pipeline web     fixtures/nantucket --out runs/nan-web [--repeats 2]   (fetches pages; needs ANTHROPIC_API_KEY)
-    python3 -m pipeline bid     <packet-dir> --job J --out runs/j [--plan-only] [--repeats 2]
+    python3 -m pipeline bid     <packet-dir> --job J --out runs/j [--plan-only] [--repeats 2] [--page-cache PATH]
                                 [--model claude-haiku-5-5] [--takeoff-model claude-sonnet-5-5]   (needs ANTHROPIC_API_KEY)
 """
 from __future__ import annotations
@@ -244,6 +244,7 @@ def cmd_bid(a) -> int:
             scope_client=live.LiveClient(model=a.model, effort=a.effort or None, record=rec,
                                          max_tokens=orchestrator.scope_writer.MAX_TOKENS),
             repeats=a.repeats, fetcher=None if a.no_web else web.Fetcher(table.named), web_table=table,
+            page_cache=Path(a.page_cache) if a.page_cache else None,
         )
     except live.LiveRunError as e:
         print(f"NOT RUN: {e}", file=sys.stderr)
@@ -330,6 +331,8 @@ def main(argv=None) -> int:
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", ""],
                    help="empty for the model default")
     p.add_argument("--no-web", action="store_true", help="skip Codes & Regs and Materials (no page is fetched)")
+    p.add_argument("--page-cache", default="runs/cache/pages.json",
+                   help="what each page said, kept between bids; empty to read every page anew")
     p.set_defaults(func=cmd_bid)
 
     p = sub.add_parser("web", help="read a fixture's code and product pages live and gate them against its "

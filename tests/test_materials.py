@@ -259,9 +259,9 @@ class ItemCase(unittest.TestCase):
                              (None, "C does not tie a coat count to one product; which is this product's is not settled"), text)
         self.assertEqual(materials.coat_count(row("C", "Example B53 with one coat of primer"), b53),
                          (None, "C names a primer with the coat count for B53; whether the count is B53's is not settled"))
-        self.assertEqual(materials.coat_count(row("C", "Example B66, 2 coats of finish"), primer_sheet), (None, "C names B66, not this product"))
-        self.assertEqual(materials.coat_count(row("C", "Example B66, 2 coats of finish"), b66),
-                         (None, "C names a finish with the coat count for B66; whether the count is B66's is not settled"))
+        for who in (b66, primer_sheet):   # a sheet naming no code takes the clause's one code as its own
+            self.assertEqual(materials.coat_count(row("C", "Example B66, 2 coats of finish"), who),
+                             (None, "C names a finish with the coat count for B66; whether the count is B66's is not settled"))
         # a floor is not a fixed count
         for text in ("Example Flat B53, two coats, or more as required for full hide", "Example Flat B53: at least two coats", "Example Flat B53, a minimum of two coats",
                      "Example Flat B53, 2 coats minimum", "Example Flat B53, minimum 2 coats", "Example Flat B53, two coats as needed for complete coverage"):

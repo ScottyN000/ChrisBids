@@ -305,13 +305,17 @@ length, volume or count, the allowance it goes into, or the FIELD row for one),
 the clause row that states the coat count (a coating only) and the spec's own
 coverage row when there is one, since the spec's stated rate takes precedence
 over the data sheet's (p.16). The model writes no number: code reads the coat
-count from the clause it names, and when the clause names several product codes
-("A89 (coats not stated), or K62, 1 coat") it reads the count that sits with the
-code the data-sheet row carries, so each product gets its own; a clause that
-states none, states several, says the count is not stated or speaks of another
-product settles nothing, and the order is written without a figure saying so.
-The clause the count came from is named with it in the derivation (`1200 sq ft
-x 2 coats (OBV-SP-010) / 300-350 sq ft/gal = ...`) and cited in the row's
+count from the clause it names, and when the clause names a product code it
+reads the count for the code the data-sheet row carries: the clause is cut into
+stretches at semicolons, "or", "then" and "and" (outside parentheses), and a
+count belongs to the one code its own stretch names ("A89 (coats not stated),
+or K62, 1 coat" gives K62 one coat and leaves A89 open); a count whose stretch
+names no code, or two, is tied to nothing, so no product gets it. A clause that
+states none, states several, states a range ("1-2 coats"), says the count is
+not stated or speaks of another product settles nothing, and the order is
+written without a figure saying so. Every row the figure rests on is named
+with it in the derivation (`1200 sq ft (X-TK-Q-01) x 2 coats (X-SP-010) /
+300-350 sq ft/gal (X-R-001) = ...`) and cited in the row's
 locator and tag, so the Auditor can see where the literal came from. Code checks that
 the quantity row's unit is what the rate covers (an area for a rate per gallon
 over square feet, a length for a rate per tube over linear feet) and that a part

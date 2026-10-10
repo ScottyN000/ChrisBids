@@ -56,8 +56,13 @@ UNIT_WORDS = {
     "cu ft": ("cu ft", "cf", "cu. ft", "cubic feet", "cubic foot", "ft3"),
     "each": ("each", "ea", "pcs", "pieces", "count"),
 }
-# How a clause states a coat count: "2 coats", "two finish coats", "coats: 1".
-COATS = re.compile(r"\b(\d+|one|two|three|four|five|six)\s+(?:\w+\s+)?coats?\b|\bcoats?\s*[:=]\s*(\d+)", re.I)
+# How a clause states a coat count: "2 coats", "two finish coats", "coats: 1" (not "coats: 4 hours",
+# a recoat time, nor the first end of "coats: 2-3", a range).
+N = r"(\d+|one|two|three|four|five|six)"
+COATS = re.compile(rf"\b{N}\s+(?:\w+\s+)?coats?\b|\bcoats?\s*[:=]\s*(\d+)\b(?!\s*(?:-|\u2013|to|or)\b)"
+                   r"(?!\s*(?:hours?|hrs?|h|minutes?|mins?|min|days?|mils?|%)\b)", re.I)
+# A range or a choice of counts ("1-2 coats", "one or two coats", "coats: 2-3"): two readings, neither picked
+COAT_RANGE = re.compile(rf"\b{N}\s*(?:-|\u2013|to|or)\s*{N}\s+(?:\w+\s+)?coats?\b|\bcoats?\s*[:=]\s*\d+\s*(?:-|\u2013|to|or)\b", re.I)
 COAT_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 # How a clause leaves the count open: "(coats not stated)", "coats are not stated". "sheen not
 # stated" is not about coats.
@@ -66,8 +71,10 @@ NOT_STATED = re.compile(r"\bcoats?\s+(?:is\s+|are\s+|were\s+)?not stated\b|\bnot
 # never part of a row ID ("X-SP-011") or a unit ("ft2").
 PRODUCT_CODE = re.compile(r"(?<![A-Za-z0-9-])[A-Z]{1,4}-?\d{2,5}[A-Z]?(?![A-Za-z0-9-])")
 # Where one product's wording ends and the next begins in a clause that names several
-# ("A89 (coats not stated), or K62, 1 coat"; "Primer B66 as needed, then 1 coat B53").
-SEGMENT = re.compile(r"[,;()]|\b(?:or|then|and)\b", re.I)
+# ("A89 (coats not stated), or K62, 1 coat"; "Primer B66 as needed, then 1 coat B53"):
+# a semicolon, "or", "then" or "and" outside parentheses. Commas and parentheses stay
+# inside their stretch, so "Finish coat (1 coat): Enamel, B53 series" is one stretch.
+STRETCH = re.compile(r";|\b(?:or|then|and)\b", re.I)
 # One spare run, made only when a run was discarded or the runs name different
 # orders (the page reader does the same): an order one run saw is written flagged,
 # and the spare says whether a second run sees it too.
@@ -205,50 +212,39 @@ def product_codes(*texts: str) -> list[str]:
     return list(dict.fromkeys(k for t in texts for k in PRODUCT_CODE.findall(t)))
 
 
-def coat_mentions(text: str) -> list[tuple[int, int | None]]:
+def coat_mentions(text: str) -> list[tuple[int, int | str | None]]:
     """Where the text speaks of coats: (position, count) for each count it states,
-    (position, None) where it says the count is not stated."""
-    found = [(m.start(), None) for m in NOT_STATED.finditer(text)]
+    (position, None) where it says the count is not stated, (position, "range")
+    where it states a range or a choice of counts."""
+    ranges = [(m.start(), m.end()) for m in COAT_RANGE.finditer(text)]
+    found: list[tuple[int, int | str | None]] = [(a, "range") for a, _ in ranges]
+    found += [(m.start(), None) for m in NOT_STATED.finditer(text)]
     for m in COATS.finditer(text):
+        if any(a <= m.start() < b for a, b in ranges):
+            continue
         word = (m.group(1) or m.group(2)).lower()
         found.append((m.start(), COAT_WORDS.get(word) or int(word)))
-    return sorted(found)
+    return sorted(found, key=lambda f: f[0])
 
 
-def code_near(text: str, pos: int, codes: list[str]) -> list[str]:
-    """The product codes a mention at `pos` belongs to: those in its own segment of
-    the clause, else the nearest segment before it that names one, else after."""
-    bounds = [0, *(m.end() for m in SEGMENT.finditer(text)), len(text)]
-    segments = [(a, b, [k for k in codes if re.search(rf"(?<![A-Za-z0-9-]){re.escape(k)}(?![A-Za-z0-9-])", text[a:b])])
-                for a, b in zip(bounds, bounds[1:])]
-    here = next(i for i, (a, b, _) in enumerate(segments) if a <= pos < b or b == len(text))
-    for i in [here, *range(here - 1, -1, -1), *range(here + 1, len(segments))]:
-        if segments[i][2]:
-            return segments[i][2]
-    return []
+def stretches(text: str) -> list[tuple[int, int]]:
+    """The spans of a clause's stretches, cut at STRETCH marks outside parentheses."""
+    cuts, depth = [0], 0
+    for m in re.finditer(r"[()]|" + STRETCH.pattern, text, re.I):
+        if m.group() == "(":
+            depth += 1
+        elif m.group() == ")":
+            depth = max(0, depth - 1)
+        elif depth == 0:
+            cuts.append(m.end())
+    cuts.append(len(text))
+    return [(a, b) for a, b in zip(cuts, cuts[1:]) if text[a:b].strip()]
 
 
-def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]:
-    """The coat count a clause row states for a product, read by code: (count, "")
-    when it states exactly one; (None, why) when it states none, several, says the
-    count is not stated, or speaks of other products. A clause naming several
-    product codes is read by the code the product's own row carries: each count
-    belongs to the code in its own stretch of the clause ("A89 (coats not
-    stated), or K62, 1 coat" gives K62 one coat and leaves A89 open)."""
-    text = f"{c.statement} {c.quote}"
-    codes = product_codes(text)
-    mentions = coat_mentions(text)
-    whom = ""
-    if codes:
-        mine = [k for k in product_codes(f"{product.statement} {product.quote} {product.tag}") if k in codes] if product else []
-        if len(codes) > 1 and not mine:
-            return None, f"{c.claim_id} names {', '.join(codes)}; which is this product's is not settled"
-        if len(codes) == 1 and not mine and product is not None and product_codes(f"{product.statement} {product.quote} {product.tag}"):
-            return None, f"{c.claim_id} names {codes[0]}, not this product"
-        if len(codes) > 1:
-            mentions = [m for m in mentions if set(code_near(text, m[0], codes)) & set(mine)]
-            whom = f" for {'/'.join(mine)}"
-    counts = sorted({n for _, n in mentions if n is not None})
+def _settle(c: Claim, mentions: list[tuple[int, int | str | None]], whom: str = "") -> tuple[int | None, str]:
+    counts = sorted({n for _, n in mentions if isinstance(n, int)})
+    if any(n == "range" for _, n in mentions):
+        return None, f"{c.claim_id} states a range of coats{whom}; it does not settle this product's"
     left_open = any(n is None for _, n in mentions)
     if not mentions:
         return None, f"{c.claim_id} states no coat count{whom}"
@@ -259,6 +255,41 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     if len(counts) > 1:
         return None, f"{c.claim_id} states {len(counts)} coat counts{whom}; it does not settle this product's"
     return counts[0], ""
+
+
+def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]:
+    """The coat count a clause row states for a product, read by code: (count, "")
+    when it states exactly one; (None, why) when it states none, several, a range,
+    says the count is not stated, or speaks of other products. A clause naming a
+    product code is read by the code the product's own row carries: a count
+    belongs to the one code its own stretch of the clause names ("A89 (coats not
+    stated), or K62, 1 coat" gives K62 one coat and leaves A89 open), and a count
+    whose stretch names no code, or two, is tied to nothing: no product gets it."""
+    text = f"{c.statement}; {c.quote}" if c.quote else c.statement
+    codes = product_codes(text)
+    mentions = coat_mentions(text)
+    if not codes:
+        return _settle(c, mentions)
+    mine = [k for k in product_codes(f"{product.statement} {product.quote} {product.tag}") if k in codes] if product else []
+    spans = stretches(text)
+    if len(codes) == 1 and len(spans) == 1 and (mine or product is None or not product_codes(f"{product.statement} {product.quote} {product.tag}")):
+        return _settle(c, mentions)     # one product, one stretch: the clause is about it
+    if len(mine) > 1:
+        return None, f"{c.claim_id} names {', '.join(mine)}, which this product's row both carries; which count is its is not settled"
+    if not mine:
+        if len(codes) == 1:
+            return None, f"{c.claim_id} names {codes[0]}, not this product"
+        return None, f"{c.claim_id} names {', '.join(codes)}; which is this product's is not settled"
+    whom = f" for {mine[0]}"
+    owned = []
+    for pos, n in mentions:
+        here = next((text[a:b] for a, b in spans if a <= pos < b), "")
+        named = product_codes(here)
+        if len(named) != 1:
+            return None, f"{c.claim_id} does not tie a coat count to one product; which is this product's is not settled"
+        if named[0] == mine[0]:
+            owned.append((pos, n))
+    return _settle(c, owned, whom)
 
 
 def cited_text(item: dict, by_id: dict[str, Claim]) -> str:
@@ -372,6 +403,7 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
     if not sheet.quote:
         # the page was looked at and did not show the product (the repaint's "or equivalent" caulk, 2026-10-09)
         notes.append(f"the page {sheet.claim_id} cites quotes nothing for the product")
+    per_coat = item["unit"] == "gal"
     if item["unit"] == "each":
         if q is None:
             how = "no count row"
@@ -382,7 +414,6 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
         else:
             calc, how = f"{{{q.claim_id}}}", f"count from {q.claim_id} ({q.method})"
     else:
-        per_coat = item["unit"] == "gal"
         # the clause the count was read from is named with it, so the replay can see where the literal came from
         times = f" x {coats or '?'} coat{'s' if coats != 1 else ''}" + (f" ({coat_row.claim_id})" if coat_row is not None else "")
         how = (f"{q.claim_id if q is not None else 'FIELD'}" + (times if per_coat else "")
@@ -402,12 +433,12 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
         lo, hi = schema.evaluate(calc, by_id)     # CalcError reaches run(), which refuses the item
         value, value_num = schema.value_of(lo, hi)
         # no firmer than its weakest input: an inferred rate (an old sheet) makes an inferred order
-        confidence = max((c.confidence for c in (q, rate) if c is not None and f"{{{c.claim_id}}}" in calc),
-                         key=lambda k: schema.CONFIDENCE_RANK.get(k, 0))
+        read = [c for c in (q, rate) if c is not None and f"{{{c.claim_id}}}" in calc] + ([coat_row] if per_coat else [])
+        confidence = max((c.confidence for c in read), key=lambda k: schema.CONFIDENCE_RANK.get(k, 0))
         if item["unit"] == "each":
             how = f"{_fig(q)} ({q.claim_id}, {q.method})"
         else:
-            how = f"{_fig(q)}{times if per_coat else ''} / {_fig(rate)} = {value} {item['unit']}"
+            how = f"{_fig(q)} ({q.claim_id}){times if per_coat else ''} / {_fig(rate)} ({rate.claim_id}) = {value} {item['unit']}"
     if spec is not None and rate_unit(sheet):
         # the precedence rule settles the choice (p.16); it is part of the derivation, not a doubt that flags the row
         how += f"; the spec's rate ({spec.claim_id}, {spec.tag or spec.locator}) governs over the sheet's {_fig(sheet)}"
@@ -416,8 +447,8 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
     name = sheet.tag or sheet.statement[:80]
     return Claim(
         claim_id=claim_id, statement=f"{name}: {derivation}",
-        source_id=" + ".join(sources + ["WEB"]), locator=" and ".join(_join(c.locator for c in [*basis, spec, coat_row] if c)),
-        tag=" + ".join(_join([*(c.tag for c in [*basis, coat_row] if c), sheet.tag])), method="fetched", role="material",
+        source_id=" + ".join(sources + ["WEB"]), locator=" and ".join(_join(c.locator for c in [q, *basis, spec, coat_row] if c)),
+        tag=" + ".join(_join([*(c.tag for c in [q, *basis, spec, coat_row] if c), sheet.tag])), method="fetched", role="material",
         confidence=confidence, value=value, value_num=value_num, unit=item["unit"],
         calc=calc, derivation=derivation, division=next((c.division for c in [*basis, q] if c and c.division), ""),
         flag="unverified" if notes else "", question=questions[0] if questions else "",

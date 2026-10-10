@@ -141,6 +141,36 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.coat_count(SYSTEM, X100), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "Example Satin X100 and Example Flat X200, 2 coats each"), X100),
                          (None, "C states no coat count for X100"))
+        # a stretch is cut at ";", "or", "then" and "and" outside parentheses; commas and parentheses stay inside
+        enamel = row("X-SP-051", "Prime Coat: Example Primer B66 as needed; Finish Coat (1 coat): Example Enamel, B53 series")
+        self.assertEqual(materials.coat_count(enamel, b66), (None, "X-SP-051 states no coat count for B66"))
+        self.assertEqual(materials.coat_count(enamel, b53), (1, ""))
+        two = row("X-SP-052", "Example Primer B66 primer; two coats, Example Flat B53 finish")
+        self.assertEqual((materials.coat_count(two, b66), materials.coat_count(two, b53)), ((None, "X-SP-052 states no coat count for B66"), (2, "")))
+        # a count whose stretch names no code, or two, is tied to nothing: no product gets it
+        both = row("X-SP-053", "Two coats Example Flat B53 over Example Primer B66 primer")
+        untied = (None, "X-SP-053 does not tie a coat count to one product; which is this product's is not settled")
+        self.assertEqual((materials.coat_count(both, b66), materials.coat_count(both, b53)), (untied, untied))
+        loose = row("X-SP-054", "Example Primer B66 as needed for rust, then 1 coat Example Enamel")
+        self.assertEqual(materials.coat_count(loose, b66),
+                         (None, "X-SP-054 does not tie a coat count to one product; which is this product's is not settled"))
+        # the statement and the quote are two stretches, so a count in one is not tied to a code in the other
+        quoted = row("X-SP-055", "Topcoat: Example Flat B53, 2 coats", quote="Example Primer B66 primer as needed")
+        self.assertEqual((materials.coat_count(quoted, b53), materials.coat_count(quoted, b66)), ((2, ""), (None, "X-SP-055 states no coat count for B66")))
+        # a sheet carrying two of the clause's codes settles nothing
+        system = row("X-WEB-012", "Example Flat B53 over Example Primer B66 system", method="fetched", role="code", source="WEB", tag="B53 system")
+        self.assertEqual(materials.coat_count(two, system),
+                         (None, "X-SP-052 names B53, B66, which this product's row both carries; which count is its is not settled"))
+
+    def test_a_range_of_coats_or_a_recoat_time_is_no_count(self):
+        # two readings, neither picked (Determinism); a dry time is not a count
+        for text in ("Apply 1-2 coats", "one or two coats", "Coats: 2-3", "coats: 2 to 3", "Apply 2\u20133 coats"):
+            self.assertEqual(materials.coat_count(row("C", text)), (None, "C states a range of coats; it does not settle this product's"), text)
+        self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 4 hours")), (None, "C states no coat count"))
+        self.assertEqual(materials.coat_count(row("C", "Coats: 2; recoat: 4 hours")), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 1-2 coats; Example Primer B66, 1 coat"),
+                                              row("W", "Example Flat B53 sheet", method="fetched", role="code", source="WEB")),
+                         (None, "C states a range of coats for B53; it does not settle this product's"))
         self.assertEqual(materials.product_codes("see X-SP-011, ft2 and S-1; A89 or K62, then A89"), ["A89", "K62"])
 
     def test_what_code_refuses(self):
@@ -229,26 +259,28 @@ class ClaimCase(unittest.TestCase):
         self.assertEqual(c, Claim(
             claim_id="X-MT-01",
             # named after the sheet's page, not in the model's words; the precedence rule settles the rate, so no flag
-            statement="X100 data sheet: 1200 sq ft x 2 coats (X-SP-010) / 300-350 sq ft/gal = 6.857142857142857-8 gal" + GOVERNS,
+            # every row the figure rests on is named with it, and cited in the locator and tag (p.6: click from any number)
+            statement="X100 data sheet: 1200 sq ft (X-TK-Q-01) x 2 coats (X-SP-010) / 300-350 sq ft/gal (X-R-001) = 6.857142857142857-8 gal" + GOVERNS,
             source_id="S-1 + SW + WEB", method="fetched", role="material", confidence="exact",
-            value="6.857142857142857-8", value_num=None, unit="gal", locator="p.4 and p.5",
-            tag="SW p.4 + X100 data sheet", calc="{X-TK-Q-01} * 2 / {X-R-001}",
-            derivation="1200 sq ft x 2 coats (X-SP-010) / 300-350 sq ft/gal = 6.857142857142857-8 gal" + GOVERNS,
+            value="6.857142857142857-8", value_num=None, unit="gal", locator="Sheet A-2 and p.4 and p.5",
+            tag="S-1 A-2 + SW p.4 + SW p.5 + X100 data sheet", calc="{X-TK-Q-01} * 2 / {X-R-001}",
+            derivation="1200 sq ft (X-TK-Q-01) x 2 coats (X-SP-010) / 300-350 sq ft/gal (X-R-001) = 6.857142857142857-8 gal" + GOVERNS,
             division="09", flag="", url=SHEET, retrieved="2026-10-09", quote="320-400 sq. ft. per gallon",
         ))
         # the sheet's rate when the spec gives none; one coat, read from the clause the item names, which the
         # row cites (derivation, locator and tag), so the replay can see where the literal came from
         c = materials.order_claim("X-MT-01", item(spec_rate="", coats="X-SP-011"), 2, 2, BY_ID)
         self.assertEqual((c.value, c.calc, c.flag, c.derivation, c.source_id, c.locator, c.tag),
-                         ("3-3.75", "{X-TK-Q-01} * 1 / {X-WEB-003}", "", "1200 sq ft x 1 coat (X-SP-011) / 320-400 sq ft/gal = 3-3.75 gal",
-                          "S-1 + SW + WEB", "p.4 and p.7", "SW p.4 + SW p.7 + X100 data sheet"))
+                         ("3-3.75", "{X-TK-Q-01} * 1 / {X-WEB-003}", "",
+                          "1200 sq ft (X-TK-Q-01) x 1 coat (X-SP-011) / 320-400 sq ft/gal (X-WEB-003) = 3-3.75 gal",
+                          "S-1 + SW + WEB", "Sheet A-2 and p.4 and p.7", "S-1 A-2 + SW p.4 + SW p.7 + X100 data sheet"))
         self.assertEqual(schema.replay_calc(c, BY_ID), [])
 
     def test_a_sealant_is_a_length_over_a_rate_per_tube_with_no_coats(self):
         c = materials.order_claim("X-MT-03", SEALANT, 2, 2, BY_ID)
         self.assertEqual((c.value, c.value_num, c.unit, c.calc, c.flag, c.statement, c.division),
                          ("10", 10.0, "tubes", "{X-TK-Q-03} / {X-WEB-008}", "",
-                          "S9 data sheet: 240 LF / 24 LF/tube = 10 tubes", "07"))
+                          "S9 data sheet: 240 LF (X-TK-Q-03) / 24 LF/tube (X-WEB-008) = 10 tubes", "07"))
         self.assertEqual(schema.replay_calc(c, BY_ID), [])
         # a mortar by the bag: a volume over a yield per bag
         by_id = dict(BY_ID, **{
@@ -259,7 +291,7 @@ class ClaimCase(unittest.TestCase):
         mortar = item("Example Mortar M1", "bags", "X-TK-Q-05", "", "", "X-WEB-009", ("X-SP-020",))
         self.assertEqual(materials.item_errors(mortar, by_id), [])
         c = materials.order_claim("X-MT-04", mortar, 2, 2, by_id)
-        self.assertEqual((c.value, c.unit, c.flag, c.derivation), ("10", "bags", "", "4.4 CF / 0.44 cu ft/bag = 10 bags"))
+        self.assertEqual((c.value, c.unit, c.flag, c.derivation), ("10", "bags", "", "4.4 CF (X-TK-Q-05) / 0.44 cu ft/bag (X-WEB-009) = 10 bags"))
 
     def test_a_count_cites_the_count_row(self):
         c = materials.order_claim("X-MT-02", ANCHORS, 2, 2, BY_ID)
@@ -302,12 +334,12 @@ class ClaimCase(unittest.TestCase):
 
     def test_fewer_runs_and_flagged_inputs_are_noted(self):
         c = materials.order_claim("X-MT-01", item(spec_rate=""), 1, 2, BY_ID)
-        self.assertEqual((c.flag, c.derivation), ("unverified", "1200 sq ft x 2 coats (X-SP-010) / 320-400 sq ft/gal = 6-7.5 gal; "
+        self.assertEqual((c.flag, c.derivation), ("unverified", "1200 sq ft (X-TK-Q-01) x 2 coats (X-SP-010) / 320-400 sq ft/gal (X-WEB-003) = 6-7.5 gal; "
                                                                 "seen in 1 of 2 runs"))
         by_id = dict(BY_ID, **{"X-TK-Q-01": row("X-TK-Q-01", "Wall area", method="dimensioned", role="quantity",
                                                   value="1200", unit="sq ft", source="S-1", flag="unverified")})
         c = materials.order_claim("X-MT-01", item(spec_rate=""), 2, 2, by_id)
-        self.assertEqual(c.derivation, "1200 sq ft x 2 coats (X-SP-010) / 320-400 sq ft/gal = 6-7.5 gal; uses flagged X-TK-Q-01")
+        self.assertEqual(c.derivation, "1200 sq ft (X-TK-Q-01) x 2 coats (X-SP-010) / 320-400 sq ft/gal (X-WEB-003) = 6-7.5 gal; uses flagged X-TK-Q-01")
         # the precedence rule flags nothing: a spec rate over a sheet rate, both firm, is a firm order
         c = materials.order_claim("X-MT-01", item(), 2, 2, BY_ID)
         self.assertEqual((c.flag, c.confidence), ("", "exact"))
@@ -323,6 +355,9 @@ class ClaimCase(unittest.TestCase):
         self.assertEqual(schema.replay_calc(c, old), [])
         # the spec's rate governs, so the sheet's confidence does not reach the order
         self.assertEqual(materials.order_claim("X-MT-01", item(), 2, 2, old).confidence, "exact")
+        # the coat count is a literal in the calc, so the clause it was read from counts here, not in the replay
+        soft = dict(BY_ID, **{"X-SP-010": row("X-SP-010", SYSTEM.statement, confidence="inferred")})
+        self.assertEqual(materials.order_claim("X-MT-01", item(), 2, 2, soft).confidence, "inferred")
         # a scaled count makes a scaled order
         scaled = dict(BY_ID, **{"X-TK-Q-02": row("X-TK-Q-02", COUNT.statement, method="counted", role="quantity", value="18",
                                                  unit="each", source="S-1", confidence="scaled")})

@@ -389,7 +389,11 @@ without the word "coat", or an added coat ("one coat; two at patched areas",
 "1 coat; 2 at patched areas", "a second coat at repairs", "plus 1 coat at
 repairs", "double coat at repairs", "recoat patched areas"), is a second
 reading, so the clause settles nothing; a hyphenated count ("2-coat system")
-is a count. A customer row sets no count (it never overrides a spec clause). A
+is a count. A count the clause settles is still a floor when another clause
+row in the ledger names no product and adds coats or sets a minimum across
+the spec ("Hide must be complete, with additional coats regardless of the
+number specified"): the order is written with no figure, flagged, naming
+that row. A customer row sets no count (it never overrides a spec clause). A
 recoat time ("between coats: 24 hours") or a coverage line ("finish coat: 400
 sq ft/gal") is no count: the "coats:" form counts only when "coats" is the label
 itself (the label starts a stretch, after punctuation or a cut word, and may

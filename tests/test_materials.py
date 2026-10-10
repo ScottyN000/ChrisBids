@@ -218,6 +218,29 @@ class ClaimCase(unittest.TestCase):
                           "S-1 + SW + WEB", "Sheet A-2 and p.4 and p.7", "S-1 A-2 + SW p.4 + SW p.7 + X100 data sheet"))
         self.assertEqual(schema.replay_calc(c, BY_ID), [])
 
+    def test_a_spec_wide_clause_adding_coats_makes_every_count_a_floor(self):
+        # "additional coats regardless of the number specified" (a repaint spec's general clause) names no product,
+        # so the clause's one coat is a minimum: the order waits on the estimator, with no figure
+        for text in ("Hide must be complete, with additional coats regardless of the number specified",
+                     "Apply at least two coats on all surfaces"):
+            hide = row("X-SP-090", text, locator="p.12")
+            c = materials.order_claim("X-MT-01", item(spec_rate="", coats="X-SP-011"), 2, 2, dict(BY_ID, **{"X-SP-090": hide}))
+            self.assertEqual((c.value, c.calc, c.flag), ("", "", "unverified"), text)
+            self.assertIn("X-SP-090 adds coats or sets a minimum across the spec, so X-SP-011's count is not a fixed one",
+                          c.derivation)
+        # a clause that names a product is that product's (coats.coat_count reads it), and a clause row is the only kind
+        # that can set a floor; a codeless clause stating a plain count changes nothing
+        for other in (row("X-SP-091", "Example Flat X200: additional coats at repairs"),
+                      row("X-SP-091", "The owner asks for additional coats", method="customer", source="EM-1"),
+                      row("X-SP-091", "Walls: two coats")):
+            c = materials.order_claim("X-MT-01", item(spec_rate="", coats="X-SP-011"), 2, 2, dict(BY_ID, **{"X-SP-091": other}))
+            self.assertEqual((c.value, c.flag), ("3-3.75", ""), other.statement)
+        # a floor in the quote alone counts too; the coat row itself is read by coat_count, not here
+        quoted = row("X-SP-092", "General", quote="additional coats regardless of the number specified")
+        self.assertEqual(materials.spec_wide_floor(ONE_COAT, {"X-SP-092": quoted})[0], None)
+        self.assertIsNone(materials.spec_wide_floor(quoted, {"X-SP-092": quoted}))
+        self.assertIsNone(materials.spec_wide_floor(ONE_COAT, BY_ID))
+
     def test_a_sealant_is_a_length_over_a_rate_per_tube_with_no_coats(self):
         c = materials.order_claim("X-MT-03", SEALANT, 2, 2, BY_ID)
         self.assertEqual((c.value, c.value_num, c.unit, c.calc, c.flag, c.statement, c.division),

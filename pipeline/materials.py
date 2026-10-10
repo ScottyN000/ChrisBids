@@ -41,7 +41,7 @@ from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
 from .readers.rows import Unit
 from .schema import CalcError, Claim, LedgerError
-from .coats import coat_count
+from .coats import FLOOR, MORE, SEP, coat_count, product_codes
 from .takeoff import _join, current
 
 NAME = "materials"
@@ -274,6 +274,19 @@ def vote(runs: list[list[dict]]) -> tuple[list[tuple[dict, int]], list[str]]:
     return [(seen[k][0], seen[k][1]) for k in order], dupes
 
 
+def spec_wide_floor(coat_row: Claim, by_id: dict[str, Claim]) -> tuple[None, str] | None:
+    """(None, why) when another clause row naming no product adds coats or sets a
+    minimum across the spec ("Hide must be complete, with additional coats
+    regardless of the number specified"): every stated count is then a floor, so
+    the order waits on the estimator; None when no such row is in the ledger."""
+    for c in by_id.values():
+        text = SEP.join([c.statement, c.quote] if c.quote else [c.statement])
+        if (c.method == "clause" and c.claim_id != coat_row.claim_id and not product_codes(text)
+                and (MORE.search(text) or FLOOR.search(text))):
+            return None, f"{c.claim_id} adds coats or sets a minimum across the spec, so {coat_row.claim_id}'s count is not a fixed one"
+    return None
+
+
 def _fig(c: Claim) -> str:
     return f"{c.value} {c.unit}".strip()
 
@@ -287,6 +300,8 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
     spec = by_id.get(item["spec_rate"]) if item["spec_rate"] else None
     coat_row = by_id.get(item["coats"]) if item["coats"] else None
     coats, coats_why = coat_count(coat_row, sheet) if coat_row is not None else (None, "")
+    if coats is not None:
+        coats, coats_why = spec_wide_floor(coat_row, by_id) or (coats, coats_why)
     rate = rate_of(spec, sheet)
     basis = [by_id[r] for r in dict.fromkeys(item["basis"]) if r in by_id]
     cited = [c for c in [q, spec, coat_row, sheet, *basis] if c is not None]

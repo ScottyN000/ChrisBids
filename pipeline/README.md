@@ -327,12 +327,15 @@ judged. A count for a system ("2-coat system") or split across products ("two
 coats including primer", "two coats (one primer, one finish)") is nobody's
 count, and a floor ("two coats, or more as required for full hide", "at least
 two (2) coats", "no less than two coats", "2 coats minimum", "two coats or as
-required", whatever follows) is not a fixed count, though a floor word followed
-by a figure ("2 coats (min. 2.0 mils DFT per coat)") is a film thickness, not a
-floor on the count. Primer words are prime(r), sealer, conditioner, base coat, undercoat(er),
+required", whatever follows) is not a fixed count; "or more" and "or as
+required" are floors only after a count ("10 ft or more above grade" says
+nothing about coats), and a floor word followed by a figure or a thickness word
+("2 coats (min. 2.0 mils DFT per coat)", "2 coats, minimum DFT 2.0 mils") is a
+film thickness, not a floor on the count. Primer words are prime(r), sealer, conditioner, base coat, undercoat(er),
 filler and surfacer; finish words are finish, final, top(coat), intermediate,
 stripe, enamel, satin, semi-gloss, gloss, eggshell, flat, paint and coating,
-with their plurals and prime's priming and primed. A clause naming no code settles a count only
+with their plurals; "priming" names a primer only as a label ("Priming: one
+coat"), and "primed" describes the substrate, not a primer. A clause naming no code settles a count only
 when no stretch names a product (a primer or finish word) the count could be
 for ("primer; finish coats: two coats" gives the primer nothing) and the
 stretches that state counts agree. A data-sheet row naming no product code is

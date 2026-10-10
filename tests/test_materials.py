@@ -280,8 +280,20 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.coat_count(row("C", "Two coats, or more as required for full hide")),
                          (None, "C states a minimum coat count, not a fixed one; it does not settle this product's"))
         for text in ("Example Flat B53, 2 coats (min. 2.0 mils DFT per coat)", "Example Flat B53, two coats, minimum 4 mils DFT each",   # a film thickness, not a floor
-                     "Example Flat B53, 2 coats, at least 3 mils dry", "Example Flat B53, 2 coats, minimum of 3 mils"):
+                     "Example Flat B53, 2 coats, at least 3 mils dry", "Example Flat B53, 2 coats, minimum of 3 mils",
+                     "Example Flat B53, 2 coats, minimum DFT 2.0 mils per coat", "Example Flat B53, 2 coats, min. dry film thickness 4 mils",
+                     "Example Flat B53, 2 coats minimum WFT 6 mils",
+                     # "or more" and "or as required" are floors only after a count
+                     "Surfaces 10 ft or more above grade: Example Flat B53, 2 coats", "Scrape loose paint, or as required by the Architect; Example Flat B53, 2 coats.",
+                     # a primed substrate names no primer, and "priming" does only as a label
+                     "Previously primed surfaces: Example B53, 2 coats", "Shop-primed steel: Example B53, two coats", "After priming, apply Example B53, 2 coats"):
             self.assertEqual(materials.coat_count(row("C", text), b53), (2, ""), text)
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, two or more coats"), b53),
+                         (None, "C states a minimum coat count for B53, not a fixed one; it does not settle this product's"))
+        self.assertEqual(materials.coat_count(row("C", "Previously primed surfaces: Example B53, 2 coats"), primer_sheet),
+                         (None, "C names no primer with the coat count for B53, and this product's row names a primer; whether the count is B53's is not settled"))
+        self.assertEqual(materials.coat_count(row("C", "Shop-primed steel: two coats"), primer_sheet),
+                         (None, "C names no primer where it states coats, and this product's row names a primer"))
         # plural and -ing role words
         self.assertEqual(materials.coat_count(row("C", "Example Primer B66 under finishes, 2 coats"), b66),
                          (None, "C does not tie a coat count to one product; which is this product's is not settled"))

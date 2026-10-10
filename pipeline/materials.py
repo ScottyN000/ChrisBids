@@ -105,7 +105,9 @@ STRETCH = re.compile(r";|\.(?=\s|$)|\bor\b(?!\s+(?:an\s+)?(?:approved\s+)?(?:equ
 # count is tied to nothing; the whole stretch is judged, in a clause naming codes as in one
 # naming none. A stretch naming neither and no code ("Walls", "back-roll the first") is
 # about no product.
-PRIME_WORD = re.compile(r"\b(?:prim(?:e|ed|ing|ers?)|sealers?|conditioners?|base coats?|undercoats?|undercoaters?|block fillers?|fillers?|surfacers?)\b", re.I)
+# "primed" describes the substrate, not a primer in the system ("previously primed surfaces: B53, 2
+# coats" is the finish's count), and "priming" names one only as a label ("Priming: one coat").
+PRIME_WORD = re.compile(r"\b(?:prim(?:e|ers?)|priming(?=\s*:)|sealers?|conditioners?|base coats?|undercoats?|undercoaters?|block fillers?|fillers?|surfacers?)\b", re.I)
 FINISH_WORD = re.compile(r"\b(?:finish(?:es)?|final|top|topcoats?|intermediate|stripe|enamels?|satin|semi-gloss|gloss|eggshell|flat|paints?|coatings?)\b", re.I)
 # A second count said without the word "coat", or an added coat ("one coat; two at patched
 # areas", "1 coat; 2 at patched areas", "a second coat at repairs", "plus 1 coat at repairs",
@@ -123,12 +125,16 @@ SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:pr
 # A floor, not a count ("two coats, or more as required for full hide", "at least two (2) coats",
 # "minimum of 2 coats", "no less than two coats", "2 coats minimum", "two coats (minimum)", "2 coats
 # min.", "two coats or as required to achieve full hide"): the count is not fixed, so no figure is written.
-# "Or as required" after a count is a floor whatever follows it; a trailing floor word followed by a
-# figure ("2 coats (min. 2.0 mils DFT per coat)") is a film thickness, not a floor on the count.
-FLOOR = re.compile(rf"\bor more\b|\bor\s+as\s+(?:required|needed|necessary)\b"
-                   rf"|\bas (?:required|needed|necessary) (?:for|to achieve|to obtain|to get) (?:a )?(?:full |complete |uniform )?(?:hide|coverage|hiding)\b"
-                   rf"|\b(?:at least|a minimum of|minimum(?: of)?|not less than|no less than|no fewer than)\s+(?:[1-9]\d*|one|two|three|four|five|six)(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
-                   rf"|\bcoats?[\s,(]*(?:minimum|min|at least|or more)\b(?!\.?\s*(?:\d|one\b|two\b|three\b|four\b|five\b|six\b|of\b|an?\b))", re.I)
+# "Or more" and "or as required" are floors only after a count ("two coats, or more", "two or more
+# coats", "2 coats or as required", whatever follows): "10 ft or more above grade" and "scrape, or as
+# required by the Architect" say nothing about coats. A trailing floor word followed by a figure or a
+# thickness word ("2 coats (min. 2.0 mils DFT per coat)", "2 coats, minimum DFT 2.0 mils") is a film
+# thickness, not a floor on the count.
+FLOOR = re.compile(rf"\b{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?[\s,]*(?:or more|or\s+as\s+(?:required|needed|necessary))\b"
+                   rf"|\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b"
+                   rf"|\bcoats?[\s,]*(?:or\s+)?as (?:required|needed|necessary) (?:for|to achieve|to obtain|to get) (?:a )?(?:full |complete |uniform )?(?:hide|coverage|hiding)\b"
+                   rf"|\b(?:at least|a minimum of|minimum(?: of)?|not less than|no less than|no fewer than)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
+                   rf"|\bcoats?[\s,(]*(?:minimum|min|at least|or more)\b(?!\.?\s*(?:\d|one\b|two\b|three\b|four\b|five\b|six\b|of\b|an?\b|DFT\b|WFT\b|dry\b|wet\b|film\b|mils?\b|thickness\b))", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
 # (a product, "Base coat as needed", or a step, "Scrape"), and one opened by "and" continues
 # a product named before it; so a count written after its code there ("B53 over B66 primer,

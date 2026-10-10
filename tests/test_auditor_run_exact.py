@@ -120,6 +120,29 @@ class RunCase(unittest.TestCase):
         self.assertEqual(report.unverified, [f"{k}: {v[1]}" for k, v in EXPECTED.items() if v[0] == "unverified"])
         self.assertFalse(report.ok)
 
+    def test_sources_and_conversion_notes(self):
+        # a duplicate source counts as in the packet; several missing ones are all named;
+        # a conversion note keeps only what comes before the derivation's ";"
+        self.intake.write_register([
+            {"source_id": "DUP", "title": "Spec copy", "file": "", "sha256": "", "pages": "", "kind": "spec",
+             "status": "duplicate"},
+            {"source_id": "CT2", "title": "Second email", "file": "", "sha256": "", "pages": "", "kind": "correspondence",
+             "status": "missing"}])
+        self.add("spec_reader", claim_id="P-009", statement="coats", source_id="DUP", method="clause", role="scope",
+                 confidence="exact", quote="Apply 2 coats", flag="unverified")
+        self.add("correspondence_reader", claim_id="M-009", statement="keep it simple", source_id="CT + CT2",
+                 method="customer", role="note", confidence="exact", quote="keep it simple", flag="unverified")
+        self.add("drawing_reader", claim_id="D-009", statement="run", source_id="S-1", method="dimensioned",
+                 role="quantity", confidence="exact", unit="in", value="182", value_num=182.0,
+                 derivation="15'-2\" dimension string = 182 in; from the north wall")
+        with mock.patch("pipeline.intake.verify", return_value=[]):
+            self.audit()
+        got = self.written()
+        self.assertEqual(got["P-009"], EXPECTED["U-001"])   # past the packet check, to its own flag
+        self.assertEqual(got["M-009"], ("unverified", "cites CT, CT2, not in the packet"))
+        self.assertEqual(got["D-009"], ("unverified", "conversion replayed (15'-2\" dimension string = 182 in); the "
+                                                      "dimension string still needs the yes/no check against the page image"))
+
     def test_a_dry_run_reports_but_writes_nothing(self):
         with mock.patch("pipeline.intake.verify", return_value=["S-1 changed"]):
             report = self.audit(write=False)

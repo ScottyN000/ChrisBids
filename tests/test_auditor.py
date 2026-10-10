@@ -67,7 +67,8 @@ class FiguresCase(unittest.TestCase):
                              ("Spread 320 - 400 sq ft/gal.", ("320-400",)),
                              ("Spread 320–400 sq ft/gal.", ("320-400",)),
                              ("Spread 320-400 sq ft/gal.", ("320", "400")),
-                             ("Spread 2,000-2,500 sq ft.", ("2000-2500",))):
+                             ("Spread 2,000-2,500 sq ft.", ("2000-2500",)),
+                             ("Hold 10-15% retainage.", ("10", "15"))):
             with self.subTest(text=text, values=values):
                 self.assertEqual(auditor.audit_proposal(text, rows(*values)), [])
         for text, values in (("Spread 320-400 sq ft/gal.", ("320",)),

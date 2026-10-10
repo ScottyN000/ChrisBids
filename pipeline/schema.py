@@ -8,6 +8,7 @@ stored row later with the same code.
 from __future__ import annotations
 
 import ast
+import itertools
 import operator
 import re
 from dataclasses import dataclass, fields
@@ -26,9 +27,20 @@ DIVISIONS = ("", "01", "02", "03", "05", "07", "08", "09", "31", "33", "35")
 # Methods that may feed a Contractor Co. allowance or an order quantity (architecture p.6:
 # "scaled ... never becomes an order quantity without a site check").
 ALLOWANCE_OK = ("dimensioned", "counted", "clause", "FIELD")
+# An order quantity may also rest on a fetched figure: a data sheet's spread
+# rate or yield, cited with its URL (architecture p.4: Materials writes "product
+# data sheet figures (spread rate, yield, pack size), order quantities"). An
+# allowance may not.
+MATERIAL_OK = ALLOWANCE_OK + ("fetched",)
+# A figure a source states as a range ("320-400", "2 - 4"): one figure, two ends.
+RANGE = re.compile(r"^\s*(\d[\d,]*(?:\.\d+)?)\s*[-\u2013]\s*(\d[\d,]*(?:\.\d+)?)\s*$")
+# Most range inputs one calc may rest on: it is replayed at every corner.
+MAX_RANGES = 3
 # Methods that carry an exact figure. A row of either kind may only be worked
 # out from rows of these kinds.
 EXACT_METHODS = ("dimensioned", "counted")
+# How firm a figure is, firmest first; a derived row is never firmer than its inputs.
+CONFIDENCE_RANK = {"exact": 0, "scaled": 1, "inferred": 1, "missing": 2}
 
 # The flat ledger field order, as the architecture doc lists it plus the
 # bookkeeping columns the fixtures already carry.
@@ -148,6 +160,21 @@ def format_value(v: Any) -> tuple[str, float | None]:
         return text, None
 
 
+def value_range(value: str) -> tuple[float, float] | None:
+    """The two ends of a figure stated as a range ("320-400"), low end first;
+    None for a single figure or no figure."""
+    m = RANGE.match(value or "")
+    if not m:
+        return None
+    lo, hi = (float(x.replace(",", "")) for x in m.groups())
+    return (lo, hi) if lo <= hi else (hi, lo)
+
+
+def format_range(lo: float, hi: float) -> str:
+    """A replayed range as a ledger value: "40-50", whole numbers without a point."""
+    return "-".join(format_value(x)[0] for x in (lo, hi))
+
+
 def sources_of(source_id: str) -> list[str]:
     """Register IDs a row cites. `A + B` is one row resting on two sources."""
     return [s.strip() for s in str(source_id).split("+") if s.strip() and s.strip() != "none"]
@@ -187,8 +214,10 @@ def check_method_rules(c: Claim) -> list[str]:
             errors.append(f"{c.claim_id}: fetched row without a quote must be flagged unverified")
     if m == "customer" and not c.quote:
         errors.append(f"{c.claim_id}: customer rows carry the instruction verbatim in quote")
-    if c.role in ("allowance", "material") and m not in ALLOWANCE_OK:
-        errors.append(f"{c.claim_id}: a {m} value may not feed an allowance or an order quantity")
+    if c.role == "allowance" and m not in ALLOWANCE_OK:
+        errors.append(f"{c.claim_id}: a {m} value may not feed an allowance")
+    if c.role == "material" and m not in MATERIAL_OK:
+        errors.append(f"{c.claim_id}: a {m} value may not feed an order quantity")
     if c.method == "FIELD" and c.confidence != "missing":
         errors.append(f"{c.claim_id}: FIELD rows carry confidence missing")
     return errors
@@ -198,33 +227,97 @@ def replay_calc(c: Claim, by_id: dict[str, Claim]) -> list[str]:
     """Code recomputes every derived figure (architecture p.9).
 
     A `calc` expression references other claims by `{ID}`; after substitution it
-    must be plain arithmetic and must equal the row's own value.
+    must be plain arithmetic and must equal the row's own value. An input stated
+    as a range (a spread rate of 320-400 sq ft/gal) is replayed at both ends, and
+    the row's value must then be the range the ends give (written either way
+    round). The
+    ends bound a bid's formulas, which are sums, products and quotients of
+    positive figures, each range input named once; a calc rests on at most
+    MAX_RANGES ranges, and every corner must come out positive (the guard catches a
+    sign change, not a pole a constant offsets: `10 + 1 / ({B} - 5)` over B = 4-6
+    passes with corners 9 and 11; no bid formula divides by a difference). A row whose input
+    is flagged (unverified or conflict) must carry a flag itself, and a derived row
+    claims no firmer confidence than its weakest input. An allowance or order
+    quantity is held to its method rule down the whole chain of calcs it rests on
+    (p.6: scaled "never becomes an order quantity"), not only its direct inputs.
     """
     if not c.calc:
         return []
-    errors, expr = [], c.calc
+    errors, ends = [], {}
     for ref in CALC_REF.findall(c.calc):
         src = by_id.get(ref)
         if src is None:
             return [f"{c.claim_id}: calc references unknown claim {ref}"]
-        if src.value_num is None:
+        span = (src.value_num,) if src.value_num is not None else value_range(src.value)
+        if span is None:
             return [f"{c.claim_id}: calc input {ref} has no numeric value"]
-        if c.role in ("allowance", "material") and src.method not in ALLOWANCE_OK:
-            errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; it cannot feed an order quantity")
-        elif c.method in EXACT_METHODS and src.method not in EXACT_METHODS:
-            # A scaled or observed figure never becomes a dimensioned or counted one (p.6).
+        if ref in ends:
+            if len(span) > 1:
+                # The corner replay bounds a formula that uses each range once; a
+                # range named twice ({A} * (10 - {A})) can peak between the corners.
+                errors.append(f"{c.claim_id}: calc names range input {ref} more than once; write it once (2 * {{{ref}}})")
+            continue
+        ends[ref] = span
+        if src.flag and not c.flag:
+            # Arithmetic on a reading nobody has settled is itself unsettled (p.9):
+            # the derived row carries a flag, so the bid never shows it as firm.
+            errors.append(f"{c.claim_id}: calc input {ref} is flagged {src.flag}; the row must be flagged")
+        if CONFIDENCE_RANK.get(src.confidence, 0) > CONFIDENCE_RANK.get(c.confidence, 0):
+            errors.append(f"{c.claim_id}: calc input {ref} is {src.confidence}; the row claims {c.confidence}")
+        feeds = ("an allowance", ALLOWANCE_OK) if c.role == "allowance" else \
+                ("an order quantity", MATERIAL_OK) if c.role == "material" else None
+        if feeds:
+            # The rule holds down the chain: a scaled area that passes through a
+            # fetched or clause row with its own calc is still a scaled area.
+            what, ok = feeds
+            for deep, method in rests_on(ref, by_id):
+                if method not in ok:
+                    via = "" if deep == ref else f" rests on {deep}, which"
+                    errors.append(f"{c.claim_id}: calc input {ref}{via} is {method}; it cannot feed {what}")
+        if c.method in EXACT_METHODS and src.method not in EXACT_METHODS:
+            # A scaled or observed figure never becomes a dimensioned or counted one (p.6),
+            # whatever the row's role: a counted allowance rests on counts, not on a clause.
             errors.append(f"{c.claim_id}: calc input {ref} is {src.method}; a {c.method} row rests on "
                           f"dimensioned and counted rows only")
-        expr = expr.replace("{" + ref + "}", repr(src.value_num))
-    if not CALC_SAFE.fullmatch(expr):
-        return errors + [f"{c.claim_id}: calc {c.calc!r} is not plain arithmetic"]
-    try:
-        got = arith(expr)
-    except (ValueError, ZeroDivisionError) as e:
-        return errors + [f"{c.claim_id}: calc {c.calc!r} does not evaluate: {e}"]
-    if c.value_num is None or abs(got - c.value_num) > 1e-9:
-        errors.append(f"{c.claim_id}: calc {c.calc} = {got}, ledger says {c.value or '(blank)'}")
+    if sum(1 for span in ends.values() if len(span) > 1) > MAX_RANGES:
+        return errors + [f"{c.claim_id}: calc {c.calc!r} rests on more than {MAX_RANGES} ranges"]
+    got = []
+    for corner in itertools.product(*ends.values()):
+        expr = c.calc
+        for ref, v in zip(ends, corner):
+            expr = expr.replace("{" + ref + "}", repr(v))
+        if not CALC_SAFE.fullmatch(expr):
+            return errors + [f"{c.claim_id}: calc {c.calc!r} is not plain arithmetic"]
+        try:
+            got.append(arith(expr))
+        except (ValueError, ZeroDivisionError) as e:
+            return errors + [f"{c.claim_id}: calc {c.calc!r} does not evaluate: {e}"]
+    lo, hi = min(got), max(got)
+    if any(len(span) > 1 for span in ends.values()) and lo <= 0:
+        # The corner replay bounds sums, products and quotients of positive figures;
+        # a corner at or below zero means the formula is not one of those (a pole a
+        # constant offsets would pass: the docstring says so, and no bid formula has one).
+        return errors + [f"{c.claim_id}: calc {c.calc!r} gives {lo} at a corner; a calc over a range must stay positive"]
+    if hi - lo <= 1e-9:
+        if c.value_num is None or abs(lo - c.value_num) > 1e-9:
+            errors.append(f"{c.claim_id}: calc {c.calc} = {lo}, ledger says {c.value or '(blank)'}")
+    else:
+        own = value_range(c.value)
+        if own is None or abs(own[0] - lo) > 1e-9 or abs(own[1] - hi) > 1e-9:
+            errors.append(f"{c.claim_id}: calc {c.calc} = {format_range(lo, hi)}, ledger says {c.value or '(blank)'}")
     return errors
+
+
+def rests_on(ref: str, by_id: dict[str, Claim], _seen: frozenset = frozenset()) -> list[tuple[str, str]]:
+    """Every row a calc input stands on, as (claim_id, method): the row itself,
+    then the rows its own calc names, followed all the way down."""
+    src = by_id.get(ref)
+    if src is None or ref in _seen:
+        return []
+    out = [(ref, src.method)]
+    for r in dict.fromkeys(CALC_REF.findall(src.calc or "")):
+        out += rests_on(r, by_id, _seen | {ref})
+    return out
 
 
 def arith(expr: str) -> float:

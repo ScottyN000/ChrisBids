@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
 from pipeline import intake, web, webread
 from pipeline.broker import Broker
 from pipeline.readers import validate
@@ -82,7 +84,16 @@ class TableCase(unittest.TestCase):
         first = t.pages[0]
         self.assertEqual((first.title, first.when), ("Ocean City online permitting",
                                                      (("ocean city",), ("maryland", "md"))))
-        self.assertEqual(first.asks[1], webread.Ask("a2", "How long permit review takes: # weeks", "NAN-C-002"))
+        self.assertEqual(first.asks[1], webread.Ask("a2", "How long permit review takes: # weeks", "NAN-C-002", (),
+                                                    "weeks"))
+        # an ask that names its unit puts its first figure on the row as a value: the spread rates, the
+        # permit weeks and the fall-protection and ladder heights; the unit is the text after the first mark
+        with_unit = [a for p in t.pages for a in p.asks if a.unit]
+        self.assertEqual(sorted(a.unit for a in with_unit), ["ft"] * 3 + ["sq ft/gal"] * 8 + ["weeks"])
+        for a in with_unit:
+            self.assertTrue(a.ask.split("#")[1].strip(" )").startswith(a.unit), (a.ask, a.unit))
+        self.assertEqual(sorted(a.fixture for a in with_unit if a.unit == "sq ft/gal"),
+                         [f"OBV-C-0{n}" for n in range(23, 31)])
         self.assertEqual(sum(1 for p in t.pages for a in p.asks if a.fixture), 50)
         esr = next(p for p in t.pages if p.url.endswith("ESR-4143.pdf"))
         self.assertEqual(esr.ids, ("ESR-4143", "HIT-HY 270", "HY 270"))
@@ -129,6 +140,28 @@ class TableCase(unittest.TestCase):
         for a in answers:
             for f in a["figures"]:
                 self.assertNotRegex(fixtures, rf"\b{re.escape(f)}\b", f)
+
+    def test_a_unit_ask_has_no_options_and_no_identifier_in_its_first_mark(self):
+        def page(ask, **extra):
+            return {"named_domains": ["example.com"], "pages": [{
+                "url": URL, "title": "OC permits", "agent": "codes", "when": [["ocean city"]], "ids": ["ESR-4143"],
+                "asks": [{"id": "a1", "ask": ask, "unit": "weeks", **extra}]}]}
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "t.yaml"
+            p.write_text(yaml.safe_dump(page("Permit turnaround # weeks", options=["yes", "no"])))
+            with self.assertRaises(ValueError) as e:
+                webread.load(p)
+            self.assertIn("a unit or options, not both", str(e.exception))
+            p.write_text(yaml.safe_dump(page("Report ESR-# gives the turnaround in weeks")))
+            with self.assertRaises(ValueError) as e:
+                webread.load(p)
+            self.assertIn("first # mark fills an identifier", str(e.exception))
+            p.write_text(yaml.safe_dump(page("Permit turnaround in weeks")))
+            with self.assertRaises(ValueError) as e:
+                webread.load(p)
+            self.assertIn("needs a # mark", str(e.exception))
+            p.write_text(yaml.safe_dump(page("Permit turnaround # weeks under ESR-#")))
+            self.assertEqual(webread.load(p).pages[0].asks[0].unit, "weeks")
 
     def test_a_page_for_an_unknown_agent_is_refused(self):
         with tempfile.TemporaryDirectory() as d:
@@ -512,6 +545,92 @@ class RunCase(unittest.TestCase):
         _, res = run(Fake({"answers": [bad]}, {"answers": [bad]}, {"answers": [bad]}, {"answers": [bad]}), tbl=tbl)
         self.assertIn("J#web1 run 1 a2: the choice '' is not one of yes, no, other", res.discarded)
 
+    def test_an_ask_that_names_its_unit_writes_its_figure_as_the_row_s_value(self):
+        weeks = (webread.Ask("a1", "Permit turnaround # weeks", "J-C-001", unit="weeks"), webread.Ask("a2", "Plans required"))
+        b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [PLANS, TURNAROUND]}), tbl=table(source(asks=weeks)))
+        self.assertEqual([(c.locator, c.value, c.unit, c.flag) for c in res.rows],
+                         [("ask a1", "2-4", "weeks", ""), ("ask a2", "", "", "")])
+        back = b.ledger.by_id()["J-WEB-001"]
+        self.assertEqual((back.value, back.value_num, back.unit), ("2-4", None, "weeks"))
+        # each kept reading carries its own figure; a reading with none carries no value
+        other = answer("a1", "All applications REQUIRE PLANS OR DRAWINGS.", "Plans come first.", figures=[""])
+        b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [other, PLANS]}), tbl=table(source(asks=weeks)))
+        self.assertEqual([(c.value, c.unit, c.flag) for c in res.rows if c.locator == "ask a1"],
+                         [("2-4", "weeks", "unverified"), ("", "", "unverified")])
+
+    def test_a_split_after_a_unit_ask_still_names_the_page_in_the_run_log(self):
+        # The live run of 2026-10-09 crashed here: the figure's unit had taken the
+        # page's name, and the next ask's split tried to log the page by it.
+        weeks = (webread.Ask("a1", "Permit turnaround # weeks", "J-C-001", unit="weeks"), webread.Ask("a2", "Plans required"))
+        other = answer("a2", "", "The page does not say.", found=False)
+        b, res = run(Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [TURNAROUND, other]}), tbl=table(source(asks=weeks)))
+        self.assertEqual([(c.locator, c.value, c.unit, c.flag) for c in res.rows if c.locator == "ask a1"],
+                         [("ask a1", "2-4", "weeks", "")])
+        a2 = [(c.value, c.unit, c.flag) for c in res.rows if c.locator == "ask a2"]
+        self.assertTrue(a2 and all(row == ("", "", "unverified") for row in a2), a2)
+        self.assertTrue(res.readings and all(line.startswith("J#web1 a2: ") for line in res.readings), res.readings)
+
+    def test_a_single_figure_carries_its_number_and_can_feed_a_calc(self):
+        # the reader's row gets the same value and value_num the fixture loader would give it
+        text = "<html><body><p>Spread rate: 400 sq ft/gal. Coverage 2,500 sq ft per pail.</p></body></html>"
+        asks = (webread.Ask("a1", "Spread rate: # sq ft/gal", "J-C-001", unit="sq ft/gal"),
+                webread.Ask("a2", "Coverage per pail: # sq ft", "J-C-002", unit="sq ft"))
+        rate = answer("a1", "Spread rate: 400 sq ft/gal.", "400 sq ft/gal.", figures=["400"])
+        pail = answer("a2", "Coverage 2,500 sq ft per pail.", "2,500 sq ft per pail.", figures=["2,500"])
+        b, res = run(Fake({"answers": [rate, pail]}, {"answers": [rate, pail]}), pages={URL: Resp(text.encode())},
+                     tbl=table(source(asks=asks)))
+        by_id = b.ledger.by_id()
+        self.assertEqual([(c.value, c.value_num, c.unit) for c in res.rows], [("400", 400.0, "sq ft/gal"), ("2,500", 2500.0, "sq ft")])
+        self.assertEqual((by_id["J-WEB-001"].value_num, by_id["J-WEB-002"].value_num), (400.0, 2500.0))
+        # so an order quantity can rest on it
+        b.as_principal("drawing_reader").append(Claim(claim_id="J-D-001", statement="walls", source_id="SP", method="dimensioned",
+                                                      role="quantity", confidence="exact", value="1200", value_num=1200.0,
+                                                      unit="sq ft", tag="SP p.1"))
+        b.as_principal("materials").append(Claim(claim_id="J-M-001", statement="paint", source_id="SP", method="fetched",
+                                                 role="material", confidence="exact", value="6", value_num=6.0, unit="gal",
+                                                 tag="SP p.1", calc="{J-D-001} * 2 / {J-WEB-001}", url=URL,
+                                                 retrieved="2026-10-08", quote="Spread rate: 400 sq ft/gal."))
+        self.assertEqual(b.ledger.by_id()["J-M-001"].value_num, 6.0)
+
+    def test_readings_that_differ_only_in_their_figure_are_both_kept(self):
+        # one passage gives two rates; each run fills the mark with a different one, so there are two
+        # readings, not one agreed figure, and code keeps both (never picks) flagged unverified
+        text = "<html><body><p>Spread rate: 350-400 sq ft/gal on smooth surfaces, 250-300 sq ft/gal on rough.</p></body></html>"
+        rate = (webread.Ask("a1", "Spread rate: # sq ft/gal", "J-C-001", unit="sq ft/gal"),)
+        quote = "Spread rate: 350-400 sq ft/gal on smooth surfaces, 250-300 sq ft/gal on rough."
+        smooth = answer("a1", quote, "350-400 sq ft/gal smooth, 250-300 rough.", figures=["350-400"])
+        rough = answer("a1", quote, "350-400 sq ft/gal smooth, 250-300 rough.", figures=["250-300"])
+        b, res = run(Fake({"answers": [smooth]}, {"answers": [rough]}), pages={URL: Resp(text.encode())},
+                     tbl=table(source(asks=rate)))
+        self.assertEqual([(c.value, c.unit, c.confidence, c.flag) for c in res.rows],
+                         [("350-400", "sq ft/gal", "inferred", "unverified"),
+                          ("250-300", "sq ft/gal", "inferred", "unverified")])
+        self.assertEqual(res.unanswered, [f"{URL} a1 (Spread rate: # sq ft/gal): the runs give different "
+                                          "readings; 2 readings kept, flagged unverified"])
+        # the same figure twice is one reading
+        b, res = run(Fake({"answers": [smooth]}, {"answers": [smooth]}), pages={URL: Resp(text.encode())},
+                     tbl=table(source(asks=rate)))
+        self.assertEqual([(c.value, c.flag) for c in res.rows], [("350-400", "")])
+
+    def test_figure_of(self):
+        ask = webread.Ask("a1", "Spread rate: # sq ft/gal", unit="sq ft/gal")
+        found = lambda *figs: {"found": True, "figures": list(figs)}
+        cases = [
+            (found("350-400"), ask, (), ("350-400", "sq ft/gal")),
+            (found("350 - 400"), ask, (), ("350-400", "sq ft/gal")),     # a range is one figure, written one way
+            (found("2,500"), ask, (), ("2,500", "sq ft/gal")),
+            (found("350 to 400"), ask, (), ("", "")),                     # two figures in the first mark: none
+            (found(""), ask, (), ("", "")),
+            (found(), ask, (), ("", "")),
+            ({"found": False, "figures": []}, ask, (), ("", "")),
+            (found("350-400"), webread.Ask("a1", "Spread rate: # sq ft/gal"), (), ("", "")),   # no unit in the table
+            # a first mark that fills the page's own identifier is no figure
+            (found("02", "350-400"), webread.Ask("a1", "LX# spread rate: # sq ft/gal", unit="sq ft/gal"), ("LX02",),
+             ("", "")),
+        ]
+        for answer_, ask_, ids, want in cases:
+            self.assertEqual(webread.figure_of(answer_, ask_, ids), want, (answer_, ask_.ask))
+
     def test_materials_pages_are_written_as_materials(self):
         client = Fake({"answers": [TURNAROUND, PLANS]}, {"answers": [TURNAROUND, PLANS]})
         b, res = run(client, tbl=table(source(agent="materials")))
@@ -700,6 +819,19 @@ class GateCase(unittest.TestCase):
         g = webread.gate(res, tbl, fixture)
         self.assertEqual((g.ok, len(g.failures), g.misses), (False, 1, []))
 
+    def test_a_unit_ask_s_figure_must_be_the_fixture_s_value(self):
+        weeks = (webread.Ask("a1", "Permit turnaround # weeks", "J-C-001", unit="weeks"), webread.Ask("a2", "Plans required"))
+        tbl = table(source(asks=weeks))
+        fixture = {"J-C-001": dict(self.FIXTURE["J-C-001"], value="2-4", unit="weeks")}
+        g = self.gate([{"answers": [TURNAROUND, PLANS]}] * 2, tbl=tbl, fixture=fixture)
+        self.assertEqual((g.ok, g.failures), (True, []))
+        fixture = {"J-C-001": dict(self.FIXTURE["J-C-001"], value="3-4", unit="weeks")}
+        g = self.gate([{"answers": [TURNAROUND, PLANS]}] * 2, tbl=tbl, fixture=fixture)
+        self.assertEqual(g.failures, ["J-C-001: gives '2-4' weeks, the fixture's figure is '3-4'"])
+        # a fixture row with no value is compared on its quote alone
+        g = self.gate([{"answers": [TURNAROUND, PLANS]}] * 2, tbl=tbl)
+        self.assertEqual((g.ok, g.failures), (True, []))
+
     def test_another_passage_with_the_same_numbers_passes(self):
         fixture = {"J-C-001": {"id": "J-C-001", "statement": "Permits take 2-4 weeks",
                                "quote": "Permits will be issued 2-4 weeks on average after submission"}}
@@ -754,7 +886,6 @@ class GoldenCase(unittest.TestCase):
     def test_both_jobs_pass_when_every_quote_is_answered(self):
         tbl = webread.load()
         data = {}
-        import yaml
         for job in ("nantucket", "ocean-beach"):
             for r in yaml.safe_load((ROOT / "fixtures" / job / "ledger.yaml").read_text())["rows"]:
                 data[r["id"]] = r
@@ -765,8 +896,11 @@ class GoldenCase(unittest.TestCase):
         for s in tbl.pages:
             quotes = [data[a.fixture]["quote"].replace(" ... ", " ") for a in s.asks if a.fixture]
             pages[s.url] = Resp(("<p>" + "</p><p>".join(quotes or ["Nothing here."]) + "</p>").encode())
+            # a unit ask's first mark is filled with the fixture row's own figure, the rest are left blank
             answers[s.url] = {"answers": [
-                answer(a.id, data[a.fixture]["quote"], data[a.fixture]["quote"], figures=[""] * a.ask.count("#"),
+                answer(a.id, data[a.fixture]["quote"], data[a.fixture]["quote"],
+                       figures=([str(data[a.fixture].get("value", ""))] if a.unit else [""])[:a.ask.count("#")]
+                       + [""] * (a.ask.count("#") - 1),
                        choice=choices.get(a.fixture, ""))
                 if a.fixture else answer(a.id, found=False)
                 for a in s.asks]}

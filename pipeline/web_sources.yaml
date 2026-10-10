@@ -27,6 +27,7 @@ pages:
     fixture: NAN-C-001
   - id: a2
     ask: 'How long permit review takes: # weeks'
+    unit: weeks
     fixture: NAN-C-002
 - url: https://oceancitymd.gov/oc/wp-content/uploads/Updated-Permit-Application-6-12-2024-1.pdf
   title: OC permit application
@@ -319,6 +320,7 @@ pages:
   asks:
   - id: a1
     ask: 'At what height above a lower level fall protection is required: # ft'
+    unit: ft
     fixture: NAN-C-025
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-Z/section-1926.1153
   title: 29 CFR 1926.1153 Table 1
@@ -350,6 +352,7 @@ pages:
   asks:
   - id: a1
     ask: 'How far ladder side rails must extend above the upper landing: # ft'
+    unit: ft
     fixture: NAN-C-028
 - url: https://www.ecfr.gov/current/title-29/subtitle-B/chapter-XVII/part-1926/subpart-P/section-1926.650
   title: 29 CFR 1926.650
@@ -533,6 +536,7 @@ pages:
   asks:
   - id: a1
     ask: 'At what height above a lower level fall protection is required at walking and working surfaces: # ft'
+    unit: ft
     fixture: OBV-C-017
 - url: https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.453
   title: 29 CFR 1926.453
@@ -607,6 +611,7 @@ pages:
   asks:
   - id: a1
     ask: Loxon Concrete & Masonry Primer/Sealer A24W8300 spread rate (# sq ft/gal) and the sheet date (#)
+    unit: sq ft/gal
     fixture: OBV-C-023
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX02W0050
   title: SW LX02 data sheet
@@ -620,6 +625,7 @@ pages:
   asks:
   - id: a1
     ask: 'Loxon Concrete & Masonry Primer-Sealer LX02 spread rate: # sq ft/gal'
+    unit: sq ft/gal
     fixture: OBV-C-024
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX03W0100
   title: SW LX03 data sheet
@@ -633,6 +639,7 @@ pages:
   asks:
   - id: a1
     ask: 'Loxon Acrylic Conditioner LX03 spread rate: # sq ft/gal'
+    unit: sq ft/gal
     fixture: OBV-C-025
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=A89W03151
   title: SW A89 data sheet
@@ -646,6 +653,7 @@ pages:
   asks:
   - id: a1
     ask: 'SuperPaint Exterior Satin A89 spread rate: # sq ft/gal'
+    unit: sq ft/gal
     fixture: OBV-C-026
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=K62W00651
   title: SW K62 data sheet
@@ -659,6 +667,7 @@ pages:
   asks:
   - id: a1
     ask: 'Latitude Exterior Satin K62 spread rate: # sq ft/gal'
+    unit: sq ft/gal
     fixture: OBV-C-027
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B66W00310
   title: SW B66 data sheet
@@ -672,6 +681,7 @@ pages:
   asks:
   - id: a1
     ask: Pro-Cryl Universal Primer B66 spread rate (# sq ft/gal) and the sheet date (#)
+    unit: sq ft/gal
     fixture: OBV-C-028
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B53W02151
   title: SW B53 data sheet
@@ -685,6 +695,7 @@ pages:
   asks:
   - id: a1
     ask: 'WB Alkyd Urethane Enamel B53 semi-gloss spread rate: # sq ft/gal'
+    unit: sq ft/gal
     fixture: OBV-C-029
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B50WZ0001
   title: SW B50 data sheet
@@ -698,6 +709,7 @@ pages:
   asks:
   - id: a1
     ask: 'Kem Kromik B50 spread rate: # sq ft/gal'
+    unit: sq ft/gal
     fixture: OBV-C-030
 - url: https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX21S5043
   title: SW Loxon S1 data sheet

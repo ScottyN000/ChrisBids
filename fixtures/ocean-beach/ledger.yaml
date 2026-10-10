@@ -401,7 +401,7 @@ rows:
      url: 'https://www.floridahealth.gov/community-environmental-public-health/environmental-public-health/water-quality/public-swimming-pools/',
      quote: 'DH4065: Application for Swimming Pool Exempt Status – 32 units or less',
      statement: 'Public pools fall under Chapter 64E-9 F.A.C.; condos of 32 units or less may apply for exempt status'}
-  - {id: OBV-C-017, role: code, method: fetched, confidence: exact, source: WEB, tag: 29 CFR 1926.501, retrieved: 2026-10-07,
+  - {id: OBV-C-017, role: code, method: fetched, value: '6', unit: ft, confidence: exact, source: WEB, tag: 29 CFR 1926.501, retrieved: 2026-10-07,
      url: 'https://www.osha.gov/laws-regs/regulations/standardnumber/1926/1926.501',
      quote: 'Each employee on a walking/working surface (horizontal and vertical surface) with an unprotected side or edge which is 6 feet (1.8 m) or more above a lower level shall be protected from falling',
      statement: 'Fall protection at walkway and balcony edges 6 ft or more above a lower level'}
@@ -425,35 +425,35 @@ rows:
      url: 'https://www.epa.gov/lead/lead-renovation-repair-and-painting-program',
      quote: 'anyone paid to perform work that disturbs painted surfaces in homes, childcare facilities and preschools built before 1978',
      statement: 'EPA RRP certification applies to paid work disturbing paint in homes built before 1978 (building age FIELD)'}
-  - {id: OBV-C-023, role: code, method: fetched, confidence: inferred, source: WEB, tag: SW A24W8300 data sheet (2014), retrieved: 2026-10-07,
+  - {id: OBV-C-023, role: code, method: fetched, value: '200-300', unit: sq ft/gal, confidence: inferred, source: WEB, tag: SW A24W8300 data sheet (2014), retrieved: 2026-10-07,
      url: 'https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=A24W08300',
      quote: '200-300 sq ft/gal',
      statement: 'Legacy Loxon Concrete & Masonry Primer/Sealer A24W8300: 200-300 sq ft/gal (sheet dated 2014)'}
-  - {id: OBV-C-024, role: code, method: fetched, confidence: exact, source: WEB, tag: SW LX02 data sheet, retrieved: 2026-10-07,
+  - {id: OBV-C-024, role: code, method: fetched, value: '200-320', unit: sq ft/gal, confidence: exact, source: WEB, tag: SW LX02 data sheet, retrieved: 2026-10-07,
      url: 'https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX02W0050',
      quote: '200-320 sq. ft. per gallon',
      statement: 'Loxon Concrete & Masonry Primer-Sealer LX02: 200-320 sq ft/gal'}
-  - {id: OBV-C-025, role: code, method: fetched, confidence: exact, source: WEB, tag: SW LX03 data sheet, retrieved: 2026-10-07,
+  - {id: OBV-C-025, role: code, method: fetched, value: '200-300', unit: sq ft/gal, confidence: exact, source: WEB, tag: SW LX03 data sheet, retrieved: 2026-10-07,
      url: 'https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=LX03W0100',
      quote: 'Coverage sq.ft. per gallon 200-300',
      statement: 'Loxon Acrylic Conditioner LX03: 200-300 sq ft/gal'}
-  - {id: OBV-C-026, role: code, method: fetched, confidence: exact, source: WEB, tag: SW A89 data sheet, retrieved: 2026-10-07,
+  - {id: OBV-C-026, role: code, method: fetched, value: '350-400', unit: sq ft/gal, confidence: exact, source: WEB, tag: SW A89 data sheet, retrieved: 2026-10-07,
      url: 'https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=A89W03151',
      quote: '350-400 sq. ft. per gallon @ 4 mils wet, 1.4 mils dry',
      statement: 'SuperPaint Exterior Satin A89: 350-400 sq ft/gal'}
-  - {id: OBV-C-027, role: code, method: fetched, confidence: exact, source: WEB, tag: SW K62 data sheet, retrieved: 2026-10-07,
+  - {id: OBV-C-027, role: code, method: fetched, value: '350-400', unit: sq ft/gal, confidence: exact, source: WEB, tag: SW K62 data sheet, retrieved: 2026-10-07,
      url: 'https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=K62W00651',
      quote: '350-400 sq. ft. per gallon @ 4 mils wet, 1.4 mils dry',
      statement: 'Latitude Exterior Satin K62: 350-400 sq ft/gal'}
-  - {id: OBV-C-028, role: code, method: fetched, confidence: inferred, source: WEB, tag: SW B66 data sheet (2015), retrieved: 2026-10-07,
+  - {id: OBV-C-028, role: code, method: fetched, value: '160-320', unit: sq ft/gal, confidence: inferred, source: WEB, tag: SW B66 data sheet (2015), retrieved: 2026-10-07,
      url: 'https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B66W00310',
      quote: '~Coverage: 160 - 320 sq ft/gal',
      statement: 'Pro-Cryl Universal Primer B66: 160-320 sq ft/gal (sheet dated 2015; check for a newer one)'}
-  - {id: OBV-C-029, role: code, method: fetched, confidence: exact, source: WEB, tag: SW B53 data sheet, retrieved: 2026-10-07,
+  - {id: OBV-C-029, role: code, method: fetched, value: '320-389', unit: sq ft/gal, confidence: exact, source: WEB, tag: SW B53 data sheet, retrieved: 2026-10-07,
      url: 'https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B53W02151',
      quote: 'Coverage: 320-389 sq.ft. per gallon',
      statement: 'WB Alkyd Urethane Enamel B53 semi-gloss: 320-389 sq ft/gal (spec p.17 says 320-400 and governs)'}
-  - {id: OBV-C-030, role: code, method: fetched, confidence: exact, source: WEB, tag: SW B50 data sheet, retrieved: 2026-10-07,
+  - {id: OBV-C-030, role: code, method: fetched, value: '202-265', unit: sq ft/gal, confidence: exact, source: WEB, tag: SW B50 data sheet, retrieved: 2026-10-07,
      url: 'https://www.paintdocs.com/docs/webPDF.jsp?SITEID=STORECAT&doctype=PDS&lang=E&prodno=B50WZ0001',
      quote: '202-265 sq. ft. per gallon',
      statement: 'Kem Kromik B50: 202-265 sq ft/gal, matching spec p.17'}

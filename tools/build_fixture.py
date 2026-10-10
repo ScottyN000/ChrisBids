@@ -21,7 +21,6 @@ here and must equal its stated value, or the build fails.
 import argparse
 import csv
 import io
-import re
 import sys
 from pathlib import Path
 
@@ -30,16 +29,14 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 PHRASES = ROOT / "fixtures" / "phrase-library.yaml"
 sys.path.insert(0, str(ROOT))
-from pipeline.schema import arith  # noqa: E402  (the one arithmetic evaluator; no eval)
+from pipeline import schema  # noqa: E402  (the one copy of the method rules and the calc replay)
+from pipeline.fixtures import to_claim  # noqa: E402
 from pipeline.proposal import fmt_value, render, xref_csv  # noqa: E402  (shared with the Scope Writer)
 
 METHODS = {"dimensioned", "counted", "scaled", "clause", "observed", "fetched", "customer", "FIELD"}
 CONFIDENCE = {"exact", "scaled", "inferred", "missing"}
 FLAGS = {"", "unverified", "conflict"}
 ROLES = {"header", "scope", "quantity", "allowance", "material", "code", "exclusion", "question", "note"}
-# Methods that may feed a Contractor Co. allowance or an order quantity (architecture p.6).
-ALLOWANCE_OK = {"dimensioned", "counted", "clause", "FIELD"}
-
 LEDGER_FIELDS = [
     "claim_id", "value", "unit", "statement", "source_id", "locator", "method",
     "derivation", "confidence", "agent", "timestamp", "audit",
@@ -93,55 +90,16 @@ def validate(data, register, phrases):
             elif register[src]["status"] != "present" and r.get("flag") != "unverified":
                 errors.append(f"{rid}: cites {src} ({register[src]['status']}) but is not flagged unverified")
 
-        v = r.get("value")
-        if m == "observed" and v is not None:
-            errors.append(f"{rid}: observed rows may not carry a number")
-        if m == "FIELD" and v is not None:
-            errors.append(f"{rid}: FIELD rows have a blank value")
-        if m == "scaled" and r.get("confidence") != "scaled":
-            errors.append(f"{rid}: scaled rows must have confidence scaled")
-        if m == "fetched":
-            if not r.get("url") or not r.get("retrieved"):
-                errors.append(f"{rid}: fetched rows need url and retrieved")
-            if not r.get("quote") and r.get("flag") != "unverified":
-                errors.append(f"{rid}: fetched row without a quote must be flagged unverified")
-        if m == "customer" and not r.get("quote"):
-            errors.append(f"{rid}: customer rows carry the instruction verbatim in quote")
-        if r.get("role") in ("allowance", "material") and m not in ALLOWANCE_OK:
-            errors.append(f"{rid}: {m} value may not feed an allowance or order quantity")
+        # the method rules the broker and the auditor enforce, from the one place they live
+        errors += schema.check_method_rules(to_claim(r, "", ""))
         if r.get("question") and r["question"] not in by_id and r["question"] not in {x.get("id") for x in rows}:
             errors.append(f"{rid}: question {r['question']} not found")
 
-    # calc replay: code recomputes every derived figure.
-    for r in rows:
-        expr = r.get("calc")
-        if not expr:
-            continue
-        rid = r["id"]
-        refs = re.findall(r"\{([A-Z0-9-]+)\}", expr)
-        env_expr = expr
-        for ref in refs:
-            src = by_id.get(ref)
-            if src is None:
-                errors.append(f"{rid}: calc references unknown {ref}")
-                break
-            if src.get("value") is None or not isinstance(src.get("value"), (int, float)):
-                errors.append(f"{rid}: calc input {ref} has no numeric value")
-                break
-            if r.get("role") in ("allowance", "material") and src["method"] not in ALLOWANCE_OK:
-                errors.append(f"{rid}: calc input {ref} is {src['method']}; cannot feed an order quantity")
-            env_expr = env_expr.replace("{" + ref + "}", repr(src["value"]))
-        else:
-            if not re.fullmatch(r"[0-9.+\-*/() ]+", env_expr):
-                errors.append(f"{rid}: calc {expr!r} is not plain arithmetic")
-                continue
-            try:
-                got = arith(env_expr)
-            except (ValueError, ZeroDivisionError) as e:
-                errors.append(f"{rid}: calc {expr!r} does not evaluate: {e}")
-                continue
-            if abs(got - (r.get("value") or 0)) > 1e-9:
-                errors.append(f"{rid}: calc {expr} = {got}, ledger says {r.get('value')}")
+    # calc replay: code recomputes every derived figure, at both ends of a range input, with the
+    # method and flag rules followed down the chain, exactly as the broker will when the rows are loaded
+    claims = {r["id"]: to_claim(r, "", "") for r in rows}
+    for c in claims.values():
+        errors += schema.replay_calc(c, claims)
 
     for sec in data["proposal"]["sections"]:
         for task in sec.get("tasks", []):

@@ -47,7 +47,7 @@ from .broker import Broker
 from .readers import validate
 from .readers.clients import ModelClient, prompt, prompt_version
 from .readers.rows import Unit
-from .schema import Claim, LedgerError, sources_of
+from .schema import Claim, LedgerError, sources_of, format_value
 
 NAME = "web_reader"
 AGENTS = ("codes", "materials")
@@ -113,6 +113,11 @@ class Ask:
     # A closed answer's options (yes/no, a status): the model picks one, or
     # OTHER, and the runs must pick the same one. Free text is never compared.
     options: tuple[str, ...] = ()
+    # The unit of the figure the first # mark stands for ("sq ft/gal", "weeks"):
+    # that figure is then the row's value, with this unit, so a data sheet's
+    # spread rate can feed an order quantity. Blank for an ask whose figures
+    # stay in the sentence (a date, an edition).
+    unit: str = ""
 
 
 @dataclass(frozen=True)
@@ -140,12 +145,20 @@ def load(path: Path = SOURCES) -> Table:
     for p in data["pages"]:
         if p["agent"] not in AGENTS:
             raise ValueError(f"{p['url']}: agent {p['agent']!r} is not one of {AGENTS}")
-        pages.append(Source(
-            url=p["url"], title=p["title"], agent=p["agent"],
-            when=tuple(tuple(t.lower() for t in g) for g in p["when"]),
-            asks=tuple(Ask(a["id"], a["ask"], a.get("fixture", ""), tuple(a.get("options", ()))) for a in p["asks"]),
-            ids=tuple(p.get("ids", ())),
-        ))
+        ids = tuple(p.get("ids", ()))
+        asks = tuple(Ask(a["id"], a["ask"], a.get("fixture", ""), tuple(a.get("options", ())), a.get("unit", ""))
+                     for a in p["asks"])
+        for a in asks:
+            # A unit ask's value is the figure in its first mark: a closed ask has no figure, and a mark
+            # that fills one of the page's identifiers (ESR-#) holds a name, not a figure.
+            if a.unit and a.options:
+                raise ValueError(f"{p['url']} {a.id}: an ask names a unit or options, not both")
+            if a.unit and "#" not in a.ask:
+                raise ValueError(f"{p['url']} {a.id}: a unit ask needs a # mark for its figure")
+            if a.unit and 0 in id_marks(a.ask, ids):
+                raise ValueError(f"{p['url']} {a.id}: a unit ask's first # mark fills an identifier, not a figure")
+        pages.append(Source(url=p["url"], title=p["title"], agent=p["agent"],
+                            when=tuple(tuple(t.lower() for t in g) for g in p["when"]), asks=asks, ids=ids))
     return Table(named=frozenset(data["named_domains"]), pages=pages)
 
 
@@ -269,6 +282,20 @@ def slots(answer: dict, ids: tuple[str, ...] = (), marks: frozenset[int] = froze
                  for k, f in enumerate(answer.get("figures", ())))
 
 
+def figure_of(answer: dict, ask: Ask, ids: tuple[str, ...] = ()) -> tuple[str, str]:
+    """The row's value and unit from an ask that names its unit: the one figure
+    the answer fills the first # mark with, as `figures` normalises it (a range
+    is one figure, "320-400", whatever dash or spacing the page used), and the
+    table's unit. An ask with no unit, an answer not found, or a first mark
+    filled with no figure or several gives none."""
+    if not ask.unit or not answer.get("found"):
+        return "", ""
+    filled = slots(answer, ids, id_marks(ask.ask, ids))
+    if not filled or len(filled[0]) != 1:
+        return "", ""
+    return filled[0][0], ask.unit
+
+
 def answer_errors(answer: dict, page_text: str, ids: tuple[str, ...] = (), ask: str = "") -> list[str]:
     """Why code will not keep this answer. Empty means it may become a row.
     Each entry of `figures` must be in the quote or, in a mark the ask places
@@ -381,9 +408,9 @@ class WebResult:
 
 
 def _row(job: str, n: int, source: Source, page: web.Page, **kw) -> Claim:
-    # Both agents write role "code" for now: "material" may not be fetched (p.6),
-    # since it would feed a quantity. Data-sheet rates get their own role when
-    # order quantities from spread rates are built.
+    # Both agents write role "code": a data-sheet row is the evidence an order
+    # quantity rests on (p.4) through a `material` row's calc (schema.MATERIAL_OK),
+    # which the Materials order step writes, not the reader.
     return Claim(claim_id=f"{job}-WEB-{n:03d}", source_id=SOURCE_ID, method="fetched", role="code",
                  tag=source.title, url=source.url, retrieved=page.retrieved, **kw)
 
@@ -433,22 +460,25 @@ def _agree(runs: list[dict[str, dict]], ask: Ask, need: int | None = None,
         return None, "a run's answer was refused", []
     answers = answers[:need]    # the first kept answers; a spare run only stands in
     found = [a for a in answers if a["found"]]
+    marks = id_marks(ask.ask, ids)
     if not found:
         return None, "not on the page", []
     if len(found) < len(answers):
-        return None, "the runs disagree on whether the page says it", _distinct(found)
+        return None, "the runs disagree on whether the page says it", _distinct(found, ids, marks)
     first = answers[0]
-    marks = id_marks(ask.ask, ids)
     if not all(_same_reading(first, a, ids, marks) for a in answers[1:]):
-        return None, "the runs give different readings", _distinct(found)
+        return None, "the runs give different readings", _distinct(found, ids, marks)
     return first, "", []
 
 
-def _distinct(answers: list[dict]) -> list[dict]:
-    """The readings, once each (two runs may give the same quote and sentence)."""
+def _distinct(answers: list[dict], ids: tuple[str, ...] = (), marks: frozenset[int] = frozenset()) -> list[dict]:
+    """The readings, once each (two runs may give the same quote and sentence).
+    Two answers that quote one passage but fill the ask's marks with different
+    figures (a sheet that gives 350-400 on one surface and 250-300 on another)
+    are two readings, and both are kept: code never picks between them."""
     out, seen = [], set()
     for a in answers:
-        key = (web.normalize(a["quote"]), web.normalize(a["statement"]))
+        key = (web.normalize(a["quote"]), web.normalize(a["statement"]), slots(a, ids, marks))
         if key not in seen:
             seen.add(key)
             out.append(a)
@@ -565,15 +595,21 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                 result.readings += [f"{unit.unit_id} {ask.id}: figures {r.get('figures', [])}, "
                                     f"choice {r.get('choice', '')!r}, quote {r['quote'][:100]!r}" for r in readings]
                 for a in readings:
+                    value, figure_unit = figure_of(a, ask, ids)
+                    value, value_num = format_value(value)
                     write(_row(job, next_id(), source, page, confidence="inferred", flag="unverified",
-                               quote=a["quote"].strip(), statement=a["statement"].strip(),
-                               locator=f"ask {ask.id}"), source.agent)
+                               quote=a["quote"].strip(), statement=a["statement"].strip(), value=value,
+                               value_num=value_num, unit=figure_unit, locator=f"ask {ask.id}"), source.agent)
                 if not readings:
                     write(_gap(job, next_id(), source, page, ask, why), source.agent)
                 continue
+            value, figure_unit = figure_of(agreed, ask, ids)
+            # the same canonical value and numeric reading the fixture loader gives the row, so a
+            # single figure (400 sq ft/gal, 6 ft) can feed a calc; a range or a choice has no number
+            value, value_num = format_value(agreed.get("choice", "") or value)
             write(_row(job, next_id(), source, page, confidence="exact", quote=agreed["quote"].strip(),
-                       statement=agreed["statement"].strip(), value=agreed.get("choice", ""),
-                       locator=f"ask {ask.id}"),
+                       statement=agreed["statement"].strip(), value=value, value_num=value_num,
+                       unit=figure_unit, locator=f"ask {ask.id}"),
                   source.agent)
     return result
 
@@ -662,6 +698,9 @@ def gate(result: WebResult, table: Table, fixture_rows: dict[str, dict],
             elif a.options and got.value != (choices or {}).get(a.fixture):
                 failures.append(f"{a.fixture}: chose {got.value!r}, the fixture's answer is "
                                 f"{(choices or {}).get(a.fixture)!r}")
+            elif a.unit and str(f.get("value", "")) != "" and got.value != str(f["value"]):
+                failures.append(f"{a.fixture}: gives {got.value!r} {a.unit}, the fixture's figure is "
+                                f"{str(f['value'])!r}")
     ok = not failures and compared > 0 and compared - len(misses) >= ANSWERED * compared
     return Gate(ok=ok, compared=compared, failures=failures, notes=notes, misses=misses)
 

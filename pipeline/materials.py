@@ -60,15 +60,21 @@ UNIT_WORDS = {
 # a recoat time, nor the first end of "coats: 2-3", a range).
 # A count: a whole number of one or more ("2", "two", "two (2)"), not a decimal's tail ("1.5
 # hours") nor a thickness ("a 15 mil coat": the word before "coat" may only say which coat it
-# is). After "coats:" the number must end the clause or be followed by punctuation or "coat(s)",
-# so "between coats: 24 hours" and "finish coat: 400 sq ft/gal" are no count.
+# is). The "coats:" form counts only when "coats" is the label itself: at the start of a
+# stretch or after punctuation, or "number of coats", or a role word and "coat(s)" ("finish
+# coats: 2"); a label that only ends in "coat" ("mils per coat: 4", "WFT/coat: 4", "between
+# coats: 24") states no count. After the colon the number must end the clause or be followed
+# by punctuation, "and" or "coat(s)", so "finish coat: 400 sq ft/gal" is no count either.
 N = r"(?<![.\d])([1-9]\d*|one|two|three|four|five|six)"
-ROLE = r"(?:(?:finish|final|top|prime|primer|base|first|second|third|full|intermediate|stripe)\s+)?"
+ROLE_WORDS = r"finish|final|top|prime|primer|base|first|second|third|full|intermediate|stripe"
+ROLE = rf"(?:(?:{ROLE_WORDS})\s+)?"
+LABEL = rf"(?:^|(?<=[;:,.(\n])\s*|\bnumber\s+of\s+|\b(?:{ROLE_WORDS})\s+)"
 TO = r"(?:-|\u2013|to\b|or\b|and\b)"
-COATS = re.compile(rf"\b{N}(?:\s*\(([1-9]\d*)\))?\s+{ROLE}coats?\b|\bcoats?\s*[:=]\s*([1-9]\d*)(?!\d|[.,]\d)(?=\s*(?:$|[;,.)]|coats?\b))", re.I)
+COATS = re.compile(rf"\b{N}(?:\s*\(([1-9]\d*)\))?\s+{ROLE}coats?\b|{LABEL}coats?\s*[:=]\s*([1-9]\d*)(?!\d|[.,]\d)(?=\s*(?:$|[;,.)]|and\b|coats?\b))", re.I)
 # A range or a choice of counts ("1-2 coats", "one or two coats", "between two and three coats",
-# "coats: 2 - 3"): two readings, neither picked
-COAT_RANGE = re.compile(rf"\b{N}\s*{TO}\s*{N}\s+{ROLE}coats?\b|\bcoats?\s*[:=]\s*\d+(?!\d)\s*{TO}", re.I)
+# "coats: 2 - 3"): two readings, neither picked. "Coats: 2 and back-roll" is no range: a second
+# number must follow.
+COAT_RANGE = re.compile(rf"\b{N}\s*{TO}\s*{N}\s+{ROLE}coats?\b|{LABEL}coats?\s*[:=]\s*\d+(?!\d)\s*{TO}\s*{N}\b", re.I)
 COAT_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 # How a clause leaves the count open: "(coats not stated)", "coats are not stated". "sheen not
 # stated" is not about coats.
@@ -82,6 +88,12 @@ PRODUCT_CODE = re.compile(r"(?<![A-Za-z0-9-])[A-Z]{1,4}-?\d{2,5}[A-Z]?(?![A-Za-z
 # parentheses, but not the "or" of "or approved equal". Commas and parentheses stay
 # inside their stretch, so "Finish coat (1 coat): Enamel, B53 series" is one stretch.
 STRETCH = re.compile(r";|\bor\b(?!\s+(?:an\s+)?(?:approved\s+)?(?:equal|equivalent)\b)|\b(?:then|and|over)\b", re.I)
+# A stretch opened by one of these continues a system, so a count written after its code
+# ("B53 over B66 primer, 2 coats"; "B66 as needed, then B53, 2 coats"; "X100 and X200, 2 coats
+# each") may be the system's as well as that code's: two readings, neither picked. A count
+# before the code ("then 1 coat B53", "over one coat of B66") is that code's alone, and after
+# "or" the count is the named alternative's on either reading.
+CONTINUES = ("then", "and", "over")
 # One spare run, made only when a run was discarded or the runs name different
 # orders (the page reader does the same): an order one run saw is written flagged,
 # and the spare says whether a second run sees it too.
@@ -234,22 +246,23 @@ def coat_mentions(text: str) -> list[tuple[int, int | str | None]]:
     return sorted(found, key=lambda f: f[0])
 
 
-def stretches(*parts: str) -> list[tuple[int, int]]:
-    """The spans of a clause's stretches in the parts joined by SEP, each part cut
-    at STRETCH marks outside its own parentheses (an unclosed one in the statement
-    does not swallow the quote); a part is never joined to the next."""
+def stretches(*parts: str) -> list[tuple[int, int, str]]:
+    """The spans of a clause's stretches in the parts joined by SEP, each as (start,
+    end, the mark that opened it, "" at a part's start); each part is cut at STRETCH
+    marks outside its own parentheses (an unclosed one in the statement does not
+    swallow the quote), and a part is never joined to the next."""
     spans, at = [], 0
     for part in parts:
-        cuts, depth = [0], 0
+        cuts, depth = [(0, "")], 0
         for m in re.finditer(r"[()]|" + STRETCH.pattern, part, re.I):
             if m.group() == "(":
                 depth += 1
             elif m.group() == ")":
                 depth = max(0, depth - 1)
             elif depth == 0:
-                cuts.append(m.end())
-        cuts.append(len(part))
-        spans += [(at + a, at + b) for a, b in zip(cuts, cuts[1:]) if part[a:b].strip()]
+                cuts.append((m.end(), m.group().lower()))
+        cuts.append((len(part), ""))
+        spans += [(at + a, at + b, mark) for (a, mark), (b, _) in zip(cuts, cuts[1:]) if part[a:b].strip()]
         at += len(part) + len(SEP)
     return spans
 
@@ -281,7 +294,9 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     belongs to the one code its own stretch of the clause names ("A89 (coats not
     stated), or K62, 1 coat" gives K62 one coat and leaves A89 open; "B53 over one
     coat of primer" gives B53 nothing), and a count whose stretch names no code, or
-    two, is tied to nothing: the clause then settles no product's count. A sheet
+    two, is tied to nothing: the clause then settles no product's count; so is a
+    count after its code in a stretch opened by "then", "and" or "over" ("B53 over
+    B66 primer, 2 coats" may give the system two coats), see CONTINUES. A sheet
     row naming no code is read as the clause's one code; when the clause names
     several, it settles nothing for that sheet."""
     parts = [c.statement, c.quote] if c.quote else [c.statement]
@@ -299,11 +314,13 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
             return None, f"{c.claim_id} names {codes[0]}, not this product"
         return None, f"{c.claim_id} names {', '.join(codes)}; which is this product's is not settled"
     whom = f" for {mine[0]}"
-    owned = []
+    owned, spans = [], stretches(*parts)
     for pos, n in mentions:
-        here = next((text[a:b] for a, b in stretches(*parts) if a <= pos < b), "")
+        a, b, opener = next(((a, b, mark) for a, b, mark in spans if a <= pos < b), (0, 0, ""))
+        here = text[a:b]
         named = product_codes(here)
-        if len(named) != 1:
+        code_at = next((a + m.start() for m in PRODUCT_CODE.finditer(here) if m.group() == named[0]), pos) if named else pos
+        if len(named) != 1 or (opener in CONTINUES and code_at < pos):
             return None, f"{c.claim_id} does not tie a coat count to one product; which is this product's is not settled"
         if named[0] == mine[0]:
             owned.append((pos, n))

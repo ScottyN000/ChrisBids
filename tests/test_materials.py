@@ -140,9 +140,7 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.coat_count(TWO_PRODUCTS), (None, "X-SP-013 names X100, X200; which is this product's is not settled"))
         self.assertEqual(materials.coat_count(NO_COAT, X100), (None, "X-SP-012 names X50, not this product"))
         self.assertEqual(materials.coat_count(SYSTEM, X100), (2, ""))
-        self.assertEqual(materials.coat_count(row("C", "Example Satin X100 and Example Flat X200, 2 coats each"), X100),
-                         (None, "C states no coat count for X100"))
-        # a stretch is cut at ";", "or", "then" and "and" outside parentheses; commas and parentheses stay inside
+        # a stretch is cut at ";", "or", "then", "and" and "over" outside parentheses; commas and parentheses stay inside
         enamel = row("X-SP-051", "Prime Coat: Example Primer B66 as needed; Finish Coat (1 coat): Example Enamel, B53 series")
         self.assertEqual(materials.coat_count(enamel, b66), (None, "X-SP-051 states no coat count for B66"))
         self.assertEqual(materials.coat_count(enamel, b53), (1, ""))
@@ -151,10 +149,14 @@ class ItemCase(unittest.TestCase):
         # "over" sets a finish on its primer: two stretches, so the finish's count is its own
         both = row("X-SP-053", "Two coats Example Flat B53 over Example Primer B66 primer")
         self.assertEqual((materials.coat_count(both, b53), materials.coat_count(both, b66)), ((2, ""), (None, "X-SP-053 states no coat count for B66")))
-        # a count whose stretch names no code, or two, is tied to nothing, and the clause then settles no product's count
+        # a count whose stretch names no code, or two, is tied to nothing, and the clause then settles no product's count;
+        # so is a count after its code in a stretch opened by "then", "and" or "over", which may be the system's (Determinism:
+        # two readings, neither picked), while a count before the code, or after "or", is that code's alone (tested above)
         for text in ("Example Primer B66 as needed for rust, then 1 coat Example Enamel", "Finish: Example Flat B53 over one coat of primer",
                      "Example Flat B53 finish over 1 primer coat", "Example Flat B53, 2 coats; touch up 1 coat as needed",
-                     "Two coats Example Flat B53 on Example Primer B66"):
+                     "Two coats Example Flat B53 on Example Primer B66", "Example Flat B53 over Example Primer B66, 2 coats",
+                     "Example Primer B66 as needed, then Example Flat B53, 2 coats", "Finish: Example Flat B53 over Example Primer B66 primer, 2 coats",
+                     "Example Primer B66 and Example Flat B53, 2 coats each"):
             for who in (b53, b66):
                 if who.statement.split()[-3] in text:
                     self.assertEqual(materials.coat_count(row("X-SP-054", text), who),
@@ -171,7 +173,7 @@ class ItemCase(unittest.TestCase):
         a89 = row("X-WEB-013", "A89 data sheet", method="fetched", role="code", source="WEB", tag="A89 primer")
         k62 = row("X-WEB-014", "K62 data sheet", method="fetched", role="code", source="WEB", tag="K62 finish")
         self.assertEqual((materials.coat_count(clipped, a89), materials.coat_count(clipped, k62)), ((1, ""), (None, "X-SP-057 states no coat count for K62")))
-        # a sheet naming no code is read as the product the model tied it to, with or without a quote
+        # a sheet naming no code is read as the clause's one code, with or without a quote; a clause naming several settles nothing for it
         plain = row("X-WEB-015", "the finish data sheet", method="fetched", role="code", source="WEB", tag="finish sheet")
         self.assertEqual(materials.coat_count(row("C", "Topcoat K62: 2 coats"), plain), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "Topcoat K62: 2 coats", quote="Topcoat K62: 2 coats"), plain), (2, ""))
@@ -188,9 +190,19 @@ class ItemCase(unittest.TestCase):
             self.assertEqual(materials.coat_count(row("C", text)), (None, "C states a range of coats; it does not settle this product's"), text)
         for text in ("Dry time between coats: 4 hours", "Dry time between coats: 1.5 hours", "Dry time between coats: 24 hours",
                      "coats: 16 hrs", "coats: 10 mils", "Finish coat: 400 sq ft/gal", "Apply a 15 mil coat of Example Elastomeric A100",
-                     "Coats: 2 - 3", "Coats: 2 \u2013 3", "Coats: 2 to 3", "between two and three coats", "0 coats", "Coats: 0", "Two (0) coats"):
+                     "Coats: 2 - 3", "Coats: 2 \u2013 3", "Coats: 2 to 3", "between two and three coats", "0 coats", "Coats: 0", "Two (0) coats",
+                     "Mils per coat: 4", "WFT/coat: 4", "Dry time between coats: 24.", "Spread rate per coat: 350", "Recoat interval between coats: 24;"):
             self.assertEqual(materials.coat_count(row("C", text))[0], None, text)
         self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 24 hours")), (None, "C states no coat count"))
+        # the "coats:" form counts only when "coats" is the label itself, not the tail of one ("mils per coat: 4")
+        self.assertEqual(materials.coat_count(row("C", "Dry time between coats: 24.")), (None, "C states no coat count"))
+        b53 = row("X-WEB-010", "B53 data sheet", method="fetched", role="code", source="WEB", tag="B53 enamel")
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, mils per coat: 4"), b53), (None, "C states no coat count for B53"))
+        for text in ("Finish coats: 2", "Number of coats: 2", "Topcoat; coats: 2", "Prime coats: 2 and finish coats: 2"):
+            self.assertEqual(materials.coat_count(row("C", text)), (2, ""), text)
+        # "coats: 2 and ..." is a range only when a second number follows
+        self.assertEqual(materials.coat_count(row("C", "Coats: 2 and back-roll the first")), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Coats: 2 and 3")), (None, "C states a range of coats; it does not settle this product's"))
         self.assertEqual(materials.coat_count(row("C", "between two and three coats")), (None, "C states a range of coats; it does not settle this product's"))
         # after "coats:" the number ends the clause or is followed by punctuation or "coat(s)"
         for text in ("Coats: 2", "Coats: 2.", "Coats: 2; recoat: 4 hours", "(coats: 2)", "coats: 12"):

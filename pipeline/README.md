@@ -312,12 +312,17 @@ count belongs to the one code its own stretch names ("A89 (coats not stated),
 or K62, 1 coat" gives K62 one coat and leaves A89 open; "B53 over one coat of
 primer" cuts at "over", so the primer's coat is not B53's); a count whose
 stretch names no code, or two, is tied to nothing, and the clause then settles
-no product's count. A data-sheet row naming no product code is read as the
+no product's count; so is a count written after its code in a stretch opened by
+"then", "and" or "over" ("B53 over B66 primer, 2 coats" may give the system two
+coats: two readings, neither picked). A data-sheet row naming no product code is read as the
 clause's one code; when the clause names several, it settles nothing for that
 sheet. A customer row sets no count (it never overrides a spec clause). A
 recoat time ("between coats: 24 hours") or a coverage line ("finish coat: 400
-sq ft/gal") is no count: after "coats:" the number must end the clause or be
-followed by punctuation. A clause that
+sq ft/gal") is no count: the "coats:" form counts only when "coats" is the label
+itself (at the start of a stretch or after punctuation, "number of coats", or a
+role word and "coat(s)"; "mils per coat: 4" states none), and the number after
+the colon must end the clause or be followed by punctuation, "and" or
+"coat(s)". A clause that
 states none, states several, states a range ("1-2 coats"), says the count is
 not stated or speaks of another product settles nothing, and the order is
 written without a figure saying so. Every row the figure rests on is named

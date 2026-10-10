@@ -142,7 +142,6 @@ class ItemCase(unittest.TestCase):
             (item(quantity="X-R-001"), "quantity X-R-001 is a clause quantity row, not a takeoff figure, an allowance or a FIELD row"),
             # the coat count is read from the clause the model names, which must state exactly one
             (item(coats="X-SP-012"), "coats X-SP-012 states no coat count"),
-            (item(coats="X-SP-013"), "coats X-SP-013 says the coat count is not stated"),
             (item(coats="X-TK-Q-01"), "coats X-TK-Q-01 is a dimensioned row, not a clause"),
             (dict(SEALANT, coats="X-SP-010"), "coats apply to a coating ordered by the gallon, not to tubes"),
         ]
@@ -151,6 +150,8 @@ class ItemCase(unittest.TestCase):
         self.assertEqual(materials.item_errors(item(), BY_ID, shown), [])
         self.assertEqual(materials.item_errors(ANCHORS, BY_ID, shown), [])
         self.assertEqual(materials.item_errors(SEALANT, BY_ID, shown), [])
+        # a clause that says the count is not stated is evidence, not a refusal: the order waits on it
+        self.assertEqual(materials.item_errors(item(coats="X-SP-013"), BY_ID, shown), [])
         # a quantity row with no figure is refused unless it is a FIELD row
         blank = dict(BY_ID, **{"X-TK-Q-04": row("X-TK-Q-04", "area", method="dimensioned", role="quantity", unit="sq ft", source="S-1")})
         self.assertEqual(materials.item_errors(item(quantity="X-TK-Q-04"), blank, shown), ["quantity X-TK-Q-04 carries no figure"])
@@ -252,6 +253,7 @@ class ClaimCase(unittest.TestCase):
             (item(quantity="X-F-002"), "X-F-002 x 2 coats / X-R-001; the quantity waits on X-F-002 (FIELD)"),
             (item(quantity=""), "FIELD x 2 coats / X-R-001; no quantity row names what it covers"),
             (item(coats=""), "X-TK-Q-01 x ? coats / X-R-001; no clause states how many coats"),
+            (item(coats="X-SP-013"), "X-TK-Q-01 x ? coats / X-R-001; X-SP-013 says the coat count is not stated"),
             (item(coats="", quantity="X-F-002"),
              "X-F-002 x ? coats / X-R-001; the quantity waits on X-F-002 (FIELD); no clause states how many coats"),
             (dict(ANCHORS, quantity=""), "no count row; no count row names how many"),

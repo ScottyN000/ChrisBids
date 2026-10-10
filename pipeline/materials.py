@@ -194,7 +194,7 @@ def rate_of(spec: Claim | None, sheet: Claim) -> Claim | None:
 def coat_count(c: Claim) -> tuple[int | None, str]:
     """The coat count a clause row states, read by code: (count, "") when it states
     exactly one; (None, why) when it states none, several (a row covering two
-    products), or says the count is not stated."""
+    products), or says the count is not stated (which the order row then says)."""
     text = f"{c.statement} {c.quote}"
     if re.search(r"coats?\s+(?:is |are )?not stated|not stated", text, re.I):
         return None, f"{c.claim_id} says the coat count is not stated"
@@ -248,7 +248,9 @@ def item_errors(item: dict, by_id: dict[str, Claim], shown: str = "") -> list[st
         if coats.method not in ("clause", "customer"):
             return [f"coats {coats.claim_id} is a {coats.method} row, not a clause"]
         n, why = coat_count(coats)
-        if n is None:
+        if n is None and not why.endswith("not stated"):
+            # a clause that says the count is not stated is evidence (the order waits on it);
+            # one that states none, or two counts for two products, does not settle this product's
             return [f"coats {why}"]
     if item["unit"] == "each":
         if spec is not None:
@@ -306,7 +308,7 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
     q = by_id.get(item["quantity"]) if item["quantity"] else None
     spec = by_id.get(item["spec_rate"]) if item["spec_rate"] else None
     coat_row = by_id.get(item["coats"]) if item["coats"] else None
-    coats = coat_count(coat_row)[0] if coat_row is not None else None
+    coats, coats_why = coat_count(coat_row) if coat_row is not None else (None, "")
     rate = rate_of(spec, sheet)
     basis = [by_id[r] for r in dict.fromkeys(item["basis"]) if r in by_id]
     cited = [c for c in [q, spec, coat_row, sheet, *basis] if c is not None]
@@ -340,7 +342,7 @@ def order_claim(claim_id: str, item: dict, seen: int, runs: int, by_id: dict[str
         elif q.method == "FIELD":
             notes.append(f"the quantity waits on {q.claim_id} (FIELD)")
         if per_coat and coats is None:
-            notes.append("no clause states how many coats")
+            notes.append(coats_why or "no clause states how many coats")
         if rate is None:
             notes.append("no row states a rate")
         if q is not None and q.method != "FIELD" and rate is not None and (coats or not per_coat):

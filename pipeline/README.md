@@ -318,7 +318,8 @@ writes must appear in the rows it cites. A count (anchors, bolts) cites its
 count row and says so (`count from NAN-Q-003 (counted)`); an open question or a
 flag on any row the order cites is carried onto the order. A product with no
 data-sheet row in the ledger gets no row, and the run says so; an order that
-waits on a FIELD row, a coat count no clause states or a rate nobody stated is
+waits on a FIELD row, a coat count no clause states (or one the spec says is
+not stated) or a rate nobody stated is
 written with no figure, flagged unverified, naming what is missing; so is one
 whose page did not show the product (a fetched row with no quote). Items are
 compared across the valid runs by the rows they rest on and their unit, not the

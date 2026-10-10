@@ -68,9 +68,9 @@ ANSWERED = 0.8
 # Most spare runs a page gets when answers are refused (see run()).
 SPARES = 2
 # The code that decides what a reading keeps (this module, the fetcher, the row
-# schema): a cached answer stands only under the same rules it was kept under.
-RULES = hashlib.sha256(b"".join(Path(__file__).with_name(f).read_bytes()
-                                for f in ("webread.py", "web.py", "schema.py"))).hexdigest()[:16]
+# schema, the answer checks, the cache format): a cached answer stands only under the same rules it was kept under.
+RULES = hashlib.sha256(b"".join((Path(__file__).parent / f).read_bytes() for f in (
+    "webread.py", "web.py", "schema.py", "pagecache.py", "readers/validate.py"))).hexdigest()[:16]
 # The choice for a closed ask whose page says something none of its options fit.
 OTHER = "other"
 # A figure, with a range ("2-4", "350 – 400") as one figure, so a statement
@@ -564,10 +564,14 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
                        statement=f"{source.title}: the page did not open ({page.error}); nothing on it is verified"),
                   source.agent)
             continue
+        unit, cut = unit_for(job, i, source, page)
+        ids = on_page(source.ids, unit.text)
+        if cut:
+            result.notes.append(f"{source.url}: page cut to its first {MAX_CHARS} characters")
         k = pagecache.key(source, prompt_version(NAME), client.model_id, repeats, RULES)
         entry = writer.cache_lookup(cache, source.url, k)
         if (entry is not None and entry.sha256 == page.sha256 and set(entry.answers) == {a.id for a in source.asks}
-                and all(web.quote_in(a["quote"], page.text) for a in entry.answers.values())):
+                and all(web.quote_in(a["quote"], unit.text) for a in entry.answers.values())):
             # the same bytes as the last read, and every quote still on them: the answers stand
             why = f"unchanged since {entry.retrieved} (same sha256); not read again"
             entry = Entry(source.url, k, page.retrieved, page.sha256, entry.answers)
@@ -576,10 +580,6 @@ def run(broker: Broker, job: str, client: ModelClient, fetcher: web.Fetcher, *, 
             for ask in source.asks:
                 write(_answer(job, next_id(), source, page, ask, entry.answers[ask.id]), source.agent)
             continue
-        unit, cut = unit_for(job, i, source, page)
-        ids = on_page(source.ids, unit.text)
-        if cut:
-            result.notes.append(f"{source.url}: page cut to its first {MAX_CHARS} characters")
         schema = schema_for(source)
         runs = []
         # Spare runs (up to SPARES), made only while a run was discarded or an

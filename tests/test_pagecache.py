@@ -114,6 +114,13 @@ class RunCase(unittest.TestCase):
         _, res, _ = bid(cache, Fake(), today="2026-12-02")
         self.assertEqual(res.cached, [f"{URL}: unchanged since 2026-12-01 (same sha256); not read again"])
 
+    def test_a_cut_page_is_still_noted_when_its_answers_stand(self):
+        cache, long = PageCache(), PAGE.replace("</body>", "<p>" + "x " * webread.MAX_CHARS + "</p></body>")
+        bid(cache, Fake(AGREE, AGREE), body=long)
+        _, res, _ = bid(cache, Fake(), today="2026-10-09", body=long)
+        self.assertEqual((res.calls, len(res.cached)), (0, 1))
+        self.assertEqual(res.notes, [f"{URL}: page cut to its first {webread.MAX_CHARS} characters"])
+
     def test_changed_bytes_are_read_anew(self):
         cache = PageCache()
         bid(cache, Fake(AGREE, AGREE))

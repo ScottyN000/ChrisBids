@@ -89,15 +89,30 @@ NOT_STATED = re.compile(r"\bcoats?\s+(?:is\s+|are\s+|were\s+)?not stated\b|\bnot
 PRODUCT_CODE = re.compile(r"(?<![A-Za-z0-9-])[A-Z]{1,4}-?\d{2,5}[A-Z]?(?![A-Za-z0-9-])")
 # Where one product's wording ends and the next begins in a clause that names several
 # ("A89 (coats not stated), or K62, 1 coat"; "Primer B66 as needed, then 1 coat B53";
-# "B53 over one coat of primer"): a semicolon, "or", "then", "and" or "over" outside
-# parentheses, but not the "or" of "or approved equal". Commas and parentheses stay
-# inside their stretch, so "Finish coat (1 coat): Enamel, B53 series" is one stretch.
-STRETCH = re.compile(r";|\bor\b(?!\s+(?:an\s+)?(?:approved\s+)?(?:equal|equivalent)\b)|\b(?:then|and|over)\b", re.I)
-# A stretch opened by one of these continues a system, so a count written after its code
-# ("B53 over B66 primer, 2 coats"; "B66 as needed, then B53, 2 coats"; "X100 and X200, 2 coats
-# each") may be the system's as well as that code's: two readings, neither picked. A count
-# before the code ("then 1 coat B53", "over one coat of B66") is that code's alone, and after
-# "or" the count is the named alternative's on either reading.
+# "B53 over one coat of primer"; "Primer as needed. Finish: two coats"): a semicolon, a
+# sentence end (a period before a blank, never a decimal point), "or", "then", "and" or
+# "over" outside parentheses, but not the "or" of "or approved equal". Commas and
+# parentheses stay inside their stretch, so "Finish coat (1 coat): Enamel, B53 series" is
+# one stretch. A wrong cut only ever loses a count; it never makes one.
+STRETCH = re.compile(r";|\.(?=\s|$)|\bor\b(?!\s+(?:an\s+)?(?:approved\s+)?(?:equal|equivalent)\b)|\b(?:then|and|over)\b", re.I)
+# Words that name a product without a code, by its place in the system. A stretch that
+# speaks of coats and names both a primer and a finish ("Primer B66 as needed, followed by
+# two finish coats") holds two products' wording, so its count is tied to nothing. A
+# stretch naming neither and no code ("Walls", "back-roll the first") is about no product.
+PRIME_WORD = re.compile(r"\b(?:prime|primer|primers|sealer|conditioner)\b", re.I)
+FINISH_WORD = re.compile(r"\b(?:finish|final|top|topcoat|intermediate|stripe)\b", re.I)
+# A second count said without the word "coat", or an added coat ("one coat; two at patched
+# areas", "a second coat at repairs"): a second reading, so the clause settles nothing. A
+# spelled word counts only before at/on/over/for/where/in/more; a bare digit never does,
+# so "1 coat (10 year)" stays one coat.
+MORE = re.compile(rf"\b(?:second|additional|extra|another)\s+{ROLE}coats?\b"
+                  rf"|\b(?:one|two|three|four|five|six)\b(?!\s*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)
+# A stretch opened by one of these continues a system when the stretch before it names a
+# product, so a count written after its code ("B53 over B66 primer, 2 coats"; "B66 as needed,
+# then B53, 2 coats"; "X100 and X200, 2 coats each") may be the system's as well as that
+# code's: two readings, neither picked. A count before the code ("then 1 coat B53", "over one
+# coat of B66") is that code's alone, after "or" the count is the named alternative's on
+# either reading, and "Walls and ceilings: B53, 2 coats" continues no product.
 CONTINUES = ("then", "and", "over")
 # One spare run, made only when a run was discarded or the runs name different
 # orders (the page reader does the same): an order one run saw is written flagged,
@@ -245,6 +260,7 @@ def coat_mentions(text: str) -> list[tuple[int, int | str | None]]:
     ranges = [(m.end() - len(m.group().lstrip()), m.end()) for m in COAT_RANGE.finditer(text)]
     found: list[tuple[int, int | str | None]] = [(a, "range") for a, _ in ranges]
     found += [(m.start(), None) for m in NOT_STATED.finditer(text)]
+    found += [(m.start(), "more") for m in MORE.finditer(text)]
     for m in COATS.finditer(text):
         pos = m.start(1) if m.group(1) else m.start(3)   # the number's position
         if any(a <= pos < b for a, b in ranges):
@@ -278,10 +294,22 @@ def stretches(*parts: str) -> list[tuple[int, int, str]]:
 SEP = "; "
 
 
+def names_product(stretch: str) -> bool:
+    """Whether a stretch names a product: by code, or by its place in the system."""
+    return bool(PRODUCT_CODE.search(stretch) or PRIME_WORD.search(stretch) or FINISH_WORD.search(stretch))
+
+
+def two_roles(stretch: str) -> bool:
+    """Whether a stretch names both a primer and a finish, so holds two products' wording."""
+    return bool(PRIME_WORD.search(stretch) and FINISH_WORD.search(stretch))
+
+
 def _settle(c: Claim, mentions: list[tuple[int, int | str | None]], whom: str = "") -> tuple[int | None, str]:
     counts = sorted({n for _, n in mentions if isinstance(n, int)})
     if any(n == "range" for _, n in mentions):
         return None, f"{c.claim_id} states a range of coats{whom}; it does not settle this product's"
+    if any(n == "more" for _, n in mentions):
+        return None, f"{c.claim_id} states a coat count{whom} and more coats in places; it does not settle this product's"
     left_open = any(n is None for _, n in mentions)
     if not mentions:
         return None, f"{c.claim_id} states no coat count{whom}"
@@ -319,18 +347,20 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     if not codes:
         if len(spans) > 1 and not any(n == "range" for _, n in mentions):   # a range ("one or two coats") is read whole
             each = [[n for pos, n in mentions if a <= pos < b] for a, b, _ in spans]
-            if not all(each):
-                return None, f"{c.claim_id} names no product code and speaks of coats in one stretch but not another; which product each stretch is for is not settled"
+            if any(not ns and names_product(text[a:b]) for ns, (a, b, _) in zip(each, spans)):
+                return None, f"{c.claim_id} names no product code, and names a product in one stretch and speaks of coats in another; which product the count is for is not settled"
             if len({n for ns in each for n in ns if isinstance(n, int)}) > 1:
                 return None, f"{c.claim_id} names no product code and states different coat counts in its stretches; which is this product's is not settled"
+        if any(two_roles(text[a:b]) for a, b, _ in spans if any(a <= pos < b for pos, _ in mentions)):
+            return None, f"{c.claim_id} names no product code and speaks of a primer and a finish where it states coats; which the count is for is not settled"
         return _settle(c, mentions)
     own = product_codes(f"{product.statement} {product.quote} {product.tag}") if product else []
     if own:
         mine = [k for k in own if k in codes]
-    elif len(codes) == 1 and all(codes[0] in product_codes(text[a:b]) for a, b, _ in spans):
+    elif len(codes) == 1 and all(codes[0] in product_codes(text[a:b]) or not names_product(text[a:b]) for a, b, _ in spans):
         mine = codes
     elif len(codes) == 1:
-        return None, f"{c.claim_id} names {codes[0]} in one stretch and no code in another; whether the other is this product's is not settled"
+        return None, f"{c.claim_id} names {codes[0]} in one stretch and a product without a code in another; whether the other is this product's is not settled"
     else:
         mine = []
     if len(mine) > 1:
@@ -342,11 +372,13 @@ def coat_count(c: Claim, product: Claim | None = None) -> tuple[int | None, str]
     whom = f" for {mine[0]}"
     owned = []
     for pos, n in mentions:
-        a, b, opener = next(((a, b, mark) for a, b, mark in spans if a <= pos < b), (0, 0, ""))
+        i = next((i for i, (a, b, _) in enumerate(spans) if a <= pos < b), None)
+        a, b, opener = spans[i] if i is not None else (0, 0, "")
         here = text[a:b]
         named = product_codes(here)
         code_at = next((a + m.start() for m in PRODUCT_CODE.finditer(here) if m.group() == named[0]), pos) if named else pos
-        if len(named) != 1 or (opener in CONTINUES and code_at < pos):
+        before = text[spans[i - 1][0]:spans[i - 1][1]] if i and opener else ""
+        if len(named) != 1 or two_roles(here) or (opener in CONTINUES and code_at < pos and names_product(before)):
             return None, f"{c.claim_id} does not tie a coat count to one product; which is this product's is not settled"
         if named[0] == mine[0]:
             owned.append((pos, n))

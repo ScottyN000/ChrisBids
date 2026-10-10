@@ -182,18 +182,42 @@ class ItemCase(unittest.TestCase):
         # ... but only when every stretch names that code: a stretch naming none may be the codeless sheet's own product
         for text in ("Masonry conditioner as needed; Example Flat B53, 2 coats", "Example Flat B53, 2 coats; see the primer's data sheet"):
             self.assertEqual(materials.coat_count(row("C", text), plain),
-                             (None, "C names B53 in one stretch and no code in another; whether the other is this product's is not settled"), text)
+                             (None, "C names B53 in one stretch and a product without a code in another; whether the other is this product's is not settled"), text)
         self.assertEqual(materials.coat_count(row("C", "Topcoat K62: 2 coats", quote="Finish: 2 coats"), plain),
-                         (None, "C names K62 in one stretch and no code in another; whether the other is this product's is not settled"))
-        # a clause naming no code settles a count only when every stretch states the same one
-        for text in ("Prime coat: exterior latex primer; Finish coats: two coats exterior latex satin", "Apply two coats and back-roll",
-                     "Coats: 2 and back-roll the first", "2 coats of finish; primer as needed"):
+                         (None, "C names K62 in one stretch and a product without a code in another; whether the other is this product's is not settled"))
+        # ... while a stretch about no product ("Walls", "back-roll") leaves the reading alone
+        self.assertEqual(materials.coat_count(row("C", "Walls and ceilings: Example Flat B53, 2 coats, and back-roll the first"), plain), (2, ""))
+        # a clause naming no code settles a count only when no stretch names a product the count could be for
+        # (by a primer or finish word), and a stretch naming both a primer and a finish holds two products' wording
+        for text in ("Prime coat: exterior latex primer; Finish coats: two coats exterior latex satin", "2 coats of finish; primer as needed",
+                     "Prime coat: exterior latex primer as needed. Finish coats: two coats exterior latex satin"):
             for who in (plain, None):
                 self.assertEqual(materials.coat_count(row("C", text), who),
-                                 (None, "C names no product code and speaks of coats in one stretch but not another; which product each stretch is for is not settled"), text)
+                                 (None, "C names no product code, and names a product in one stretch and speaks of coats in another; which product the count is for is not settled"), text)
+        for text in ("Primer as needed, followed by two finish coats", "Finish: two coats on the primer where it shows"):
+            self.assertEqual(materials.coat_count(row("C", text), plain),
+                             (None, "C names no product code and speaks of a primer and a finish where it states coats; which the count is for is not settled"), text)
+        for text in ("Walls and ceilings: two coats", "Apply two coats and back-roll", "Coats: 2 and back-roll the first", "Two coats. Allow 4 hours between coats."):
+            self.assertEqual(materials.coat_count(row("C", text), plain), (2, ""), text)
+        for text in ("one coat; two at patched areas", "one coat (two at repairs)", "a second coat at repairs", "One coat, another coat at repairs"):
+            self.assertEqual(materials.coat_count(row("C", text))[0], None, text)
+        self.assertEqual(materials.coat_count(row("C", "one coat (two at repairs)")), (None, "C states a coat count and more coats in places; it does not settle this product's"))
         self.assertEqual(materials.coat_count(row("C", "2 coats of primer and 3 coats of finish"), plain),
                          (None, "C names no product code and states different coat counts in its stretches; which is this product's is not settled"))
         self.assertEqual(materials.coat_count(row("C", "2 coats of primer and 2 coats of finish"), plain), (2, ""))
+        # a sentence end cuts a stretch, and a stretch naming a primer and a finish ties its count to neither
+        for text in ("Prime Coat: Example Primer B66 as needed. Finish Coat: two coats.", "Example Primer B66 as needed, followed by two finish coats",
+                     "Example Flat B53, one coat; two at patched areas", "Example Flat B53: one coat; a second coat at repairs"):
+            for who in (b53, b66):
+                if who.statement.split()[-3] in text:
+                    self.assertEqual(materials.coat_count(row("C", text), who),
+                                     (None, "C does not tie a coat count to one product; which is this product's is not settled"), (text, who.claim_id))
+        for text in ("Example Flat B53, one coat, two at patched areas", "Example Flat B53, one coat (two at repairs)"):
+            self.assertEqual(materials.coat_count(row("C", text), b53),
+                             (None, "C states a coat count for B53 and more coats in places; it does not settle this product's"), text)
+        # "Walls and ceilings: B53, 2 coats" continues no product, so the count after the code is B53's
+        self.assertEqual(materials.coat_count(row("C", "Walls and ceilings: Example Flat B53, 2 coats"), b53), (2, ""))
+        self.assertEqual(materials.coat_count(row("C", "Example Flat B53, 2 coats. Allow 4 hours between coats."), b53), (2, ""))
         # a count at the head of the quote, or of a stretch opened by "then", is read from where it stands
         self.assertEqual(materials.coat_count(row("C", "Finish: Example Flat B53", quote="Coats: 2, Example Flat B53"), b53), (2, ""))
         self.assertEqual(materials.coat_count(row("C", "Example Primer B66 as needed, then coats: 2, Example Flat B53"), b53), (2, ""))

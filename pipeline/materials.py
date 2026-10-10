@@ -40,6 +40,9 @@ PRINCIPAL = "materials"
 # The quantity a product is ordered in, and the word a rate's unit ends with
 # that names it ("sq ft/gal", "cu ft per bag", "LF/tube").
 UNITS = {"gal": "gal", "bags": "bag", "tubes": "tube", "cartridges": "cartridge", "each": ""}
+# One container under two names: a sealant's tube is an adhesive's cartridge. The
+# gate reads them as one unit (the repaint's hand bid says tubes, the run said cartridges).
+SAME_UNIT = {"cartridges": "tubes"}
 # Rows a product's quantity may rest on: a takeoff figure, the allowance the
 # product covers, or the FIELD row for either (the live run of 2026-10-09 named
 # the repaint's FIELD allowance rows, "exterior wall surfaces", and was right to).
@@ -375,7 +378,7 @@ def gate(result: OrderResult, fixture_rows: list[dict]) -> Gate:
             misses.append(f"{f['id']}: no order row cites {urls[0]}")
             continue
         unit = f.get("unit", "") or ""
-        same_unit = [c for c in got if c.unit == unit]
+        same_unit = [c for c in got if SAME_UNIT.get(c.unit, c.unit) == SAME_UNIT.get(unit, unit)]
         if not same_unit:
             # the same page can cover another product (the adhesive's cartridges beside the anchors it sets):
             # a row in another unit is not this order, and not a wrong one either

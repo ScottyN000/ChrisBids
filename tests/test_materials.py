@@ -319,6 +319,10 @@ class GateCase(unittest.TestCase):
         self.assertEqual(g.misses, [f"OBV-M-002: no order row cites {SHEET} in gal (the run orders each from it)"])
         g = self.gate([order_row(value="6-7")])
         self.assertEqual(g.failures, ["OBV-M-002: gives 6-7 gal where the fixture waits on a FIELD measure"])
+        # a sealant's tube is an adhesive's cartridge: one unit to the gate
+        tubes = dict(FIX_M, unit="tubes")
+        g = self.gate([order_row(unit="cartridges")], (FIX_C, tubes))
+        self.assertEqual((g.ok, g.misses, g.failures), (True, [], []))
         counted = dict(FIX_M, method="counted", value=18, unit="each")
         g = self.gate([order_row(value="20", unit="each")], (FIX_C, counted))
         self.assertEqual(g.failures, ["OBV-M-002: gives 20 each, the fixture 18"])

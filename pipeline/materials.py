@@ -119,7 +119,8 @@ MORE = re.compile(rf"\b(?:second|third|fourth|additional|extra|another|plus|furt
                   rf"|\b(?:more|additional|extra|further)\s+(?:paint|material|product|coating)s?\b(?!\s*:)"   # not an "Extra materials:" article
                   rf"|\bre-?coat\b(?:\s+[A-Za-z]+){{0,3}}\s+(?:at|where|areas|repairs)\b"   # not "recoat after 4 hours at 77F", a time
                   rf"|\bre-?coat\s+(?:as|if|where|when)\s+(?:required|needed|necessary)\b"
-                  rf"|(?<![\w./-])(?:^|(?<=[;,(:] )|(?<=[;,(:])|(?<=\. )|(?<=\band )|(?<=\bplus ))([1-9]\d*|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)   # only where a second count can start, so not "Part 3 for" or "a 9 in roller"
+                  rf"|(?<![\w./-])(?:^|(?<=[;,(:] )|(?<=[;,(:])|(?<=\. )|(?<=\band )|(?<=\bplus )|(?<=\bthen )|(?<=\bor )|(?<=\bover )|(?<=\bafter )|(?<=\bbefore )|(?<=\bby )|(?<=\bto )|(?<=\bwith )|(?<=\bbut ))"
+                  rf"([1-9]\d*|one|two|three|four|five|six)\b(?![\s-]*(?:\(\d+\)\s*)?{ROLE}coats?\b)(?=\s+(?:at|on|over|for|where|in|more)\b)", re.I)   # only where a second count can start (after punctuation or a cut word), so not "Part 3 for" or "a 9 in roller"
 # A count split across products, or a system's count ("2-coat system including primer", "two
 # coats (one primer, one finish)", "2-coat system"): whose coats they are is not settled.
 SPLIT = re.compile(rf"\b(?:including|incl\.?|of which)(?:\s+\w+){{0,3}}?\s+(?:prime|primer|priming|finish|topcoat|coats?)\b"
@@ -144,8 +145,10 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b|\b(?:more than|in e
 # count a floor, since code cannot tell the count's work from another's within one sentence ("two
 # coats of B53, or more as required for full hide", "2 coats over the prepared surface, or more",
 # "2 coats, caulk joints as required"); a hedge in a later sentence of the same part makes every
-# count before it in the part a floor unless that sentence names another product, a code or a role
-# word ("2 coats; apply more as required", "2 coats; deep colors may require more", and, since code
+# count before it in the part a floor unless that sentence names another product, a code the count's
+# stretch does not carry or the other role (see other_product; the count's own code or role, "deep
+# colors of B53 may require more", "apply more finish as required", names no other product) ("2
+# coats; apply more as required", "2 coats; deep colors may require more", and, since code
 # cannot tell whose work the hedge is, "2 coats; remove loose plaster, or as required by the
 # Architect" too: the safe direction, a flagged order with no figure that the estimator settles,
 # never wrong gallons; "2 coats. Where required, back-prime trim" keeps the count); a hedge before
@@ -157,7 +160,11 @@ FLOOR = re.compile(rf"\b{N2}\s+or\s+more[\s-]+{ROLE}coats?\b|\b(?:more than|in e
 # coats" is, with the film-thickness exception the floor words have. coat_mentions settles which;
 # sentences end at ";" or at a full stop (a period before a capital or the end) outside parentheses,
 # so "min." and "approx." end none.
-HEDGE = re.compile(r"\b(?:or|and)\s+more\b(?!\s+than\b)|\b(?:more(?!\s+than\b)|additional|extra|further)\b(?!\s+materials?\s*:)|\b(?:as|if|where|when)\s+(?:required|needed|necessary)\b", re.I)
+MEASURE_UNITS = r"%|ft|feet|in|inches|mils?|DFT|WFT|sq\s*ft(?:/gal)?|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent"
+# "more than" followed directly by a figure and a unit is a comparison ("more than 10 ft above grade"); "more than two.",
+# "more than that" and "more than two coats" hedge the count
+COMPARISON = rf"(?!\s+than\s+(?:\d+(?:[.,]\d+)*%?|one|two|three|four|five|six)\s*(?:{MEASURE_UNITS})\b)"
+HEDGE = re.compile(rf"\b(?:or|and)\s+more\b{COMPARISON}|\b(?:more{COMPARISON}|additional|extra|further)\b(?!\s+materials?\s*:)|\b(?:as|if|where|when)\s+(?:required|needed|necessary)\b", re.I)
 CEILING = re.compile(rf"\b(?:up to|no more than|not more than|not to exceed|a maximum of|maximum(?: of)?|max\.?)\s+{N2}(?:\s*\(\d+\))?[\s-]+{ROLE}coats?\b"
                      rf"|\bcoats?\s*[,(]\s*(?:maximum|max)\b(?!\.?\s*(?:{FIGURE}|{THICKNESS}))"
                      rf"|\bcoats?\s+(?:maximum|max)\b(?!\.?\s*(?:{FIGURE}))", re.I)
@@ -165,7 +172,7 @@ BARE_MORE = re.compile(r"(?:or|and)\s+more", re.I)
 SENTENCE_MARK = re.compile(r"[();.]")
 FULL_STOP = re.compile(r"\.(?:\s+[A-Z(\"']|\s*$)")
 # text ending in a figure and at most its unit words, which a bare "or more" then follows directly
-BOUNDED = re.compile(r"(?:\d+(?:[.,]\d+)*%?|\b(?:one|two|three|four|five|six)\b)(?:\s*(?:%|ft|feet|in|inches|mils?|DFT|WFT|sq\s*ft(?:/gal)?|gal|gallons?|mm|cm|m|hours?|hrs?|days?|years?|percent)\b)*\s*$", re.I)
+BOUNDED = re.compile(rf"(?:\d+(?:[.,]\d+)*%?|\b(?:one|two|three|four|five|six)\b)(?:\s*(?:{MEASURE_UNITS})\b)*\s*$", re.I)
 # A stretch opened by a sequence word continues whatever came before it in the same part
 # (a product, "Base coat as needed", or a step, "Scrape"), and one opened by "and" continues
 # a product named before it; so a count written after its code there ("B53 over B66 primer,
@@ -351,8 +358,11 @@ def coat_mentions(text: str, spans: list[tuple[int, int, str, int]] | None = Non
             if BARE_MORE.fullmatch(m.group()) and BOUNDED.search(PRODUCT_CODE.sub(" ", text[before[-1][1]:m.start()])):
                 continue   # "10 ft or more above grade" bounds the height
             found.append((before[-1][0], "floor"))   # placed with the count it bounds
-        elif sentence > part_start and not names_product(text[sentence:sentence_end]):
-            found += [(p, "floor") for p, _ in counted if part_start <= p < sentence]   # every count before, in the part
+        elif sentence > part_start:
+            said = text[sentence:sentence_end]
+            for p, _ in counted:
+                if part_start <= p < sentence and not other_product(text[sentence_at(spans, p)], said):
+                    found.append((p, "floor"))   # every count before, in the part, that the sentence does not hand to another product
     return sorted(found, key=lambda f: f[0])
 
 
@@ -394,6 +404,25 @@ def stretches(*parts: str) -> list[tuple[int, int, str, int]]:
 
 
 SEP = "; "
+
+
+def sentence_at(spans: list[tuple[int, int, str, int]], pos: int) -> slice:
+    """The stretch that holds `pos`, as a slice of the text."""
+    a, b, *_ = next((s for s in spans if s[0] <= pos < s[1]), (0, 0))
+    return slice(a, b)
+
+
+def other_product(own: str, said: str) -> bool:
+    """Whether `said` names a product other than the one `own` (a count's stretch) speaks
+    of: a code `own` does not carry, or, with no code, the other role (a primer where
+    `own` speaks of a finish, or the reverse). The count's own code, its own role or a
+    generic word names no other product."""
+    codes = product_codes(said)
+    if codes:
+        return not set(codes) & set(product_codes(own))
+    role = (bool(PRIME_WORD.search(said)), bool(FINISH_WORD.search(said)))
+    mine = (bool(PRIME_WORD.search(own)), bool(FINISH_WORD.search(own)))
+    return (role == (True, False) and mine == (False, True)) or (role == (False, True) and mine == (True, False))
 
 
 def names_product(stretch: str) -> bool:

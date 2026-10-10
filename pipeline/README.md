@@ -336,22 +336,26 @@ more", "2 coats, caulk joints as required") makes the count a floor; a hedge in
 a later sentence of the same part (sentences end at ";" or at a full stop
 before a capital or the end, outside parentheses, so "min." and "approx." end
 none) makes every count before it in the part a floor unless that sentence
-names another product, a code or a role word ("2 coats; apply more as
-required", "2 coats; deep colors may require more", and, since code cannot
+names another product, a code the count's stretch does not carry or the other
+role (the count's own code or role, "deep colors of B53 may require more",
+"apply more finish as required", names no other product) ("2 coats; apply more
+as required", "2 coats; deep colors may require more", and, since code cannot
 tell whose work the hedge is, "2 coats; remove loose plaster, or as required
 by the Architect" too: the safe direction, a flagged order with no figure that
 the estimator settles; "2 coats. Where required, back-prime trim" keeps the
 count), and a hedge before any count ("B66 as needed, then 1 coat B53", "10
 ft or more above grade: B53, 2 coats") says nothing about coats; a bare "or
 more" that follows another figure directly bounds that figure ("2 coats on
-surfaces 10 ft or more above grade"), and "more than" is a comparison ("more
-than 10 ft above grade") unless it bounds coats ("may require more than two
-coats", a floor); a ceiling ("up to two coats", "no more than two coats", "two coats maximum") is
+surfaces 10 ft or more above grade"), and "more than" followed directly by a
+figure and a unit is a comparison ("more than 10 ft above grade"), while any
+other "more than" hedges the count ("may require more than two", "more than
+two coats", a floor); a ceiling ("up to two coats", "no more than two coats", "two coats maximum") is
 a range, as "1-2 coats" is; "apply more coats as needed", "additional paint as
 required", "recoat as required" and "a third coat where needed" add coats, and
 a bare number is an added coat only where a second count can start, after
-punctuation, "and" or "plus" ("1 coat; 2 at patched areas"), so "Section 09 01
-90 for", "Part 3 for" and "a 9 in roller" are not; a floor word
+punctuation, "and", "plus", "with", "but" or a cut word ("1 coat; 2 at patched
+areas", "1 coat, then 2 at patched areas"), so "Section 09 01 90 for", "Part 3
+for" and "a 9 in roller" are not; a floor word
 followed by a figure ("2 coats, minimum of 3 mils"), or set off by a comma or
 parenthesis and followed by a thickness word ("2 coats (min. 2.0 mils DFT per
 coat)", "2 coats, minimum DFT 2.0 mils"), is a film thickness, not a floor on

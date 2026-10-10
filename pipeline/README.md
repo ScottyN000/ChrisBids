@@ -58,8 +58,8 @@ A pass has to rest on something the code actually did:
 
 | Verdict | When |
 |---|---|
-| `pass` | the row's quote or value was found on the page it cites; or its `calc` was replayed from rows that were themselves checked; or it is a FIELD placeholder, which carries no figure |
-| `unverified` | the cited source is not in the packet; the agent flagged it; two readings were kept; the page has no text layer; the page opened but the row paraphrases rather than quotes; a `fetched` URL was not re-fetched this run |
+| `pass` | the row's quote or value was found on the page it cites; or its `calc` was replayed and every row the calc names passed, all the way down; or it is a FIELD placeholder, which carries no figure |
+| `unverified` | the cited source is not in the packet; a replayed `calc` names a row that did not pass; the agent flagged it; two readings were kept; the page has no text layer; the page opened but the row paraphrases rather than quotes; a `fetched` URL was not re-fetched this run |
 | `fail` | a method rule broken, arithmetic that does not reproduce, a quote not on the page it cites, a dead link, a source hash that changed |
 
 "Does this quoted text support this claim, yes or no" is the one question left
@@ -73,11 +73,15 @@ to a ledger row, a quoted source, or a Contractor Co. phrase-library paragraph. 
 left over is an orphan: a figure with nothing behind it.
 
 The two rendered fixture proposals have none. Fed the original hand-made bids,
-the Auditor reports 43 orphans on Nantucket and 140 on Ocean Beach — the
+the Auditor reports 43 orphans on Nantucket and 138 on Ocean Beach — the
 scaled leg lengths, the bag yields, the spread rates and the "~" figures that
 were the reason for building the ledger. That comparison is the Phase 1
 acceptance test (p.16: "feed it the two hand-written bids above and have it find
 every orphan") and it runs in `tests/test_golden.py`.
+
+A range ("320-400", "2 – 4") is one figure. It traces when a row states the
+same range, or when rows back both of its ends; a ledger range never backs a
+lone number inside it.
 
 The list of numbers that are *not* figures — page cites, claim IDs, statute
 numbers, years, phone numbers, product codes — is `IGNORE` in

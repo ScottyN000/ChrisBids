@@ -30,7 +30,8 @@ EXPECTED = {
     "D-001A": ("unverified", "conversion replayed (15'-2\" dimension string = 182 in); the dimension string "
                              "still needs the yes/no check against the page image"),
     "D-002": ("fail", "15'-2\" is 182 in, ledger says 184"),
-    "C-001": ("pass", "arithmetic replayed: {D-001A} * 2"),
+    "C-001": ("unverified", "arithmetic replayed: {D-001A} * 2, but input D-001A is unverified, "
+                            "so the result is not confirmed"),
     "N-001": ("unverified", "schema and sources check out, but no cited page could be opened here; "
                             "needs the yes/no check against the page image"),
     "F-001": ("pass", "FIELD placeholder; says what to measure, carries no figure"),
@@ -40,6 +41,10 @@ EXPECTED = {
     "W-001": ("unverified", "URL stored with its retrieval date but not re-fetched this run: https://codes.example/ibc"),
     "P-001": ("pass", "found on SW p.2"),
     "P-002": ("fail", "not found on SW p.2: 'Apply 3 coats'"),
+    "P-003": ("pass", "found on SW p.2"),
+    "C-002": ("pass", "arithmetic replayed: {P-003} * 3"),
+    "C-003": ("pass", "arithmetic replayed: {C-002} + {P-003}"),
+    "C-004": ("unverified", "arithmetic replayed: {D-002} * 2, but input D-002 failed, so the result is not confirmed"),
 }
 
 
@@ -80,6 +85,16 @@ class RunCase(unittest.TestCase):
                  confidence="exact", locator="p.2", quote="Apply 2 coats")
         self.add("spec_reader", claim_id="P-002", statement="coats", source_id="SW", method="clause", role="scope",
                  confidence="exact", locator="p.2", quote="Apply 3 coats")
+        # A calc passes only on inputs that passed, all the way down the chain.
+        self.add("drawing_reader", claim_id="P-003", statement="coats", source_id="SW", method="counted",
+                 role="quantity", confidence="exact", locator="p.2", quote="Apply 2 coats", value="2",
+                 value_num=2.0, unit="each")
+        calc = dict(source_id="SW", method="counted", role="quantity", confidence="exact", unit="each")
+        self.add("takeoff", claim_id="C-002", statement="six", value="6", value_num=6.0, calc="{P-003} * 3", **calc)
+        self.add("takeoff", claim_id="C-003", statement="eight", value="8", value_num=8.0,
+                 calc="{C-002} + {P-003}", **calc)
+        self.add("takeoff", claim_id="C-004", statement="two runs", source_id="S-1", method="counted",
+                 role="quantity", confidence="exact", value="368", value_num=368.0, unit="in", calc="{D-002} * 2")
 
     def tearDown(self):
         self.intake.close()
@@ -98,18 +113,41 @@ class RunCase(unittest.TestCase):
         with mock.patch("pipeline.intake.verify", return_value=[]):
             report = self.audit()
         self.assertEqual(self.written(), EXPECTED)
-        self.assertEqual(report.verdicts, {"pass": 3, "fail": 2, "unverified": 7})
-        self.assertEqual(report.rows, 12)
+        self.assertEqual(report.verdicts, {"pass": 5, "fail": 2, "unverified": 9})
+        self.assertEqual(report.rows, 16)
         self.assertEqual(report.job, "T")
         self.assertEqual(report.failures, [f"{k}: {v[1]}" for k, v in EXPECTED.items() if v[0] == "fail"])
         self.assertEqual(report.unverified, [f"{k}: {v[1]}" for k, v in EXPECTED.items() if v[0] == "unverified"])
         self.assertFalse(report.ok)
 
+    def test_sources_and_conversion_notes(self):
+        # a duplicate source counts as in the packet; several missing ones are all named;
+        # a conversion note keeps only what comes before the derivation's ";"
+        self.intake.write_register([
+            {"source_id": "DUP", "title": "Spec copy", "file": "", "sha256": "", "pages": "", "kind": "spec",
+             "status": "duplicate"},
+            {"source_id": "CT2", "title": "Second email", "file": "", "sha256": "", "pages": "", "kind": "correspondence",
+             "status": "missing"}])
+        self.add("spec_reader", claim_id="P-009", statement="coats", source_id="DUP", method="clause", role="scope",
+                 confidence="exact", quote="Apply 2 coats", flag="unverified")
+        self.add("correspondence_reader", claim_id="M-009", statement="keep it simple", source_id="CT + CT2",
+                 method="customer", role="note", confidence="exact", quote="keep it simple", flag="unverified")
+        self.add("drawing_reader", claim_id="D-009", statement="run", source_id="S-1", method="dimensioned",
+                 role="quantity", confidence="exact", unit="in", value="182", value_num=182.0,
+                 derivation="15'-2\" dimension string = 182 in; from the north wall")
+        with mock.patch("pipeline.intake.verify", return_value=[]):
+            self.audit()
+        got = self.written()
+        self.assertEqual(got["P-009"], EXPECTED["U-001"])   # past the packet check, to its own flag
+        self.assertEqual(got["M-009"], ("unverified", "cites CT, CT2, not in the packet"))
+        self.assertEqual(got["D-009"], ("unverified", "conversion replayed (15'-2\" dimension string = 182 in); the "
+                                                      "dimension string still needs the yes/no check against the page image"))
+
     def test_a_dry_run_reports_but_writes_nothing(self):
         with mock.patch("pipeline.intake.verify", return_value=["S-1 changed"]):
             report = self.audit(write=False)
         self.assertEqual(set(self.written().values()), {("", "")})
-        self.assertEqual(report.verdicts, {"pass": 3, "fail": 2, "unverified": 7})
+        self.assertEqual(report.verdicts, {"pass": 5, "fail": 2, "unverified": 9})
         self.assertEqual(report.hash_problems, ["S-1 changed"])
 
     def test_link_checks_only_when_allowed_and_a_dead_link_fails(self):

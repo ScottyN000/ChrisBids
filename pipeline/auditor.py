@@ -37,7 +37,9 @@ from .schema import Claim
 # ---------------------------------------------------------------------------
 
 # A figure is a number that could price work: a count, a length, a rate, a
-# percentage, a feet-inch string, a dollar amount.
+# percentage, a feet-inch string, a dollar amount, a range. A range is one
+# figure: read as two numbers, neither end would match (each touches the dash),
+# so a made-up range would slip past the orphan check.
 FIGURE = re.compile(
     r"""(?<![A-Za-z0-9._/-])(
         \d+'(?:\s*-?\s*\d+(?:\s+\d/\d|\.\d+)?")?   |  # 15'-2", 12'
@@ -45,6 +47,7 @@ FIGURE = re.compile(
         \d+(?:\.\d+)?"                              |  # 11"
         \$\s?\d[\d,]*(?:\.\d+)?                     |  # $1,200
         \d[\d,]*(?:\.\d+)?\s?%                      |  # 10%
+        \d[\d,]*(?:\.\d+)?\s?[-\u2013]\s?\d[\d,]*(?:\.\d+)?  |  # 320-400, 2 - 4
         \d[\d,]*(?:\.\d+)?                             # 182, 2,500
     )(?![A-Za-z0-9._/-])""",
     re.VERBOSE,
@@ -111,6 +114,8 @@ def _numeric_forms(text: str) -> set[str]:
         forms.add(str(int(n)) if n.is_integer() else str(n))
     except ValueError:
         pass
+    if (ends := schema.value_range(stripped)) is not None:
+        forms.add(schema.format_range(*ends))  # "2 - 4" and "2-4" are one range
     return {f for f in forms if f}
 
 
@@ -153,6 +158,16 @@ def ledger_figures(claims: list[Claim]) -> set[str]:
     return backed
 
 
+def _backed(figure: str, backed: set[str]) -> bool:
+    """A figure some row accounts for. A range is backed as written, or by both
+    its ends, the way "2 to 4" is checked number by number; never one end alone,
+    and a ledger range never backs a lone figure inside it."""
+    if _numeric_forms(figure) & backed:
+        return True
+    ends = schema.value_range(figure.strip('"\'%$ '))
+    return ends is not None and all(_numeric_forms(schema.format_value(x)[0]) & backed for x in ends)
+
+
 def read_document(path: Path) -> str:
     """A proposal to trace figures in: markdown, plain text, or a PDF's text layer."""
     path = Path(path)
@@ -180,7 +195,7 @@ def audit_proposal(text: str, claims: list[Claim], extra_text: str = "") -> list
         backed |= _numeric_forms(m.group(1))
     orphans = []
     for fig in extract_figures(text):
-        if not (_numeric_forms(fig.text) & backed):
+        if not _backed(fig.text, backed):
             orphans.append(Orphan(fig.text, fig.line, fig.context))
     return orphans
 
@@ -347,9 +362,10 @@ def run(
         from . import intake
         report.hash_problems = intake.verify(broker, packet)
 
+    found: dict[str, tuple[str, str]] = {}
     for c in claims:
         if c.claim_id in superseded:
-            _record(report, broker, c, "unverified", "superseded by a correction row", write)
+            found[c.claim_id] = ("unverified", "superseded by a correction row")
             continue
 
         errors = schema.check_vocabulary(c) + schema.check_method_rules(c) + schema.replay_calc(c, by_id)
@@ -359,61 +375,88 @@ def run(
         if c.question and c.question not in by_id:
             errors.append(f"{c.claim_id}: open question {c.question} was never written")
         if errors:
-            _record(report, broker, c, "fail", "; ".join(e.split(': ', 1)[-1] for e in errors), write)
+            found[c.claim_id] = ("fail", "; ".join(e.split(': ', 1)[-1] for e in errors))
             continue
 
         missing = [s for s in schema.sources_of(c.source_id) if register[s]["status"] not in ("present", "duplicate")]
         if missing:
-            _record(report, broker, c, "unverified", f"cites {', '.join(missing)}, not in the packet", write)
+            found[c.claim_id] = ("unverified", f"cites {', '.join(missing)}, not in the packet")
             continue
         if c.flag == "unverified":
-            _record(report, broker, c, "unverified", "flagged unverified by the agent that wrote it", write)
+            found[c.claim_id] = ("unverified", "flagged unverified by the agent that wrote it")
             continue
         if c.flag == "conflict":
-            _record(report, broker, c, "unverified", "two readings kept; a human resolves it", write)
+            found[c.claim_id] = ("unverified", "two readings kept; a human resolves it")
             continue
 
         if c.method == "fetched" and check_links and c.url:
             live, why = link_live(c.url)
             if not live:
-                _record(report, broker, c, "fail", f"dead link at audit time ({why}): {c.url}", write)
+                found[c.claim_id] = ("fail", f"dead link at audit time ({why}): {c.url}")
                 continue
 
         if packet:
             v = confirm_on_page(c, register, packet)
             if v is not None:
-                _record(report, broker, c, v.verdict, v.note, write)
+                found[c.claim_id] = (v.verdict, v.note)
                 continue
 
         # Nothing left to open. A pass here has to rest on something the code
         # actually did, so only two kinds of row earn one: a FIELD placeholder,
         # which has no figure to confirm, and a derived figure whose arithmetic
-        # was replayed from rows that were themselves confirmed.
+        # was replayed from rows that were themselves confirmed (settled below,
+        # once every row has its verdict).
         if c.method == "FIELD":
-            _record(report, broker, c, "pass", "FIELD placeholder; says what to measure, carries no figure", write)
+            found[c.claim_id] = ("pass", "FIELD placeholder; says what to measure, carries no figure")
         elif c.calc:
-            _record(report, broker, c, "pass", f"arithmetic replayed: {c.calc}", write)
+            found[c.claim_id] = (REPLAYED, f"arithmetic replayed: {c.calc}")
         elif c.method == "fetched":
-            _record(report, broker, c, "unverified",
-                    f"URL stored with its retrieval date but not re-fetched this run: {c.url}", write)
+            found[c.claim_id] = ("unverified",
+                                 f"URL stored with its retrieval date but not re-fetched this run: {c.url}")
         elif c.method == "dimensioned" and (conv := _replay_conversion(c)) is not None:
             # The feet-and-inch conversion is code and can be replayed; the
             # dimension string itself still has to be read off the page.
             if conv:
-                _record(report, broker, c, "fail", conv, write)
+                found[c.claim_id] = ("fail", conv)
             else:
-                _record(report, broker, c, "unverified",
-                        f"conversion replayed ({c.derivation.split(';')[0]}); the dimension string "
-                        "still needs the yes/no check against the page image", write)
+                found[c.claim_id] = ("unverified",
+                                     f"conversion replayed ({c.derivation.split(';')[0]}); the dimension string "
+                                     "still needs the yes/no check against the page image")
         else:
-            _record(report, broker, c, "unverified",
-                    "schema and sources check out, but no cited page could be opened here; "
-                    "needs the yes/no check against the page image", write)
+            found[c.claim_id] = ("unverified",
+                                 "schema and sources check out, but no cited page could be opened here; "
+                                 "needs the yes/no check against the page image")
+
+    for c in claims:
+        _record(report, broker, c, *_settle(c.claim_id, found, by_id), write)
 
     if proposal:
         extra = Path(phrase_library).read_text() if phrase_library else ""
         report.orphans = audit_proposal(read_document(Path(proposal)), claims, extra)
     return report
+
+
+# A replayed calc waits on the rows it names. Arithmetic on a figure nobody
+# confirmed confirms nothing: the Auditor opens every cited source (p.2) and the
+# replay is one of its checks, not a substitute for them (p.14).
+REPLAYED = "replayed"
+
+
+def _settle(cid: str, found: dict[str, tuple[str, str]], by_id: dict[str, Claim]) -> tuple[str, str]:
+    """A row's verdict; a replayed calc passes only when every row its calc
+    names passed, followed all the way down. The chain cannot loop: the broker
+    refuses a calc that names a row not yet written."""
+    verdict, note = found[cid]
+    if verdict != REPLAYED:
+        return verdict, note
+    for ref in dict.fromkeys(schema.CALC_REF.findall(by_id[cid].calc)):
+        v = _settle(ref, found, by_id)[0]
+        if v != "pass":
+            why = "failed" if v == "fail" else "is unverified"
+            found[cid] = ("unverified", f"{note}, but input {ref} {why}, so the result is not confirmed")
+            return found[cid]
+    found[cid] = ("pass", note)
+    return found[cid]
 
 
 _CONVERSION = re.compile(r"^(?P<text>.+?) dimension string = (?P<inches>[\d.]+) in\b")
